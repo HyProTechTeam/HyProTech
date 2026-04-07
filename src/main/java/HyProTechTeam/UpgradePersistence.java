@@ -8,7 +8,8 @@ import HyProTechTeam.energy.WindUpgradeConfig;
 import HyProTechTeam.furnace.FurnaceConfig;
 import HyProTechTeam.item.ItemNodeComponent;
 import HyProTechTeam.HyProTechComponents;
-import com.hypixel.hytale.builtin.crafting.state.ProcessingBenchState;
+import com.hypixel.hytale.builtin.crafting.component.BenchBlock;
+import com.hypixel.hytale.builtin.crafting.component.ProcessingBenchBlock;
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
@@ -26,14 +27,11 @@ import com.hypixel.hytale.server.core.modules.entity.item.ItemComponent;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
+import com.hypixel.hytale.server.core.modules.block.components.ItemContainerBlock;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.hypixel.hytale.server.core.universe.world.meta.BlockStateModule;
-import com.hypixel.hytale.server.core.universe.world.meta.BlockState;
-import com.hypixel.hytale.server.core.universe.world.meta.state.ItemContainerState;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -587,7 +585,6 @@ public final class UpgradePersistence {
         return BlockIdUtil.parseCableTierFromIdOrState(blockId, baseId);
     }
 
-    @SuppressWarnings("removal")
     private static int getFurnaceTierIndex(World world, Vector3i pos, String blockId) {
         if (world == null || pos == null) {
             return -1;
@@ -595,16 +592,22 @@ public final class UpgradePersistence {
         if (!TieredIdUtil.isTieredId(blockId, HyProTechIds.BLOCK_ELECTRIC_FURNACE)) {
             return -1;
         }
-        ProcessingBenchState benchState = BlockModule.get().getComponent(
-                BlockStateModule.get().getComponentType(ProcessingBenchState.class),
+        ProcessingBenchBlock benchBlock = BlockModule.get().getComponent(
+                ProcessingBenchBlock.getComponentType(),
                 world,
                 pos.getX(),
                 pos.getY(),
                 pos.getZ());
-        if (benchState == null) {
+        if (benchBlock == null) {
             return -1;
         }
-        int tier = FurnaceConfig.clampTier(benchState.getTierLevel());
+        BenchBlock benchMeta = BlockModule.get().getComponent(
+                BenchBlock.getComponentType(),
+                world,
+                pos.getX(),
+                pos.getY(),
+                pos.getZ());
+        int tier = benchMeta != null ? FurnaceConfig.clampTier(benchMeta.getTierLevel()) : 1;
         return Math.max(0, tier - 1);
     }
 
@@ -886,19 +889,8 @@ public final class UpgradePersistence {
         return tick - pending.createdTick > PENDING_TTL_TICKS;
     }
 
-    @SuppressWarnings("removal")
     private static void ensureBlockState(World world, int x, int y, int z) {
-        if (world == null) {
-            return;
-        }
-        long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-        WorldChunk chunk = world.getChunkIfLoaded(chunkIndex);
-        if (chunk == null) {
-            return;
-        }
-        int localX = ChunkUtil.localCoordinate((long) x);
-        int localZ = ChunkUtil.localCoordinate((long) z);
-        BlockState.ensureState(chunk, localX, y, localZ);
+        // no-op: block state initialization is automatic in the new server API
     }
 
     private static void clearBlockComponents(World world, Vector3i pos) {
@@ -950,7 +942,7 @@ public final class UpgradePersistence {
         }
 
         IntArrayList invalid = null;
-        for (Int2ObjectMap.Entry<Ref<ChunkStore>> entry : blockComponents.getEntityReferences().int2ObjectEntrySet()) {
+        for (it.unimi.dsi.fastutil.ints.Int2ReferenceMap.Entry<Ref<ChunkStore>> entry : blockComponents.getEntityReferences().int2ReferenceEntrySet()) {
             Ref<ChunkStore> ref = entry.getValue();
             if (ref == null || !ref.isValid()) {
                 if (invalid == null) {
@@ -1124,8 +1116,7 @@ public final class UpgradePersistence {
         return HyProTechIds.BLOCK_ENERGY_CABLE + "_S" + tier;
     }
 
-    @SuppressWarnings("removal")
-    private static ItemContainerState getItemContainerState(World world, int x, int y, int z) {
+    private static ItemContainerBlock getItemContainerState(World world, int x, int y, int z) {
         if (world == null) {
             return null;
         }
@@ -1136,41 +1127,21 @@ public final class UpgradePersistence {
         }
 
         return BlockModule.get().getComponent(
-                BlockStateModule.get().getComponentType(ItemContainerState.class),
+                ItemContainerBlock.getComponentType(),
                 world,
                 x,
                 y,
                 z);
     }
 
-    @SuppressWarnings("removal")
-    private static ItemContainerState getOrCreateItemContainerState(World world, int x, int y, int z) {
+    private static ItemContainerBlock getOrCreateItemContainerState(World world, int x, int y, int z) {
         if (world == null) {
             return null;
         }
-        ItemContainerState state = getItemContainerState(world, x, y, z);
-        if (state == null) {
-            long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-            WorldChunk chunk = world.getChunkIfLoaded(chunkIndex);
-            if (chunk == null) {
-                return null;
-            }
-            int localX = ChunkUtil.localCoordinate((long) x);
-            int localZ = ChunkUtil.localCoordinate((long) z);
-            BlockState.ensureState(chunk, localX, y, localZ);
-            state = getItemContainerState(world, x, y, z);
-        }
-        if (state != null && state.getItemContainer() == null) {
-            BlockType blockType = world.getBlockType(x, y, z);
-            if (blockType != null) {
-                state.initialize(blockType);
-            }
-        }
-        return state;
+        return getItemContainerState(world, x, y, z);
     }
 
-    @SuppressWarnings("removal")
-    private static ProcessingBenchState getProcessingBenchState(World world, int x, int y, int z) {
+    private static ProcessingBenchBlock getProcessingBenchState(World world, int x, int y, int z) {
         if (world == null) {
             return null;
         }
@@ -1181,44 +1152,22 @@ public final class UpgradePersistence {
         }
 
         return BlockModule.get().getComponent(
-                BlockStateModule.get().getComponentType(ProcessingBenchState.class),
+                ProcessingBenchBlock.getComponentType(),
                 world,
                 x,
                 y,
                 z);
     }
 
-    @SuppressWarnings("removal")
-    private static ProcessingBenchState getOrCreateProcessingBenchState(World world, int x, int y, int z) {
+    private static ProcessingBenchBlock getOrCreateProcessingBenchState(World world, int x, int y, int z) {
         if (world == null) {
             return null;
         }
-
-        ProcessingBenchState state = getProcessingBenchState(world, x, y, z);
-        if (state == null) {
-            long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-            WorldChunk chunk = world.getChunkIfLoaded(chunkIndex);
-            if (chunk == null) {
-                return null;
-            }
-            int localX = ChunkUtil.localCoordinate((long) x);
-            int localZ = ChunkUtil.localCoordinate((long) z);
-            BlockState.ensureState(chunk, localX, y, localZ);
-            state = getProcessingBenchState(world, x, y, z);
-        }
-
-        if (state != null && state.getItemContainer() == null) {
-            BlockType blockType = world.getBlockType(x, y, z);
-            if (blockType != null) {
-                state.initialize(blockType);
-            }
-        }
-
-        return state;
+        return getProcessingBenchState(world, x, y, z);
     }
 
     private static List<ItemStack> snapshotContainerItems(World world, int x, int y, int z) {
-        ItemContainerState state = getItemContainerState(world, x, y, z);
+        ItemContainerBlock state = getItemContainerState(world, x, y, z);
         ItemContainer container = state == null ? null : state.getItemContainer();
         if (container == null) {
             return null;
@@ -1241,7 +1190,7 @@ public final class UpgradePersistence {
         if (items == null || items.isEmpty()) {
             return;
         }
-        ItemContainerState state = getOrCreateItemContainerState(world, x, y, z);
+        ItemContainerBlock state = getOrCreateItemContainerState(world, x, y, z);
         ItemContainer container = state == null ? null : state.getItemContainer();
         if (container == null) {
             return;
@@ -1258,7 +1207,7 @@ public final class UpgradePersistence {
     }
 
     private static List<ItemStack> snapshotBenchItems(World world, int x, int y, int z) {
-        ProcessingBenchState state = getProcessingBenchState(world, x, y, z);
+        ProcessingBenchBlock state = getProcessingBenchState(world, x, y, z);
         ItemContainer container = state == null ? null : state.getItemContainer();
         if (container == null) {
             return null;
@@ -1280,7 +1229,7 @@ public final class UpgradePersistence {
         if (items == null || items.isEmpty()) {
             return;
         }
-        ProcessingBenchState state = getOrCreateProcessingBenchState(world, x, y, z);
+        ProcessingBenchBlock state = getOrCreateProcessingBenchState(world, x, y, z);
         ItemContainer container = state == null ? null : state.getItemContainer();
         if (container == null) {
             return;

@@ -7,7 +7,7 @@ import HyProTechTeam.TieredIdUtil;
 import HyProTechTeam.UpgradePersistence;
 import HyProTechTeam.energy.EnergySide;
 import HyProTechTeam.energy.CableUpgradeConfig;
-import com.hypixel.hytale.builtin.crafting.state.ProcessingBenchState;
+import com.hypixel.hytale.builtin.crafting.component.ProcessingBenchBlock;
 import com.hypixel.hytale.component.Archetype;
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
@@ -29,10 +29,9 @@ import com.hypixel.hytale.server.core.inventory.transaction.ItemStackSlotTransac
 import com.hypixel.hytale.server.core.inventory.transaction.ItemStackTransaction;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
+import com.hypixel.hytale.server.core.modules.block.components.ItemContainerBlock;
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
-import com.hypixel.hytale.server.core.universe.world.meta.BlockState;
-import com.hypixel.hytale.server.core.universe.world.meta.state.ItemContainerBlockState;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import HyProTechTeam.machine.AlloySmelterConfig;
 import HyProTechTeam.machine.MachineItemAccess;
@@ -43,7 +42,6 @@ import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -62,9 +60,6 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
     private static final int MAX_NETWORKS_PER_TICK = 64;
     private static final long MAX_TICK_NANOS = 100_000_000L;
     private static final String[] CABLE_STATE_NAMES = buildCableStateNames();
-    private static volatile Field benchInputContainerField;
-    private static volatile Field benchFuelContainerField;
-    private static volatile Field benchOutputContainerField;
 
     private final ComponentType<ChunkStore, ItemNodeComponent> itemType;
     private final Map<World, CableState> cableStates = new IdentityHashMap<>();
@@ -129,8 +124,8 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
             }
         }
 
-        for (it.unimi.dsi.fastutil.ints.Int2ObjectMap.Entry<Ref<ChunkStore>> entry
-                : blockComponents.getEntityReferences().int2ObjectEntrySet()) {
+        for (it.unimi.dsi.fastutil.ints.Int2ReferenceMap.Entry<Ref<ChunkStore>> entry
+                : blockComponents.getEntityReferences().int2ReferenceEntrySet()) {
             int blockIndex = entry.getIntKey();
             Ref<ChunkStore> ref = entry.getValue();
             if (ref == null || !ref.isValid()) {
@@ -615,16 +610,16 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
             return null;
         }
 
-        ItemContainerBlockState state = lookup.state;
+        Object state = lookup.state;
         if (state == null) {
             return null;
         }
-        ItemContainer fallback = state.getItemContainer();
-        if (state instanceof ProcessingBenchState) {
-            ProcessingBenchState benchState = (ProcessingBenchState) state;
-            ItemContainer input = getBenchInputContainer(benchState);
-            ItemContainer fuel = getBenchFuelContainer(benchState);
-            ItemContainer output = getBenchOutputContainer(benchState);
+        ItemContainer fallback = MachineItemAccess.getItemContainerFromState(state);
+        if (state instanceof ProcessingBenchBlock) {
+            ProcessingBenchBlock benchBlock = (ProcessingBenchBlock) state;
+            ItemContainer input = benchBlock.getInputContainer();
+            ItemContainer fuel = benchBlock.getFuelContainer();
+            ItemContainer output = benchBlock.getOutputContainer();
 
             ItemTarget resolved = target == null ? ItemTarget.AUTO : target;
             switch (resolved) {
@@ -1421,11 +1416,6 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 ItemStorageConfigComponent config = store.getComponent(ref, HyProTechComponents.ITEM_STORAGE);
                 if (config != null) {
                     storeChunkStorageConfig(chunkStore, x, y, z, config);
-                    BlockState state = BlockState.getBlockState(ref, store);
-                    if (state == null) {
-                        components.removeEntityReference(blockIndex, ref);
-                        components.markNeedsSaving();
-                    }
                 }
             }
             return;
@@ -1439,11 +1429,6 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
             return;
         }
         storeChunkStorageConfig(chunkStore, x, y, z, config);
-        BlockState state = BlockState.getBlockState(holder);
-        if (state == null) {
-            components.removeEntityHolder(blockIndex);
-            components.markNeedsSaving();
-        }
     }
 
     private void storeChunkStorageConfig(
@@ -1640,7 +1625,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
     }
 
     private ContainerLookup resolveContainerState(World world, ChunkStore chunkStore, int x, int y, int z) {
-        ItemContainerBlockState state = getItemContainerState(world, x, y, z);
+        Object state = getItemContainerState(world, x, y, z);
         if (state != null) {
             MachineSlotLayout layout = resolveMachineSlots(world, x, y, z, state);
             return new ContainerLookup(
@@ -1680,7 +1665,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 continue;
             }
 
-            ItemContainerBlockState neighborState = getItemContainerState(world, nx, ny, nz);
+            Object neighborState = getItemContainerState(world, nx, ny, nz);
             if (neighborState != null) {
                 MachineSlotLayout layout = resolveMachineSlots(world, nx, ny, nz, neighborState);
                 return new ContainerLookup(
@@ -1701,7 +1686,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
             int x,
             int y,
             int z,
-            ItemContainerBlockState state) {
+            Object state) {
         if (world == null || state == null) {
             return null;
         }
@@ -1713,7 +1698,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         if (blockId == null || blockId.isEmpty()) {
             return null;
         }
-        ItemContainer container = state.getItemContainer();
+        ItemContainer container = MachineItemAccess.getItemContainerFromState(state);
         short capacity = container == null ? 0 : container.getCapacity();
         if (isIdOrState(blockId, HyProTechIds.BLOCK_ORE_CRUSHER)) {
             int outputCount = Math.min(OreCrusherConfig.OUTPUT_SLOT_COUNT, Math.max(0, capacity - 1));
@@ -1765,101 +1750,11 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 || blockId.regionMatches(true, 0, baseId, 0, baseId.length());
     }
 
-    @SuppressWarnings("removal")
-    private ItemContainerBlockState getItemContainerState(World world, int x, int y, int z) {
+    private Object getItemContainerState(World world, int x, int y, int z) {
         if (world == null) {
             return null;
         }
-
-        long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-        WorldChunk chunk = world.getChunkIfLoaded(chunkIndex);
-        if (chunk == null) {
-            return null;
-        }
-
-        ItemContainerBlockState state = MachineItemAccess.getContainerState(world, x, y, z);
-        if (state != null) {
-            return state;
-        }
-
-        scheduleBenchState(world, x, y, z);
-        return null;
-    }
-
-    @SuppressWarnings("removal")
-    private void scheduleBenchState(World world, int x, int y, int z) {
-        BlockType blockType = world.getBlockType(x, y, z);
-        if (blockType == null || blockType.getBench() == null) {
-            return;
-        }
-        if (blockType.getId() == null
-                || !TieredIdUtil.isTieredId(blockType.getId(), HyProTechIds.BLOCK_ELECTRIC_FURNACE)) {
-            return;
-        }
-
-        long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-        WorldChunk chunk = world.getChunkIfLoaded(chunkIndex);
-        if (chunk == null) {
-            return;
-        }
-
-        int localX = ChunkUtil.localCoordinate((long) x);
-        int localZ = ChunkUtil.localCoordinate((long) z);
-        world.execute(() -> BlockState.ensureState(chunk, localX, y, localZ));
-    }
-
-    private ItemContainer getBenchInputContainer(ProcessingBenchState benchState) {
-        Field field = benchInputContainerField;
-        if (field == null) {
-            try {
-                field = ProcessingBenchState.class.getDeclaredField("inputContainer");
-                field.setAccessible(true);
-                benchInputContainerField = field;
-            } catch (NoSuchFieldException e) {
-                return null;
-            }
-        }
-        try {
-            return (ItemContainer) field.get(benchState);
-        } catch (IllegalAccessException e) {
-            return null;
-        }
-    }
-
-    private ItemContainer getBenchFuelContainer(ProcessingBenchState benchState) {
-        Field field = benchFuelContainerField;
-        if (field == null) {
-            try {
-                field = ProcessingBenchState.class.getDeclaredField("fuelContainer");
-                field.setAccessible(true);
-                benchFuelContainerField = field;
-            } catch (NoSuchFieldException e) {
-                return null;
-            }
-        }
-        try {
-            return (ItemContainer) field.get(benchState);
-        } catch (IllegalAccessException e) {
-            return null;
-        }
-    }
-
-    private ItemContainer getBenchOutputContainer(ProcessingBenchState benchState) {
-        Field field = benchOutputContainerField;
-        if (field == null) {
-            try {
-                field = ProcessingBenchState.class.getDeclaredField("outputContainer");
-                field.setAccessible(true);
-                benchOutputContainerField = field;
-            } catch (NoSuchFieldException e) {
-                return null;
-            }
-        }
-        try {
-            return (ItemContainer) field.get(benchState);
-        } catch (IllegalAccessException e) {
-            return null;
-        }
+        return MachineItemAccess.getContainerState(world, x, y, z);
     }
 
     private CableState getCableState(World world) {
@@ -1881,7 +1776,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
     }
 
     private static final class ContainerLookup {
-        private final ItemContainerBlockState state;
+        private final Object state;
         private final ItemContainer inputContainer;
         private final ItemContainer outputContainer;
         private final MachineSlotLayout machineSlots;
@@ -1889,7 +1784,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         private final boolean isMachine;
 
         private ContainerLookup(
-                ItemContainerBlockState state,
+                Object state,
                 ItemContainer inputContainer,
                 ItemContainer outputContainer,
                 MachineSlotLayout machineSlots,

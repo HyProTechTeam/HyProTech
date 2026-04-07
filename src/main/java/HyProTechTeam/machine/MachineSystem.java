@@ -98,7 +98,7 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
             processBlock(blockComponents, commandBuffer, chunkStore, world, chunkX, chunkZ, blockIndex, holder, null, delta);
         }
 
-        for (Int2ObjectMap.Entry<Ref<ChunkStore>> entry : blockComponents.getEntityReferences().int2ObjectEntrySet()) {
+        for (it.unimi.dsi.fastutil.ints.Int2ReferenceMap.Entry<Ref<ChunkStore>> entry : blockComponents.getEntityReferences().int2ReferenceEntrySet()) {
             int blockIndex = entry.getIntKey();
             Ref<ChunkStore> ref = entry.getValue();
             if (ref == null || !ref.isValid()) {

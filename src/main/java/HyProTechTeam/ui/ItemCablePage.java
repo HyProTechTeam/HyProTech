@@ -32,7 +32,6 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
-import com.hypixel.hytale.server.core.universe.world.meta.state.ItemContainerBlockState;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -1145,7 +1144,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
     }
 
     private ContainerLookup resolveContainerState(World world, int x, int y, int z) {
-        ItemContainerBlockState state = MachineItemAccess.getContainerState(world, x, y, z);
+        Object state = MachineItemAccess.getContainerState(world, x, y, z);
         if (state != null) {
             return new ContainerLookup(state, new Vector3i(x, y, z));
         }
@@ -1176,7 +1175,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
             if (!sameBlockId(blockId, neighborType.getId())) {
                 continue;
             }
-            ItemContainerBlockState neighborState = MachineItemAccess.getContainerState(world, nx, ny, nz);
+            Object neighborState = MachineItemAccess.getContainerState(world, nx, ny, nz);
             if (neighborState != null) {
                 return new ContainerLookup(neighborState, new Vector3i(nx, ny, nz));
             }
@@ -1497,8 +1496,8 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         if (targetIndex == Integer.MIN_VALUE) {
             return Integer.MIN_VALUE;
         }
-        for (Int2ObjectMap.Entry<Ref<ChunkStore>> entry
-                : blockComponents.getEntityReferences().int2ObjectEntrySet()) {
+        for (it.unimi.dsi.fastutil.ints.Int2ReferenceMap.Entry<Ref<ChunkStore>> entry
+                : blockComponents.getEntityReferences().int2ReferenceEntrySet()) {
             Ref<ChunkStore> entryRef = entry.getValue();
             if (entryRef != null && entryRef.getIndex() == targetIndex) {
                 return entry.getIntKey();
@@ -1531,10 +1530,10 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
     }
 
     private static final class ContainerLookup {
-        private final ItemContainerBlockState state;
+        private final Object state;
         private final Vector3i position;
 
-        private ContainerLookup(ItemContainerBlockState state, Vector3i position) {
+        private ContainerLookup(Object state, Vector3i position) {
             this.state = state;
             this.position = position;
         }

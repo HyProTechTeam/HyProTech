@@ -19,7 +19,8 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
-import com.hypixel.hytale.builtin.crafting.state.ProcessingBenchState;
+import com.hypixel.hytale.builtin.crafting.component.BenchBlock;
+import com.hypixel.hytale.builtin.crafting.component.ProcessingBenchBlock;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.vector.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
@@ -32,7 +33,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
-import com.hypixel.hytale.server.core.universe.world.meta.BlockStateModule;
+import it.unimi.dsi.fastutil.ints.Int2ReferenceMap;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.shailist.hytale.api.transfer.v1.transaction.Transaction;
@@ -69,7 +70,6 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
     private static final String[] WIND_STATE_NAMES = buildTierStateNames("Wind_T", WindUpgradeConfig.MAX_TIER);
     private static final String[] FURNACE_STATE_NAMES = buildTierStateNames("Furnace_T", FurnaceConfig.MAX_TIER);
     private static volatile Field benchFuelTimeField;
-    private static volatile Field benchInputProgressField;
 
     private final ComponentType<ChunkStore, EnergyNodeComponent> energyType;
     private final Map<World, CableState> cableStates = new IdentityHashMap<>();
@@ -139,7 +139,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             }
         }
 
-        for (Int2ObjectMap.Entry<Ref<ChunkStore>> entry : blockComponents.getEntityReferences().int2ObjectEntrySet()) {
+        for (Int2ReferenceMap.Entry<Ref<ChunkStore>> entry : blockComponents.getEntityReferences().int2ReferenceEntrySet()) {
             int blockIndex = entry.getIntKey();
             Ref<ChunkStore> ref = entry.getValue();
             if (ref == null || !ref.isValid()) {
@@ -1400,8 +1400,9 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             int worldZ,
             EnergyNodeComponent node,
             float deltaSeconds) {
-        ProcessingBenchState benchState = getProcessingBenchState(world, worldX, worldY, worldZ);
-        if (benchState == null || deltaSeconds <= 0f) {
+        ProcessingBenchBlock benchState = getProcessingBenchState(world, worldX, worldY, worldZ);
+        BenchBlock benchBlock = getBenchBlock(world, worldX, worldY, worldZ);
+        if (benchState == null || benchBlock == null || deltaSeconds <= 0f) {
             HyProTechSounds.tickLoop(
                     world,
                     worldX,
@@ -1424,15 +1425,15 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             changed = true;
         }
 
-        int rawTier = benchState.getTierLevel();
+        int rawTier = benchBlock.getTierLevel();
         int tier = FurnaceConfig.clampTier(rawTier);
         int overrideTier = getFurnaceTierOverride(world, worldX, worldY, worldZ);
         if (overrideTier > tier) {
-            benchState.setTierLevel(overrideTier);
+            benchBlock.setTierLevel(overrideTier);
             tier = overrideTier;
             changed = true;
         } else if (rawTier != tier) {
-            benchState.setTierLevel(tier);
+            benchBlock.setTierLevel(tier);
             changed = true;
         }
 
@@ -1473,7 +1474,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
 
         if (benchState.isActive() != shouldBeActive) {
-            benchState.setActive(shouldBeActive);
+            benchState.setActive(shouldBeActive, benchBlock, null);
             changed = true;
         }
         if (shouldBeActive) {
@@ -1484,7 +1485,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         if (usesFuel) {
             boolean fuelChanged = setBenchFuelTime(benchState, shouldBeActive ? ELECTRIC_FUEL_TIME : 0f);
             if (fuelChanged) {
-                benchState.updateFuelValues();
+                benchState.updateFuelValues(benchBlock.getWindows());
                 changed = true;
             }
         } else if (!shouldBeActive) {
@@ -1577,7 +1578,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             int worldY,
             int worldZ,
             int tier,
-            ProcessingBenchState benchState,
+            ProcessingBenchBlock benchState,
             EnergyNodeComponent node) {
         if (world == null || benchState == null || node == null) {
             return;
@@ -1774,7 +1775,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             int worldY,
             int worldZ,
             int tierIndex,
-            ProcessingBenchState benchState,
+            ProcessingBenchBlock benchState,
             EnergyNodeComponent node) {
         if (world == null) {
             return;
@@ -1850,11 +1851,11 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return BlockIdUtil.isIdOrState(blockId, baseId);
     }
 
-    private boolean setBenchFuelTime(ProcessingBenchState benchState, float value) {
+    private boolean setBenchFuelTime(ProcessingBenchBlock benchState, float value) {
         Field field = benchFuelTimeField;
         if (field == null) {
             try {
-                field = ProcessingBenchState.class.getDeclaredField("fuelTime");
+                field = ProcessingBenchBlock.class.getDeclaredField("fuelTime");
                 field.setAccessible(true);
                 benchFuelTimeField = field;
             } catch (NoSuchFieldException e) {
@@ -1873,31 +1874,16 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
-    private boolean setBenchInputProgress(ProcessingBenchState benchState, float value) {
-        Field field = benchInputProgressField;
-        if (field == null) {
-            try {
-                field = ProcessingBenchState.class.getDeclaredField("inputProgress");
-                field.setAccessible(true);
-                benchInputProgressField = field;
-            } catch (NoSuchFieldException e) {
-                return false;
-            }
-        }
-        try {
-            float current = field.getFloat(benchState);
-            if (Float.compare(current, value) == 0) {
-                return false;
-            }
-            field.setFloat(benchState, value);
-            return true;
-        } catch (IllegalAccessException e) {
+    private boolean setBenchInputProgress(ProcessingBenchBlock benchState, float value) {
+        float current = benchState.getInputProgress();
+        if (Float.compare(current, value) == 0) {
             return false;
         }
+        benchState.setInputProgress(value);
+        return true;
     }
 
-    @SuppressWarnings("removal")
-    private ProcessingBenchState getProcessingBenchState(World world, int worldX, int worldY, int worldZ) {
+    private ProcessingBenchBlock getProcessingBenchState(World world, int worldX, int worldY, int worldZ) {
         long chunkIndex = ChunkUtil.indexChunkFromBlock(worldX, worldZ);
         BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
         if (accessor == null) {
@@ -1905,7 +1891,22 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
 
         return BlockModule.get().getComponent(
-                BlockStateModule.get().getComponentType(ProcessingBenchState.class),
+                ProcessingBenchBlock.getComponentType(),
+                world,
+                worldX,
+                worldY,
+                worldZ);
+    }
+
+    private BenchBlock getBenchBlock(World world, int worldX, int worldY, int worldZ) {
+        long chunkIndex = ChunkUtil.indexChunkFromBlock(worldX, worldZ);
+        BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+        if (accessor == null) {
+            return null;
+        }
+
+        return BlockModule.get().getComponent(
+                BenchBlock.getComponentType(),
                 world,
                 worldX,
                 worldY,

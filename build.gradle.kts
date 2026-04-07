@@ -5,8 +5,8 @@ plugins {
 import org.gradle.api.GradleException
 
 group = "HyProTechTeam"
-//version = "1.4.1-SNAPSHOT"
-version = "1.4.1"
+//version = "1.5.0-SNAPSHOT"
+version = "1.5.0"
 
 java {
     toolchain {
