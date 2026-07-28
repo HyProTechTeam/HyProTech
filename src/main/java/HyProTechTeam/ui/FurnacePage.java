@@ -4,7 +4,8 @@ import HyProTechTeam.energy.EnergyNodeComponent;
 import HyProTechTeam.energy.EnergyUnits;
 import HyProTechTeam.HyProTechIds;
 import HyProTechTeam.TieredIdUtil;
-import com.hypixel.hytale.builtin.crafting.state.ProcessingBenchState;
+import com.hypixel.hytale.builtin.crafting.component.BenchBlock;
+import com.hypixel.hytale.builtin.crafting.component.ProcessingBenchBlock;
 import com.hypixel.hytale.builtin.crafting.window.BenchWindow;
 import com.hypixel.hytale.builtin.crafting.window.ProcessingBenchWindow;
 import com.hypixel.hytale.codec.KeyedCodec;
@@ -36,11 +37,10 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
-import com.hypixel.hytale.server.core.universe.world.meta.BlockStateModule;
+import it.unimi.dsi.fastutil.ints.Int2ReferenceMap;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import java.lang.reflect.Field;
+import it.unimi.dsi.fastutil.ints.Int2ReferenceMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -48,9 +48,6 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
     private static final String PAGE_LAYOUT = "HyProTech_Furnace.ui";
     private static final String ACTION_OPEN_STORAGE = "OpenStorage";
     private static final String ACTION_TOGGLE_POWER = "TogglePower";
-
-    private static volatile Field benchInputContainerField;
-    private static volatile Field benchOutputContainerField;
 
     private final Ref<ChunkStore> blockRef;
     private final ComponentType<ChunkStore, EnergyNodeComponent> energyType;
@@ -170,7 +167,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
             Store<EntityStore> store = playerEntityRef.getStore();
             World world = getWorld(store);
             Vector3i pos = resolveBlockPosition(world);
-            ProcessingBenchState benchState = getProcessingBenchState(world, pos);
+            ProcessingBenchBlock benchState = getProcessingBenchState(world, pos);
             ItemContainer inputContainer = getBenchInputContainer(benchState);
             ItemContainer outputContainer = getBenchOutputContainer(benchState);
             ItemStack inputStack = getFirstStack(inputContainer);
@@ -238,7 +235,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
             return false;
         }
 
-        ProcessingBenchState benchState = getProcessingBenchState(world, pos);
+        ProcessingBenchBlock benchState = getProcessingBenchState(world, pos);
         if (benchState == null) {
             pageManager.openCustomPage(playerEntityRef, store, this);
             return false;
@@ -321,15 +318,30 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
     private ProcessingBenchWindow getOrCreateBenchWindow(
             Ref<EntityStore> playerEntityRef,
             Store<EntityStore> store,
-            ProcessingBenchState benchState) {
+            ProcessingBenchBlock benchState) {
         UUIDComponent uuidComponent =
                 store.getComponent(playerEntityRef, UUIDComponent.getComponentType());
         if (uuidComponent == null) {
             return null;
         }
 
+        World world = getWorld(store);
+        Vector3i pos = resolveBlockPosition(world);
+        if (pos == null) {
+            return null;
+        }
+        BenchBlock benchBlock = world == null ? null
+                : BlockModule.get().getComponent(BenchBlock.getComponentType(), world, pos.getX(), pos.getY(), pos.getZ());
+        if (benchBlock == null) {
+            return null;
+        }
+        BlockType benchBlockType = world.getBlockType(pos.getX(), pos.getY(), pos.getZ());
+        if (benchBlockType == null) {
+            return null;
+        }
+
         UUID playerId = uuidComponent.getUuid();
-        Map<UUID, BenchWindow> windows = benchState.getWindows();
+        Map<UUID, BenchWindow> windows = benchBlock.getWindows();
         BenchWindow existing = windows.get(playerId);
         if (existing != null) {
             if (existing instanceof ProcessingBenchWindow) {
@@ -338,7 +350,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
             return null;
         }
 
-        ProcessingBenchWindow window = new ProcessingBenchWindow(benchState);
+        ProcessingBenchWindow window = new ProcessingBenchWindow(benchState, benchBlock, null, pos.getX(), pos.getY(), pos.getZ(), 0, benchBlockType);
         BenchWindow prior = windows.putIfAbsent(playerId, window);
         if (prior != null) {
             if (prior instanceof ProcessingBenchWindow) {
@@ -347,7 +359,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
             return null;
         }
 
-        benchState.updateFuelValues();
+        benchState.updateFuelValues(windows);
         window.registerCloseEvent(event -> windows.remove(playerId, window));
         return window;
     }
@@ -439,8 +451,8 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         if (targetIndex == Integer.MIN_VALUE) {
             return Integer.MIN_VALUE;
         }
-        for (Int2ObjectMap.Entry<Ref<ChunkStore>> entry
-                : blockComponents.getEntityReferences().int2ObjectEntrySet()) {
+        for (Int2ReferenceMap.Entry<Ref<ChunkStore>> entry
+                : blockComponents.getEntityReferences().int2ReferenceEntrySet()) {
             Ref<ChunkStore> entryRef = entry.getValue();
             if (entryRef != null && entryRef.getIndex() == targetIndex) {
                 return entry.getIntKey();
@@ -449,8 +461,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         return Integer.MIN_VALUE;
     }
 
-    @SuppressWarnings("removal")
-    private ProcessingBenchState getProcessingBenchState(World world, Vector3i pos) {
+    private ProcessingBenchBlock getProcessingBenchState(World world, Vector3i pos) {
         if (world == null || pos == null) {
             return null;
         }
@@ -461,71 +472,38 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         }
 
         return BlockModule.get().getComponent(
-                BlockStateModule.get().getComponentType(ProcessingBenchState.class),
+                ProcessingBenchBlock.getComponentType(),
                 world,
                 pos.getX(),
                 pos.getY(),
                 pos.getZ());
     }
 
-    private boolean ensureBenchInitialized(ProcessingBenchState benchState, BlockType blockType) {
+    private boolean ensureBenchInitialized(ProcessingBenchBlock benchState, BlockType blockType) {
         if (benchState == null || blockType == null || blockType.getBench() == null) {
             return false;
         }
 
         boolean needsInit = benchState.getBench() == null
                 || !blockType.getBench().equals(benchState.getBench());
-        if (!needsInit && benchState.getItemContainer() == null) {
-            needsInit = true;
-        }
-        if (needsInit && !benchState.initialize(blockType)) {
+        if (needsInit && !benchState.initializeBenchConfig(blockType)) {
             return false;
         }
         return benchState.getItemContainer() != null;
     }
 
-    private ItemContainer getBenchInputContainer(ProcessingBenchState benchState) {
+    private ItemContainer getBenchInputContainer(ProcessingBenchBlock benchState) {
         if (benchState == null) {
             return null;
         }
-
-        Field field = benchInputContainerField;
-        if (field == null) {
-            try {
-                field = ProcessingBenchState.class.getDeclaredField("inputContainer");
-                field.setAccessible(true);
-                benchInputContainerField = field;
-            } catch (NoSuchFieldException e) {
-                return null;
-            }
-        }
-        try {
-            return (ItemContainer) field.get(benchState);
-        } catch (IllegalAccessException e) {
-            return null;
-        }
+        return benchState.getInputContainer();
     }
 
-    private ItemContainer getBenchOutputContainer(ProcessingBenchState benchState) {
+    private ItemContainer getBenchOutputContainer(ProcessingBenchBlock benchState) {
         if (benchState == null) {
             return null;
         }
-
-        Field field = benchOutputContainerField;
-        if (field == null) {
-            try {
-                field = ProcessingBenchState.class.getDeclaredField("outputContainer");
-                field.setAccessible(true);
-                benchOutputContainerField = field;
-            } catch (NoSuchFieldException e) {
-                return null;
-            }
-        }
-        try {
-            return (ItemContainer) field.get(benchState);
-        } catch (IllegalAccessException e) {
-            return null;
-        }
+        return benchState.getOutputContainer();
     }
 
     private World getWorld(Store<EntityStore> store) {

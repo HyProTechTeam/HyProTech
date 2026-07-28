@@ -3,34 +3,25 @@ package HyProTechTeam.machine;
 import HyProTechTeam.BlockIdUtil;
 import HyProTechTeam.HyProTechIds;
 import HyProTechTeam.TieredIdUtil;
-import com.hypixel.hytale.builtin.crafting.state.ProcessingBenchState;
-import com.hypixel.hytale.math.util.ChunkUtil;
+import com.hypixel.hytale.builtin.crafting.component.ProcessingBenchBlock;
+import com.hypixel.hytale.server.core.modules.block.components.ItemContainerBlock;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.inventory.container.SimpleItemContainer;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
-import com.hypixel.hytale.server.core.universe.world.meta.BlockState;
-import com.hypixel.hytale.server.core.universe.world.meta.BlockStateModule;
-import com.hypixel.hytale.server.core.universe.world.meta.state.ItemContainerBlockState;
-import com.hypixel.hytale.server.core.universe.world.meta.state.ItemContainerState;
-import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
-import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 
 public final class MachineItemAccess {
     private static final short QUARRY_STORAGE_CAPACITY = 10;
     private static final short ORE_CRUSHER_STORAGE_CAPACITY = 7;
     private static final short ALLOY_SMELTER_STORAGE_CAPACITY =
             (short) (AlloySmelterConfig.INPUT_SLOT_COUNT + AlloySmelterConfig.OUTPUT_SLOT_COUNT);
-    private static final String HyProTech_PREFIX = "HyProTech_";
 
     private MachineItemAccess() {
     }
 
-    @SuppressWarnings("removal")
-    public static ItemContainerBlockState getContainerState(World world, int x, int y, int z) {
+    public static Object getContainerState(World world, int x, int y, int z) {
         if (world == null) {
             return null;
         }
@@ -39,54 +30,54 @@ public final class MachineItemAccess {
         if (blockType != null && blockType != BlockType.EMPTY) {
             String blockId = blockType.getId();
             if (blockId != null && isIdOrState(blockId, HyProTechIds.BLOCK_ORE_CRUSHER)) {
-                ItemContainerState containerState = BlockModule.get().getComponent(
-                        BlockStateModule.get().getComponentType(ItemContainerState.class),
+                ItemContainerBlock containerBlock = BlockModule.get().getComponent(
+                        ItemContainerBlock.getComponentType(),
                         world,
                         x,
                         y,
                         z);
-                if (containerState == null) {
+                if (containerBlock == null) {
                     scheduleContainerState(world, x, y, z, blockType);
                     return null;
                 }
-                ensureMachineContainers(world, x, y, z, containerState);
-                return containerState;
+                ensureMachineContainers(world, x, y, z, containerBlock);
+                return containerBlock;
             }
             if (blockId != null && isIdOrState(blockId, HyProTechIds.BLOCK_ALLOY_SMELTER)) {
-                ItemContainerState containerState = BlockModule.get().getComponent(
-                        BlockStateModule.get().getComponentType(ItemContainerState.class),
+                ItemContainerBlock containerBlock = BlockModule.get().getComponent(
+                        ItemContainerBlock.getComponentType(),
                         world,
                         x,
                         y,
                         z);
-                if (containerState == null) {
+                if (containerBlock == null) {
                     scheduleContainerState(world, x, y, z, blockType);
                     return null;
                 }
-                ensureMachineContainers(world, x, y, z, containerState);
-                return containerState;
+                ensureMachineContainers(world, x, y, z, containerBlock);
+                return containerBlock;
             }
         }
 
-        ProcessingBenchState benchState = BlockModule.get().getComponent(
-                BlockStateModule.get().getComponentType(ProcessingBenchState.class),
+        ProcessingBenchBlock benchBlock = BlockModule.get().getComponent(
+                ProcessingBenchBlock.getComponentType(),
                 world,
                 x,
                 y,
                 z);
-        if (benchState != null) {
-            return benchState;
+        if (benchBlock != null) {
+            return benchBlock;
         }
 
-        ItemContainerState containerState = BlockModule.get().getComponent(
-                BlockStateModule.get().getComponentType(ItemContainerState.class),
+        ItemContainerBlock containerBlock = BlockModule.get().getComponent(
+                ItemContainerBlock.getComponentType(),
                 world,
                 x,
                 y,
                 z);
-        if (containerState != null) {
-            ensureMachineContainers(world, x, y, z, containerState);
-            return containerState;
+        if (containerBlock != null) {
+            ensureMachineContainers(world, x, y, z, containerBlock);
+            return containerBlock;
         }
         if (blockType == null || blockType == BlockType.EMPTY) {
             return null;
@@ -101,28 +92,20 @@ public final class MachineItemAccess {
     }
 
     public static ItemContainer getContainer(World world, int x, int y, int z) {
-        ItemContainerBlockState state = getContainerState(world, x, y, z);
-        return state == null ? null : state.getItemContainer();
+        Object state = getContainerState(world, x, y, z);
+        return getItemContainerFromState(state);
+    }
+
+    public static ItemContainer getItemContainerFromState(Object state) {
+        if (state instanceof ProcessingBenchBlock) return ((ProcessingBenchBlock) state).getItemContainer();
+        if (state instanceof ItemContainerBlock) return ((ItemContainerBlock) state).getItemContainer();
+        return null;
     }
 
     public static void markContainerDirty(World world, int x, int y, int z) {
-        if (world == null) {
-            return;
-        }
-        ItemContainerBlockState state = getContainerState(world, x, y, z);
-        if (state instanceof ItemContainerState) {
-            ((ItemContainerState) state).markNeedsSave();
-            return;
-        }
-        world.execute(() -> {
-            ItemContainerBlockState ensured = ensureContainerState(world, x, y, z);
-            if (ensured instanceof ItemContainerState) {
-                ((ItemContainerState) ensured).markNeedsSave();
-            }
-        });
+        // container changes are automatically persisted in the new API
     }
 
-    @SuppressWarnings("removal")
     private static void scheduleContainerState(
             World world,
             int x,
@@ -133,60 +116,32 @@ public final class MachineItemAccess {
             return;
         }
 
-        long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-        WorldChunk chunk = world.getChunkIfLoaded(chunkIndex);
-        if (chunk == null) {
-            return;
-        }
-
-        int localX = ChunkUtil.localCoordinate((long) x);
-        int localZ = ChunkUtil.localCoordinate((long) z);
         world.execute(() -> {
-            BlockState.ensureState(chunk, localX, y, localZ);
-            ItemContainerState state = BlockModule.get().getComponent(
-                    BlockStateModule.get().getComponentType(ItemContainerState.class),
+            ItemContainerBlock state = BlockModule.get().getComponent(
+                    ItemContainerBlock.getComponentType(),
                     world,
                     x,
                     y,
                     z);
-            if (state != null && state.getItemContainer() == null && blockType != null) {
-                state.initialize(blockType);
-            }
             if (state != null) {
                 ensureMachineContainers(world, x, y, z, state);
             }
         });
     }
 
-    @SuppressWarnings("removal")
-    public static ItemContainerBlockState ensureContainerState(World world, int x, int y, int z) {
+    public static Object ensureContainerState(World world, int x, int y, int z) {
         if (world == null) {
             return null;
         }
-        long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-        WorldChunk chunk = world.getChunkIfLoaded(chunkIndex);
-        if (chunk == null) {
-            return null;
-        }
 
-        int localX = ChunkUtil.localCoordinate((long) x);
-        int localZ = ChunkUtil.localCoordinate((long) z);
-        BlockState.ensureState(chunk, localX, y, localZ);
-
-        ItemContainerState state = BlockModule.get().getComponent(
-                BlockStateModule.get().getComponentType(ItemContainerState.class),
+        ItemContainerBlock state = BlockModule.get().getComponent(
+                ItemContainerBlock.getComponentType(),
                 world,
                 x,
                 y,
                 z);
         if (state == null) {
             return null;
-        }
-        if (state.getItemContainer() == null) {
-            BlockType blockType = world.getBlockType(x, y, z);
-            if (blockType != null) {
-                state.initialize(blockType);
-            }
         }
         ensureMachineContainers(world, x, y, z, state);
         return state;
@@ -197,10 +152,33 @@ public final class MachineItemAccess {
             int x,
             int y,
             int z,
-            ItemContainerState state) {
-        ensureQuarryContainer(world, x, y, z, state);
-        ensureOreCrusherContainer(world, x, y, z, state);
-        ensureAlloySmelterContainer(world, x, y, z, state);
+            ItemContainerBlock state) {
+        if (world == null || state == null) {
+            return;
+        }
+        BlockType blockType = world.getBlockType(x, y, z);
+        if (blockType == null || blockType == BlockType.EMPTY) {
+            return;
+        }
+        String blockId = blockType.getId();
+        if (blockId == null || blockId.isEmpty()) {
+            return;
+        }
+
+        if (isQuarryBorder(blockId)) {
+            return;
+        }
+        if (isIdOrState(blockId, HyProTechIds.BLOCK_QUARRY)) {
+            ensureQuarryContainer(world, x, y, z, state);
+            return;
+        }
+        if (isIdOrState(blockId, HyProTechIds.BLOCK_ORE_CRUSHER)) {
+            ensureOreCrusherContainer(world, x, y, z, state);
+            return;
+        }
+        if (isIdOrState(blockId, HyProTechIds.BLOCK_ALLOY_SMELTER)) {
+            ensureAlloySmelterContainer(world, x, y, z, state);
+        }
     }
 
     private static void ensureQuarryContainer(
@@ -208,7 +186,7 @@ public final class MachineItemAccess {
             int x,
             int y,
             int z,
-            ItemContainerState state) {
+            ItemContainerBlock state) {
         if (world == null || state == null) {
             return;
         }
@@ -237,7 +215,7 @@ public final class MachineItemAccess {
             int x,
             int y,
             int z,
-            ItemContainerState state) {
+            ItemContainerBlock state) {
         if (world == null || state == null) {
             return;
         }
@@ -266,7 +244,7 @@ public final class MachineItemAccess {
             int x,
             int y,
             int z,
-            ItemContainerState state) {
+            ItemContainerBlock state) {
         if (world == null || state == null) {
             return;
         }
@@ -292,11 +270,7 @@ public final class MachineItemAccess {
 
 
     private static boolean isIdOrState(String blockId, String baseId) {
-        if (blockId == null) {
-            return false;
-        }
-        return BlockIdUtil.isIdOrState(blockId, baseId)
-                || blockId.regionMatches(true, 0, HyProTech_PREFIX, 0, HyProTech_PREFIX.length());
+        return BlockIdUtil.isIdOrState(blockId, baseId);
     }
 
     private static boolean isQuarryBorder(String blockId) {

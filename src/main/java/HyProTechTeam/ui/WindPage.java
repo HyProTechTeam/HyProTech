@@ -537,8 +537,8 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         if (targetIndex == Integer.MIN_VALUE) {
             return Integer.MIN_VALUE;
         }
-        for (Int2ObjectMap.Entry<Ref<ChunkStore>> entry
-                : blockComponents.getEntityReferences().int2ObjectEntrySet()) {
+        for (it.unimi.dsi.fastutil.ints.Int2ReferenceMap.Entry<Ref<ChunkStore>> entry
+                : blockComponents.getEntityReferences().int2ReferenceEntrySet()) {
             Ref<ChunkStore> entryRef = entry.getValue();
             if (entryRef != null && entryRef.getIndex() == targetIndex) {
                 return entry.getIntKey();

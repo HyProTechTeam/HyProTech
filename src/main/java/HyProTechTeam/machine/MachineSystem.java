@@ -67,6 +67,8 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
         int chunkZ = worldChunk.getZ();
 
         IntArrayList duplicateHolders = null;
+        IntArrayList invalidReferences = null;
+        boolean referencesChanged = false;
         for (Int2ObjectMap.Entry<Holder<ChunkStore>> entry : blockComponents.getEntityHolders().int2ObjectEntrySet()) {
             int blockIndex = entry.getIntKey();
             Holder<ChunkStore> holder = entry.getValue();
@@ -74,6 +76,7 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
             if (existingRef != null) {
                 if (!existingRef.isValid()) {
                     blockComponents.removeEntityReference(blockIndex, existingRef);
+                    referencesChanged = true;
                 } else {
                     if (store != null && holder != null) {
                         MachineComponent holderMachine = holder.getComponent(machineType);
@@ -95,17 +98,61 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
             processBlock(blockComponents, commandBuffer, chunkStore, world, chunkX, chunkZ, blockIndex, holder, null, delta);
         }
 
-        for (Int2ObjectMap.Entry<Ref<ChunkStore>> entry : blockComponents.getEntityReferences().int2ObjectEntrySet()) {
+        for (it.unimi.dsi.fastutil.ints.Int2ReferenceMap.Entry<Ref<ChunkStore>> entry : blockComponents.getEntityReferences().int2ReferenceEntrySet()) {
             int blockIndex = entry.getIntKey();
             Ref<ChunkStore> ref = entry.getValue();
+            if (ref == null || !ref.isValid()) {
+                if (invalidReferences == null) {
+                    invalidReferences = new IntArrayList();
+                }
+                invalidReferences.add(blockIndex);
+                continue;
+            }
             processBlock(blockComponents, commandBuffer, chunkStore, world, chunkX, chunkZ, blockIndex, null, ref, delta);
+        }
+
+        if (invalidReferences != null && !invalidReferences.isEmpty()) {
+            for (int i = 0; i < invalidReferences.size(); i++) {
+                int blockIndex = invalidReferences.getInt(i);
+                Ref<ChunkStore> ref = blockComponents.getEntityReference(blockIndex);
+                if (ref != null && !ref.isValid()) {
+                    blockComponents.removeEntityReference(blockIndex, ref);
+                    disableTickingAt(world, chunkX, chunkZ, blockIndex);
+                    referencesChanged = true;
+                }
+            }
         }
 
         if (duplicateHolders != null && !duplicateHolders.isEmpty()) {
             for (int i = 0; i < duplicateHolders.size(); i++) {
                 blockComponents.removeEntityHolder(duplicateHolders.getInt(i));
             }
+            referencesChanged = true;
+        }
+
+        if (referencesChanged) {
             blockComponents.markNeedsSaving();
+        }
+    }
+
+    private void disableTickingAt(World world, int chunkX, int chunkZ, int blockIndex) {
+        if (world == null) {
+            return;
+        }
+        int localX = ChunkUtil.xFromBlockInColumn(blockIndex);
+        int localY = ChunkUtil.yFromBlockInColumn(blockIndex);
+        int localZ = ChunkUtil.zFromBlockInColumn(blockIndex);
+        int worldX = ChunkUtil.worldCoordFromLocalCoord(chunkX, localX);
+        int worldZ = ChunkUtil.worldCoordFromLocalCoord(chunkZ, localZ);
+        long chunkIndex = ChunkUtil.indexChunkFromBlock(worldX, worldZ);
+        BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+        if (accessor == null) {
+            return;
+        }
+        try {
+            accessor.setTicking(worldX, localY, worldZ, false);
+        } catch (Exception ignored) {
+            // Best-effort only.
         }
     }
 

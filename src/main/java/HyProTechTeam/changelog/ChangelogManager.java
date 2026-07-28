@@ -14,14 +14,15 @@ import java.nio.file.Path;
 import java.util.UUID;
 
 public final class ChangelogManager {
-    public static final String CHANGELOG_VERSION = "1.4.0";
+    public static final String CHANGELOG_VERSION = "1.5.0";
     public static final String CHANGELOG_TEXT = """
 Changelog
-Version 1.4.0 (from 1.3.2)
+Version 1.5.0 (from 1.4.1)
 
-IMPORTANT! THAT IS ALPHA VERSION.
-TO REPLACE ITEM PUT HIS IN BASE PLAYER INVENTORY AND RECONNECT TO SERVER.
-NOT IN HOTBAR OR BACKPACK!!!
+Updated for Hytale server 2026.03.26-89796e57b.
+Migrated block state API: ProcessingBenchState → ProcessingBenchBlock,
+ItemContainerState → ItemContainerBlock, removed deprecated BlockState/BlockStateModule calls.
+Fixed int2ReferenceEntrySet usages across energy, item network and UI systems.
 
 Also fixed:
 Powders: Adamantite, Onyxium and Prisma

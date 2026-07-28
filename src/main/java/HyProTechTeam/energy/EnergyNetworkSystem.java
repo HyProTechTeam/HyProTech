@@ -19,7 +19,8 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
-import com.hypixel.hytale.builtin.crafting.state.ProcessingBenchState;
+import com.hypixel.hytale.builtin.crafting.component.BenchBlock;
+import com.hypixel.hytale.builtin.crafting.component.ProcessingBenchBlock;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.vector.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
@@ -32,7 +33,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
-import com.hypixel.hytale.server.core.universe.world.meta.BlockStateModule;
+import it.unimi.dsi.fastutil.ints.Int2ReferenceMap;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.shailist.hytale.api.transfer.v1.transaction.Transaction;
@@ -40,6 +41,7 @@ import com.shailist.hytale.api.transfer.v1.transaction.TransactionContext;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import java.util.ArrayDeque;
@@ -68,7 +70,6 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
     private static final String[] WIND_STATE_NAMES = buildTierStateNames("Wind_T", WindUpgradeConfig.MAX_TIER);
     private static final String[] FURNACE_STATE_NAMES = buildTierStateNames("Furnace_T", FurnaceConfig.MAX_TIER);
     private static volatile Field benchFuelTimeField;
-    private static volatile Field benchInputProgressField;
 
     private final ComponentType<ChunkStore, EnergyNodeComponent> energyType;
     private final Map<World, CableState> cableStates = new IdentityHashMap<>();
@@ -123,6 +124,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
 
         int chunkX = worldChunk.getX();
         int chunkZ = worldChunk.getZ();
+        IntArrayList invalidReferences = null;
 
         for (Int2ObjectMap.Entry<Holder<ChunkStore>> entry : blockComponents.getEntityHolders().int2ObjectEntrySet()) {
             int blockIndex = entry.getIntKey();
@@ -137,9 +139,16 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             }
         }
 
-        for (Int2ObjectMap.Entry<Ref<ChunkStore>> entry : blockComponents.getEntityReferences().int2ObjectEntrySet()) {
+        for (Int2ReferenceMap.Entry<Ref<ChunkStore>> entry : blockComponents.getEntityReferences().int2ReferenceEntrySet()) {
             int blockIndex = entry.getIntKey();
             Ref<ChunkStore> ref = entry.getValue();
+            if (ref == null || !ref.isValid()) {
+                if (invalidReferences == null) {
+                    invalidReferences = new IntArrayList();
+                }
+                invalidReferences.add(blockIndex);
+                continue;
+            }
             EnergyNodeComponent node = blockComponents.getComponent(blockIndex, energyType);
             if (node == null) {
                 node = ensureFurnaceNode(
@@ -147,6 +156,22 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             }
             if (node != null) {
                 processNode(blockComponents, chunkStore, world, chunkX, chunkZ, blockIndex, node, sunlightFactor, delta, cableState);
+            }
+        }
+
+        if (invalidReferences != null && !invalidReferences.isEmpty()) {
+            boolean changed = false;
+            for (int i = 0; i < invalidReferences.size(); i++) {
+                int blockIndex = invalidReferences.getInt(i);
+                Ref<ChunkStore> ref = blockComponents.getEntityReference(blockIndex);
+                if (ref != null && !ref.isValid()) {
+                    blockComponents.removeEntityReference(blockIndex, ref);
+                    disableTickingAt(world, chunkX, chunkZ, blockIndex);
+                    changed = true;
+                }
+            }
+            if (changed) {
+                blockComponents.markNeedsSaving();
             }
         }
     }
@@ -169,6 +194,11 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         int worldX = ChunkUtil.worldCoordFromLocalCoord(chunkX, localX);
         int worldZ = ChunkUtil.worldCoordFromLocalCoord(chunkZ, localZ);
         int worldY = localY;
+
+        if (node.getNodeType() == EnergyNodeComponent.NodeType.CABLE) {
+            // Keep cable blocks out of vanilla ticking queues to avoid stale refs on break.
+            disableTickingAt(world, chunkX, chunkZ, blockIndex);
+        }
 
         boolean changed = UpgradePersistence.applyEnergyUpgrade(world, worldX, worldY, worldZ, node);
         if (node.getNodeType() == EnergyNodeComponent.NodeType.CABLE) {
@@ -469,6 +499,27 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
 
         return accessor.getBlockType(worldX, worldY, worldZ);
+    }
+
+    private void disableTickingAt(World world, int chunkX, int chunkZ, int blockIndex) {
+        if (world == null) {
+            return;
+        }
+        int localX = ChunkUtil.xFromBlockInColumn(blockIndex);
+        int localY = ChunkUtil.yFromBlockInColumn(blockIndex);
+        int localZ = ChunkUtil.zFromBlockInColumn(blockIndex);
+        int worldX = ChunkUtil.worldCoordFromLocalCoord(chunkX, localX);
+        int worldZ = ChunkUtil.worldCoordFromLocalCoord(chunkZ, localZ);
+        long chunkIndex = ChunkUtil.indexChunkFromBlock(worldX, worldZ);
+        BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+        if (accessor == null) {
+            return;
+        }
+        try {
+            accessor.setTicking(worldX, localY, worldZ, false);
+        } catch (Exception ignored) {
+            // Best-effort only: invalid refs can remain in ticking queues after rapid break/place.
+        }
     }
 
     private EnergyNodeComponent createFurnaceNode() {
@@ -1189,12 +1240,17 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             int localBaseMask = rotateMaskToLocal(visualMask, rotation);
             int tier = CableUpgradeConfig.clampTier(node.getCableTier());
             String stateName = cableStateName(localBaseMask, tier);
+            if (stateName.equals(node.getLastCableState())) {
+                continue;
+            }
 
             try {
                 accessor.setBlockInteractionState(cable.x, cable.y, cable.z, blockType, stateName, false);
+                node.setLastCableState(stateName);
             } catch (Exception e) {
                 // aspo?? jednou zaloguj, a?? m???? d??kaz
                 System.out.println("[HyProTech] Cable state '" + stateName + "' not found for blockType=" + blockType.getId());
+                node.setLastCableState("");
             }
         }
     }
@@ -1344,8 +1400,9 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             int worldZ,
             EnergyNodeComponent node,
             float deltaSeconds) {
-        ProcessingBenchState benchState = getProcessingBenchState(world, worldX, worldY, worldZ);
-        if (benchState == null || deltaSeconds <= 0f) {
+        ProcessingBenchBlock benchState = getProcessingBenchState(world, worldX, worldY, worldZ);
+        BenchBlock benchBlock = getBenchBlock(world, worldX, worldY, worldZ);
+        if (benchState == null || benchBlock == null || deltaSeconds <= 0f) {
             HyProTechSounds.tickLoop(
                     world,
                     worldX,
@@ -1368,15 +1425,15 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             changed = true;
         }
 
-        int rawTier = benchState.getTierLevel();
+        int rawTier = benchBlock.getTierLevel();
         int tier = FurnaceConfig.clampTier(rawTier);
         int overrideTier = getFurnaceTierOverride(world, worldX, worldY, worldZ);
         if (overrideTier > tier) {
-            benchState.setTierLevel(overrideTier);
+            benchBlock.setTierLevel(overrideTier);
             tier = overrideTier;
             changed = true;
         } else if (rawTier != tier) {
-            benchState.setTierLevel(tier);
+            benchBlock.setTierLevel(tier);
             changed = true;
         }
 
@@ -1417,7 +1474,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
 
         if (benchState.isActive() != shouldBeActive) {
-            benchState.setActive(shouldBeActive);
+            benchState.setActive(shouldBeActive, benchBlock, null);
             changed = true;
         }
         if (shouldBeActive) {
@@ -1428,7 +1485,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         if (usesFuel) {
             boolean fuelChanged = setBenchFuelTime(benchState, shouldBeActive ? ELECTRIC_FUEL_TIME : 0f);
             if (fuelChanged) {
-                benchState.updateFuelValues();
+                benchState.updateFuelValues(benchBlock.getWindows());
                 changed = true;
             }
         } else if (!shouldBeActive) {
@@ -1521,7 +1578,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             int worldY,
             int worldZ,
             int tier,
-            ProcessingBenchState benchState,
+            ProcessingBenchBlock benchState,
             EnergyNodeComponent node) {
         if (world == null || benchState == null || node == null) {
             return;
@@ -1663,13 +1720,20 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         if (desiredTier <= 0) {
             return false;
         }
-        String upgradedId = TieredIdUtil.buildTieredId(HyProTechIds.BLOCK_ENERGY_CABLE, desiredTier);
+        String upgradedId = buildEnergyCableTieredId(desiredTier);
         upgradedId = TieredIdUtil.applyNamespace(blockId, HyProTechIds.BLOCK_ENERGY_CABLE, upgradedId);
         if (isIdOrState(blockId, upgradedId)) {
             return false;
         }
         UpgradePersistence.queueBlockSwap(world, new Vector3i(worldX, worldY, worldZ), upgradedId, node, null);
         return true;
+    }
+
+    private String buildEnergyCableTieredId(int tier) {
+        if (tier <= 0) {
+            return HyProTechIds.BLOCK_ENERGY_CABLE;
+        }
+        return HyProTechIds.BLOCK_ENERGY_CABLE + "_S" + tier;
     }
 
     private void syncTieredMachineState(
@@ -1711,7 +1775,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             int worldY,
             int worldZ,
             int tierIndex,
-            ProcessingBenchState benchState,
+            ProcessingBenchBlock benchState,
             EnergyNodeComponent node) {
         if (world == null) {
             return;
@@ -1787,11 +1851,11 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return BlockIdUtil.isIdOrState(blockId, baseId);
     }
 
-    private boolean setBenchFuelTime(ProcessingBenchState benchState, float value) {
+    private boolean setBenchFuelTime(ProcessingBenchBlock benchState, float value) {
         Field field = benchFuelTimeField;
         if (field == null) {
             try {
-                field = ProcessingBenchState.class.getDeclaredField("fuelTime");
+                field = ProcessingBenchBlock.class.getDeclaredField("fuelTime");
                 field.setAccessible(true);
                 benchFuelTimeField = field;
             } catch (NoSuchFieldException e) {
@@ -1810,31 +1874,16 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
-    private boolean setBenchInputProgress(ProcessingBenchState benchState, float value) {
-        Field field = benchInputProgressField;
-        if (field == null) {
-            try {
-                field = ProcessingBenchState.class.getDeclaredField("inputProgress");
-                field.setAccessible(true);
-                benchInputProgressField = field;
-            } catch (NoSuchFieldException e) {
-                return false;
-            }
-        }
-        try {
-            float current = field.getFloat(benchState);
-            if (Float.compare(current, value) == 0) {
-                return false;
-            }
-            field.setFloat(benchState, value);
-            return true;
-        } catch (IllegalAccessException e) {
+    private boolean setBenchInputProgress(ProcessingBenchBlock benchState, float value) {
+        float current = benchState.getInputProgress();
+        if (Float.compare(current, value) == 0) {
             return false;
         }
+        benchState.setInputProgress(value);
+        return true;
     }
 
-    @SuppressWarnings("removal")
-    private ProcessingBenchState getProcessingBenchState(World world, int worldX, int worldY, int worldZ) {
+    private ProcessingBenchBlock getProcessingBenchState(World world, int worldX, int worldY, int worldZ) {
         long chunkIndex = ChunkUtil.indexChunkFromBlock(worldX, worldZ);
         BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
         if (accessor == null) {
@@ -1842,7 +1891,22 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
 
         return BlockModule.get().getComponent(
-                BlockStateModule.get().getComponentType(ProcessingBenchState.class),
+                ProcessingBenchBlock.getComponentType(),
+                world,
+                worldX,
+                worldY,
+                worldZ);
+    }
+
+    private BenchBlock getBenchBlock(World world, int worldX, int worldY, int worldZ) {
+        long chunkIndex = ChunkUtil.indexChunkFromBlock(worldX, worldZ);
+        BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+        if (accessor == null) {
+            return null;
+        }
+
+        return BlockModule.get().getComponent(
+                BenchBlock.getComponentType(),
                 world,
                 worldX,
                 worldY,

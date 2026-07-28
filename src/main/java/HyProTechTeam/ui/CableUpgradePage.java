@@ -382,7 +382,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
             return;
         }
         int nextTier = currentTier + 1;
-        String upgradedId = TieredIdUtil.buildTieredId(HyProTechIds.BLOCK_ENERGY_CABLE, nextTier);
+        String upgradedId = buildEnergyCableTieredId(nextTier);
         for (EnergyCableEntry cable : snapshot.cables) {
             if (cable.node.getCableTier() >= nextTier) {
                 continue;
@@ -437,6 +437,13 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
             }
         }
         return true;
+    }
+
+    private static String buildEnergyCableTieredId(int tier) {
+        if (tier <= 0) {
+            return HyProTechIds.BLOCK_ENERGY_CABLE;
+        }
+        return HyProTechIds.BLOCK_ENERGY_CABLE + "_S" + tier;
     }
 
     private int depositUpgradeItems(

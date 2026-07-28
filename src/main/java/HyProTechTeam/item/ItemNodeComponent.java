@@ -75,6 +75,7 @@ public class ItemNodeComponent implements Component<ChunkStore> {
     private int maxTransfer;
     private int inputMask = EnergySide.ALL_MASK;
     private int outputMask = EnergySide.ALL_MASK;
+    private transient String lastCableState = "";
     private final EnumMap<EnergySide, LinkedHashSet<String>> filtersBySide =
             new EnumMap<>(EnergySide.class);
     private final EnumMap<EnergySide, FilterMode> filterModesBySide =
@@ -154,6 +155,14 @@ public class ItemNodeComponent implements Component<ChunkStore> {
 
     public void setOutputMask(int outputMask) {
         this.outputMask = outputMask & EnergySide.ALL_MASK;
+    }
+
+    public String getLastCableState() {
+        return lastCableState == null ? "" : lastCableState;
+    }
+
+    public void setLastCableState(String lastCableState) {
+        this.lastCableState = lastCableState == null ? "" : lastCableState;
     }
 
     public Set<String> getFilters(EnergySide side) {
@@ -369,6 +378,7 @@ public class ItemNodeComponent implements Component<ChunkStore> {
         copy.maxTransfer = maxTransfer;
         copy.inputMask = inputMask;
         copy.outputMask = outputMask;
+        copy.lastCableState = lastCableState;
         for (EnergySide side : EnergySide.VALUES) {
             LinkedHashSet<String> filters = filtersBySide.get(side);
             if (filters != null && !filters.isEmpty()) {

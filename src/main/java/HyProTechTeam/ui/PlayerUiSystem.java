@@ -16,6 +16,7 @@ import com.hypixel.hytale.builtin.crafting.window.ProcessingBenchWindow;
 import com.hypixel.hytale.component.Archetype;
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
+import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
@@ -136,19 +137,11 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
             return;
         }
 
-        Holder<ChunkStore> holder = accessor.getBlockComponentHolder(
-                target.getX(), target.getY(), target.getZ());
-        EnergyNodeComponent node = holder == null ? null : holder.getComponent(energyType);
-        if (node == null) {
-            node = getEnergyNodeAt(world, target.getX(), target.getY(), target.getZ());
-        }
+        EnergyNodeComponent node = getEnergyNodeAt(world, target.getX(), target.getY(), target.getZ());
         ItemNodeComponent itemNode = null;
         Vector3i effectiveTarget = target;
         if (node == null) {
-            itemNode = holder == null ? null : holder.getComponent(itemType);
-            if (itemNode == null) {
-                itemNode = getItemNodeAt(world, target.getX(), target.getY(), target.getZ());
-            }
+            itemNode = getItemNodeAt(world, target.getX(), target.getY(), target.getZ());
         }
         if (node == null && itemNode == null && target.getY() > ChunkUtil.MIN_Y) {
             int belowY = target.getY() - 1;
@@ -495,16 +488,8 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
             return;
         }
 
-        Holder<ChunkStore> holder = accessor.getBlockComponentHolder(
-                basePos.getX(), basePos.getY(), basePos.getZ());
-        EnergyNodeComponent node = holder == null ? null : holder.getComponent(energyType);
-        if (node == null || node.getCapacity() <= 0) {
-            EnergyNodeComponent chunkNode = getEnergyNodeAt(
-                    world, basePos.getX(), basePos.getY(), basePos.getZ());
-            if (chunkNode != null) {
-                node = chunkNode;
-            }
-        }
+        EnergyNodeComponent node = getEnergyNodeAt(
+                world, basePos.getX(), basePos.getY(), basePos.getZ());
         if ((node == null || node.getCapacity() <= 0) && basePos.getY() > ChunkUtil.MIN_Y) {
             EnergyNodeComponent belowNode = getEnergyNodeAt(
                     world, basePos.getX(), basePos.getY() - 1, basePos.getZ());
@@ -634,6 +619,9 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
     }
 
     private CableNetworkInfo getCableNetworkInfo(World world, Vector3i target) {
+        if (world == null || target == null) {
+            return null;
+        }
         CableNetworkInfo info = new CableNetworkInfo();
         Deque<Vector3i> queue = new ArrayDeque<>();
         Long2ObjectMap<IntOpenHashSet> visited = new Long2ObjectOpenHashMap<>();
@@ -645,14 +633,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
 
         while (!queue.isEmpty()) {
             Vector3i pos = queue.removeFirst();
-            long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-            BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
-            if (accessor == null) {
-                continue;
-            }
-
-            Holder<ChunkStore> holder = accessor.getBlockComponentHolder(pos.getX(), pos.getY(), pos.getZ());
-            EnergyNodeComponent node = holder == null ? null : holder.getComponent(energyType);
+            EnergyNodeComponent node = getEnergyNodeAt(world, pos.getX(), pos.getY(), pos.getZ());
             if (node == null || node.getNodeType() != EnergyNodeComponent.NodeType.CABLE) {
                 continue;
             }
@@ -684,13 +665,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
                     continue;
                 }
 
-                long nChunkIndex = ChunkUtil.indexChunkFromBlock(nx, nz);
-                BlockAccessor neighborAccessor = world.getChunkIfLoaded(nChunkIndex);
-                if (neighborAccessor == null) {
-                    continue;
-                }
-                Holder<ChunkStore> neighborHolder = neighborAccessor.getBlockComponentHolder(nx, ny, nz);
-                EnergyNodeComponent neighbor = neighborHolder == null ? null : neighborHolder.getComponent(energyType);
+                EnergyNodeComponent neighbor = getEnergyNodeAt(world, nx, ny, nz);
                 EnergySide neighborSide = side.opposite();
                 if (neighbor != null
                         && neighbor.getNodeType() == EnergyNodeComponent.NodeType.CABLE
@@ -723,60 +698,72 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
     }
 
     private EnergyNodeComponent getEnergyNodeAt(World world, int x, int y, int z) {
-        if (world == null) {
-            return null;
-        }
-        if (y < ChunkUtil.MIN_Y || y >= ChunkUtil.HEIGHT) {
-            return null;
-        }
-        long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-        BlockComponentChunk blockComponents =
-                world.getChunkStore().getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-        if (blockComponents == null) {
-            return null;
-        }
-        int localX = ChunkUtil.localCoordinate((long) x);
-        int localZ = ChunkUtil.localCoordinate((long) z);
-        int blockIndex = ChunkUtil.indexBlockInColumn(localX, y, localZ);
-        return blockComponents.getComponent(blockIndex, energyType);
+        return getComponentAt(world, x, y, z, energyType);
     }
 
     private ItemNodeComponent getItemNodeAt(World world, int x, int y, int z) {
-        if (world == null) {
-            return null;
-        }
-        if (y < ChunkUtil.MIN_Y || y >= ChunkUtil.HEIGHT) {
-            return null;
-        }
-        long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-        BlockComponentChunk blockComponents =
-                world.getChunkStore().getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-        if (blockComponents == null) {
-            return null;
-        }
-        int localX = ChunkUtil.localCoordinate((long) x);
-        int localZ = ChunkUtil.localCoordinate((long) z);
-        int blockIndex = ChunkUtil.indexBlockInColumn(localX, y, localZ);
-        return blockComponents.getComponent(blockIndex, itemType);
+        return getComponentAt(world, x, y, z, itemType);
     }
 
     private MachineComponent getMachineAt(World world, int x, int y, int z) {
+        return getComponentAt(world, x, y, z, machineType);
+    }
+
+    private <T extends Component<ChunkStore>> T getComponentAt(
+            World world,
+            int x,
+            int y,
+            int z,
+            ComponentType<ChunkStore, T> type) {
         if (world == null) {
+            return null;
+        }
+        if (type == null) {
             return null;
         }
         if (y < ChunkUtil.MIN_Y || y >= ChunkUtil.HEIGHT) {
             return null;
         }
         long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
+        if (world.getChunkIfLoaded(chunkIndex) == null) {
+            return null;
+        }
+        ChunkStore chunkStore = world.getChunkStore();
+        if (chunkStore == null) {
+            return null;
+        }
         BlockComponentChunk blockComponents =
-                world.getChunkStore().getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
+                chunkStore.getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
         if (blockComponents == null) {
             return null;
         }
         int localX = ChunkUtil.localCoordinate((long) x);
         int localZ = ChunkUtil.localCoordinate((long) z);
         int blockIndex = ChunkUtil.indexBlockInColumn(localX, y, localZ);
-        return blockComponents.getComponent(blockIndex, machineType);
+        Ref<ChunkStore> ref = blockComponents.getEntityReference(blockIndex);
+        if (ref != null && !ref.isValid()) {
+            blockComponents.removeEntityReference(blockIndex, ref);
+            blockComponents.markNeedsSaving();
+            return null;
+        }
+        Holder<ChunkStore> holder = ref == null ? blockComponents.getEntityHolder(blockIndex) : null;
+        if (holder != null) {
+            return holder.getComponent(type);
+        }
+        if (ref == null) {
+            return null;
+        }
+        Store<ChunkStore> chunkStoreData = chunkStore.getStore();
+        if (chunkStoreData == null) {
+            return null;
+        }
+        try {
+            return chunkStoreData.getComponent(ref, type);
+        } catch (IllegalStateException ex) {
+            blockComponents.removeEntityReference(blockIndex, ref);
+            blockComponents.markNeedsSaving();
+            return null;
+        }
     }
 
     private ItemCableNetworkInfo getItemCableNetworkInfo(World world, Vector3i target) {
@@ -795,17 +782,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
 
         while (!queue.isEmpty()) {
             Vector3i pos = queue.removeFirst();
-            long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-            BlockComponentChunk components =
-                    world.getChunkStore().getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-            if (components == null) {
-                continue;
-            }
-
-            int localX = ChunkUtil.localCoordinate((long) pos.getX());
-            int localZ = ChunkUtil.localCoordinate((long) pos.getZ());
-            int blockIndex = ChunkUtil.indexBlockInColumn(localX, pos.getY(), localZ);
-            ItemNodeComponent node = components.getComponent(blockIndex, itemType);
+            ItemNodeComponent node = getItemNodeAt(world, pos.getX(), pos.getY(), pos.getZ());
             if (node == null) {
                 continue;
             }
@@ -822,16 +799,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
                 if (!markVisited(visited, nx, ny, nz)) {
                     continue;
                 }
-                long neighborChunkIndex = ChunkUtil.indexChunkFromBlock(nx, nz);
-                BlockComponentChunk neighborComponents =
-                        world.getChunkStore().getChunkComponent(neighborChunkIndex, BlockComponentChunk.getComponentType());
-                if (neighborComponents == null) {
-                    continue;
-                }
-                int nLocalX = ChunkUtil.localCoordinate((long) nx);
-                int nLocalZ = ChunkUtil.localCoordinate((long) nz);
-                int neighborIndex = ChunkUtil.indexBlockInColumn(nLocalX, ny, nLocalZ);
-                ItemNodeComponent neighbor = neighborComponents.getComponent(neighborIndex, itemType);
+                ItemNodeComponent neighbor = getItemNodeAt(world, nx, ny, nz);
                 if (neighbor != null) {
                     queue.add(new Vector3i(nx, ny, nz));
                 }

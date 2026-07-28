@@ -97,6 +97,7 @@ public class EnergyNodeComponent implements Component<ChunkStore> {
     private transient int connectedMask = EnergySide.ALL_MASK;
     private transient EnergyNodeStorage storage;
     private transient String lastFurnaceState = "";
+    private transient String lastCableState = "";
     private transient long furnaceWorkingStartMs;
     private transient boolean furnaceWorking;
     private transient String lastWindState = "";
@@ -288,6 +289,14 @@ public class EnergyNodeComponent implements Component<ChunkStore> {
         this.lastFurnaceState = lastFurnaceState == null ? "" : lastFurnaceState;
     }
 
+    public String getLastCableState() {
+        return lastCableState == null ? "" : lastCableState;
+    }
+
+    public void setLastCableState(String lastCableState) {
+        this.lastCableState = lastCableState == null ? "" : lastCableState;
+    }
+
     public long getFurnaceWorkingStartMs() {
         return furnaceWorkingStartMs;
     }
@@ -374,6 +383,7 @@ public class EnergyNodeComponent implements Component<ChunkStore> {
         copy.cableColor = cableColor;
         copy.cableTier = cableTier;
         copy.connectedMask = connectedMask;
+        copy.lastCableState = lastCableState;
         copy.enabled = enabled;
         copy.solarTier = solarTier;
         copy.windTier = windTier;

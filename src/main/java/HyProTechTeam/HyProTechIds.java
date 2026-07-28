@@ -25,10 +25,6 @@ public final class HyProTechIds {
     public static final String BLOCK_WIND_TURBINE = "HyProTech_Wind_Turbine";
     public static final String BLOCK_ENERGY_CABLE = "HyProTech_Cable_Copper";
     public static final String BLOCK_ITEM_CABLE = "HyProTech_Item_Cable";
-    public static final String BLOCK_THIN_CABLE_BLACK = "HyProTech_Thin_Cable_Black";
-    public static final String BLOCK_THIN_CABLE_BROWN = "HyProTech_Thin_Cable_Brown";
-    public static final String BLOCK_THIN_CABLE_BLUE = "HyProTech_Thin_Cable_Blue";
-    public static final String BLOCK_THIN_CABLE_GREEN = "HyProTech_Thin_Cable_Green";
     public static final String BLOCK_BATTERY = "HyProTech_Battery_Rack_S";
     public static final String BLOCK_ELECTRIC_FURNACE = "HyProTech_Electric_Furnace";
     public static final String BLOCK_ORE_CRUSHER = "HyProTech_Ore_Crusher";

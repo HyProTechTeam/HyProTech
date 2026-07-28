@@ -566,10 +566,11 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         OreCrusherConfig.Requirement[] requirements =
                 hasNextTier ? OreCrusherConfig.getUpgradeRequirements(tier)
                         : new OreCrusherConfig.Requirement[0];
-        int[] owned = new int[requirements.length];
+        int visibleRequirementCount = Math.min(requirements.length, UPGRADE_ROW_IDS.length);
+        int[] owned = new int[visibleRequirementCount];
         boolean canUpgrade = hasNextTier && inventory != null;
         StringBuilder reqKey = new StringBuilder();
-        for (int i = 0; i < requirements.length; i++) {
+        for (int i = 0; i < visibleRequirementCount; i++) {
             OreCrusherConfig.Requirement requirement = requirements[i];
             owned[i] = inventory == null ? 0 : countItem(inventory, requirement.getItemId());
             if (owned[i] < requirement.getQuantity()) {
@@ -592,7 +593,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         update.set("#UpgradeReqEmpty.Text", "No further upgrades.");
         update.set("#UpgradeReqEmpty.Visible", !hasNextTier);
         for (int i = 0; i < UPGRADE_ROW_IDS.length; i++) {
-            boolean visible = hasNextTier && i < requirements.length;
+            boolean visible = hasNextTier && i < visibleRequirementCount;
             update.set(UPGRADE_ROW_IDS[i] + ".Visible", visible);
             if (visible) {
                 OreCrusherConfig.Requirement requirement = requirements[i];
@@ -1003,8 +1004,10 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
 
         OreCrusherConfig.Requirement[] requirements =
                 OreCrusherConfig.getUpgradeRequirements(currentTier);
-        List<ItemStack> stacks = new ArrayList<>(requirements.length);
-        for (OreCrusherConfig.Requirement requirement : requirements) {
+        int visibleRequirementCount = Math.min(requirements.length, UPGRADE_ROW_IDS.length);
+        List<ItemStack> stacks = new ArrayList<>(visibleRequirementCount);
+        for (int i = 0; i < visibleRequirementCount; i++) {
+            OreCrusherConfig.Requirement requirement = requirements[i];
             stacks.add(new ItemStack(requirement.getItemId(), requirement.getQuantity()));
         }
 
@@ -1633,8 +1636,8 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         if (targetIndex == Integer.MIN_VALUE) {
             return Integer.MIN_VALUE;
         }
-        for (Int2ObjectMap.Entry<Ref<ChunkStore>> entry
-                : blockComponents.getEntityReferences().int2ObjectEntrySet()) {
+        for (it.unimi.dsi.fastutil.ints.Int2ReferenceMap.Entry<Ref<ChunkStore>> entry
+                : blockComponents.getEntityReferences().int2ReferenceEntrySet()) {
             Ref<ChunkStore> entryRef = entry.getValue();
             if (entryRef != null && entryRef.getIndex() == targetIndex) {
                 return entry.getIntKey();

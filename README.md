@@ -132,10 +132,6 @@ This section reflects the actual state of the project based on:
   - have models/textures, **but no matching item JSON and no code registration found**
   - currently treated as **assets-only** (not usable in-game yet)
 
-- **Thin Cable (Black/Brown/Blue/Green)**
-  - appears in localization + command shortcut
-  - **missing item JSON** in `src/main/resources/Server/Item/Items`
-
 ---
 
 ## 🗺️ Project structure (high-level)
@@ -154,7 +150,6 @@ This section reflects the actual state of the project based on:
 
 - Fix Cable Tool asset mismatch (icon/model/texture)
 - Register Alloy Smelter + Ore Crusher as actual items/blocks (or remove assets)
-- Add missing Thin Cable item JSON definitions
 - Improve distribution logic / priority UI for item networks
 
 ---

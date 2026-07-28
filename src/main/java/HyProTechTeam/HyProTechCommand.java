@@ -28,8 +28,8 @@ public class HyProTechCommand extends AbstractPlayerCommand {
     private final OptionalArg<String> itemArg =
             withOptionalArg(
                     "item",
-                    "ID itemu (pro give: solar/battery/cable/energy_cable/item_cable/thin_cable_black/"
-                            + "thin_cable_brown/thin_cable_blue/thin_cable_green/furnace/ore_crusher/alloy_smelter/workbench)",
+                    "ID itemu (pro give: solar/battery/cable/energy_cable/item_cable/"
+                            + "furnace/ore_crusher/alloy_smelter/workbench)",
                     ArgTypes.STRING);
     private final OptionalArg<Integer> countArg =
             withOptionalArg("count", "Mnozstvi (default 1)", ArgTypes.INTEGER);
@@ -103,10 +103,6 @@ public class HyProTechCommand extends AbstractPlayerCommand {
         giveItem(container, HyProTechIds.BLOCK_SOLAR_PANEL, count, player);
         giveItem(container, HyProTechIds.BLOCK_ENERGY_CABLE, count, player);
         giveItem(container, HyProTechIds.BLOCK_ITEM_CABLE, count, player);
-        giveItem(container, HyProTechIds.BLOCK_THIN_CABLE_BLACK, count, player);
-        giveItem(container, HyProTechIds.BLOCK_THIN_CABLE_BROWN, count, player);
-        giveItem(container, HyProTechIds.BLOCK_THIN_CABLE_BLUE, count, player);
-        giveItem(container, HyProTechIds.BLOCK_THIN_CABLE_GREEN, count, player);
         giveItem(container, HyProTechIds.BLOCK_BATTERY, count, player);
         giveItem(container, HyProTechIds.BLOCK_ELECTRIC_FURNACE, count, player);
         giveItem(container, HyProTechIds.BLOCK_ORE_CRUSHER, count, player);
@@ -136,14 +132,6 @@ public class HyProTechCommand extends AbstractPlayerCommand {
             case "itemcable":
             case "kabel_itemu":
                 return HyProTechIds.BLOCK_ITEM_CABLE;
-            case "thin_cable_black":
-                return HyProTechIds.BLOCK_THIN_CABLE_BLACK;
-            case "thin_cable_brown":
-                return HyProTechIds.BLOCK_THIN_CABLE_BROWN;
-            case "thin_cable_blue":
-                return HyProTechIds.BLOCK_THIN_CABLE_BLUE;
-            case "thin_cable_green":
-                return HyProTechIds.BLOCK_THIN_CABLE_GREEN;
             case "furnace":
             case "electric_furnace":
                 return HyProTechIds.BLOCK_ELECTRIC_FURNACE;

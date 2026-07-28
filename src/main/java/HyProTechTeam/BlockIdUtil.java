@@ -31,6 +31,9 @@ public final class BlockIdUtil {
         }
         String normalized = TieredIdUtil.stripNamespace(blockId, baseId);
         int tier = TieredIdUtil.parseTierSuffix(normalized, baseId);
+        if (tier < 0) {
+            tier = parseTierSuffix(normalized, baseId, "_S");
+        }
         if (tier >= 0) {
             return tier;
         }
@@ -56,5 +59,36 @@ public final class BlockIdUtil {
             i++;
         }
         return found ? value : -1;
+    }
+
+    private static int parseTierSuffix(String normalized, String baseId, String marker) {
+        if (normalized == null || baseId == null || marker == null || marker.isEmpty()) {
+            return -1;
+        }
+        String prefix = baseId + marker;
+        if (!normalized.regionMatches(true, 0, prefix, 0, prefix.length())) {
+            return -1;
+        }
+        if (normalized.length() == prefix.length()) {
+            return -1;
+        }
+        int value = 0;
+        int i = prefix.length();
+        boolean foundDigit = false;
+        for (; i < normalized.length(); i++) {
+            char c = normalized.charAt(i);
+            if (c < '0' || c > '9') {
+                break;
+            }
+            foundDigit = true;
+            value = (value * 10) + (c - '0');
+        }
+        if (!foundDigit) {
+            return -1;
+        }
+        if (i < normalized.length() && Character.isLetterOrDigit(normalized.charAt(i))) {
+            return -1;
+        }
+        return value;
     }
 }

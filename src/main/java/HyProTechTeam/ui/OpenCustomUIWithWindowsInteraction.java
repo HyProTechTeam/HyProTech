@@ -1,6 +1,7 @@
 package HyProTechTeam.ui;
 
-import com.hypixel.hytale.builtin.crafting.state.ProcessingBenchState;
+import com.hypixel.hytale.builtin.crafting.component.BenchBlock;
+import com.hypixel.hytale.builtin.crafting.component.ProcessingBenchBlock;
 import com.hypixel.hytale.builtin.crafting.window.BenchWindow;
 import com.hypixel.hytale.builtin.crafting.window.ProcessingBenchWindow;
 import com.hypixel.hytale.codec.KeyedCodec;
@@ -25,9 +26,7 @@ import com.hypixel.hytale.server.core.modules.interaction.interaction.config.ser
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.meta.BlockStateModule;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.hypixel.hytale.math.util.ChunkUtil;
 import java.util.Map;
 import java.util.UUID;
 
@@ -142,7 +141,6 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
         return new Vector3i(baseBlock.x, baseBlock.y, baseBlock.z);
     }
 
-    @SuppressWarnings("removal")
     private Window[] createBenchWindows(
             InteractionContext context,
             CommandBuffer<EntityStore> commandBuffer,
@@ -167,18 +165,13 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
         int y = baseBlock.y;
         int z = baseBlock.z;
 
-        long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-        if (world.getChunkIfLoaded(chunkIndex) == null) {
-            return null;
-        }
-
-        ProcessingBenchState benchState = BlockModule.get().getComponent(
-                BlockStateModule.get().getComponentType(ProcessingBenchState.class),
+        ProcessingBenchBlock bench = BlockModule.get().getComponent(
+                ProcessingBenchBlock.getComponentType(),
                 world,
                 x,
                 y,
                 z);
-        if (benchState == null) {
+        if (bench == null) {
             return null;
         }
 
@@ -187,7 +180,14 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
             return null;
         }
 
-        if (!ensureBenchInitialized(benchState, blockType)) {
+        BenchBlock benchBlock = BlockModule.get().getComponent(
+                BenchBlock.getComponentType(),
+                world,
+                x,
+                y,
+                z);
+
+        if (!ensureBenchInitialized(bench, blockType)) {
             return null;
         }
 
@@ -198,37 +198,38 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
         }
         UUID playerId = uuidComponent.getUuid();
 
-        Map<UUID, BenchWindow> windows = benchState.getWindows();
-        BenchWindow existing = windows.get(playerId);
-        if (existing != null) {
-            return new Window[] { existing };
+        Map<UUID, BenchWindow> windows = benchBlock != null ? benchBlock.getWindows() : null;
+        if (windows != null) {
+            BenchWindow existing = windows.get(playerId);
+            if (existing != null) {
+                return new Window[] { existing };
+            }
         }
 
-        ProcessingBenchWindow window = new ProcessingBenchWindow(benchState);
-        BenchWindow prior = windows.putIfAbsent(playerId, window);
-        if (prior != null) {
-            return new Window[] { prior };
+        ProcessingBenchWindow window = new ProcessingBenchWindow(
+                bench, benchBlock, null, x, y, z, 0, blockType);
+        if (windows != null) {
+            BenchWindow prior = windows.putIfAbsent(playerId, window);
+            if (prior != null) {
+                return new Window[] { prior };
+            }
         }
 
-        benchState.updateFuelValues();
-        window.registerCloseEvent(event -> windows.remove(playerId, window));
+        if (benchBlock != null) {
+            bench.updateFuelValues(benchBlock.getWindows());
+        }
+        if (windows != null) {
+            window.registerCloseEvent(event -> windows.remove(playerId, window));
+        }
         return new Window[] { window };
     }
 
-    private boolean ensureBenchInitialized(ProcessingBenchState benchState, BlockType blockType) {
-        if (benchState == null || blockType == null || blockType.getBench() == null) {
+    private boolean ensureBenchInitialized(ProcessingBenchBlock bench, BlockType blockType) {
+        if (bench == null || blockType == null || blockType.getBench() == null) {
             return false;
         }
-
-        boolean needsInit = benchState.getBench() == null
-                || !blockType.getBench().equals(benchState.getBench());
-        if (!needsInit && benchState.getItemContainer() == null) {
-            needsInit = true;
-        }
-        if (needsInit && !benchState.initialize(blockType)) {
-            return false;
-        }
-        return benchState.getItemContainer() != null;
+        bench.initializeBenchConfig(blockType);
+        return true;
     }
 
     private Page resolveBasePage(Window[] windows) {
