@@ -1,0 +1,23 @@
+{
+  "Input": [
+    {
+      "ItemId": "Ingredient_Bar_Copper",
+      "Quantity": 3
+    },
+    {
+      "ItemId": "HyProTech_Ingot_Tin",
+      "Quantity": 1
+    }
+  ],
+  "PrimaryOutput": {
+    "ItemId": "Ingredient_Bar_Bronze",
+    "Quantity": 4
+  },
+  "BenchRequirement": [
+    {
+      "Type": "Processing",
+      "Id": "AlloySmelter"
+    }
+  ],
+  "TimeSeconds": 10
+}

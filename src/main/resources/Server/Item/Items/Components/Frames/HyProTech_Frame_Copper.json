@@ -33,7 +33,7 @@
     ]
   },
   "Model": "Blocks/HyProTech/MachineFrame/Frame_Base.blockymodel",
-  "Texture": "BlockTextures/Materials/Copper.png",
+  "Texture": "BlockTextures/Materials/Copper2.png",
   "Icon": "Icons/ItemsGenerated/Components/Frame_Iron.png",
   "Interactions": {
     "Primary": "Block_Primary",
@@ -55,7 +55,7 @@
     "CustomModel": "Blocks/HyProTech/MachineFrame/Frame_Base.blockymodel",
     "CustomModelTexture": [
       {
-        "Texture": "BlockTextures/Materials/Copper.png",
+        "Texture": "BlockTextures/Materials/Copper2.png",
         "Weight": 1
       }
     ],

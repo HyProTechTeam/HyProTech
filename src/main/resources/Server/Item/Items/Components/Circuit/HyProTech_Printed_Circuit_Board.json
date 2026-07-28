@@ -6,9 +6,31 @@
   "Categories": [
     "Items"
   ],
-  "Model": "Items/PH.blockymodel",
-  "Texture": "Items/PH.png",
-  "Icon": "Icons/ItemsGenerated/PHI.png",
+  "Recipe": {
+    "TimeSeconds": 2,
+    "Input": [
+      {
+        "ItemId": "Ingredient_Bar_Copper",
+        "Quantity": 2
+      },
+      {
+        "ItemId": "HyProTech_Ingot_Silicon",
+        "Quantity": 1
+      }
+    ],
+    "BenchRequirement": [
+      {
+        "Type": "Crafting",
+        "Id": "HyProTech_Workbench",
+        "Categories": [
+          "HyProTech_Components"
+        ]
+      }
+    ]
+  },
+  "Model": "Items/CraftingItems/Circuitboard/Circuitboard.blockymodel",
+  "Texture": "Items/CraftingItems/Circuitboard/Circuitboard.png",
+  "Icon": "Icons/ItemsGenerated/HyProTech_Circuit_Board.png",
   "PlayerAnimationsId": "Item",
   "IconProperties": {
     "Scale": 1,

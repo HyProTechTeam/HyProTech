@@ -71,16 +71,7 @@
       }
     },
     "Interactions": {
-      "Use": {
-        "Interactions": [
-          {
-            "Type": "OpenCustomUI",
-            "Page": {
-              "Id": "HyProTech_item_cable_page"
-            }
-          }
-        ]
-      }
+      "Use": "HyProTech_Open_UI_Item_Cable"
     },
     "HitboxType": "HyProTech_Cable_Hit_00",
     "InteractionHitboxType": "HyProTech_Cable_Interact_00",

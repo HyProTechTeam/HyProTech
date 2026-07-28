@@ -125,16 +125,7 @@
       }
     },
     "Interactions": {
-      "Use": {
-        "Interactions": [
-          {
-            "Type": "OpenCustomUI",
-            "Page": {
-              "Id": "HyProTech_solar_page"
-            }
-          }
-        ]
-      }
+      "Use": "HyProTech_Open_UI_Solar_Panel"
     }
   }
 }

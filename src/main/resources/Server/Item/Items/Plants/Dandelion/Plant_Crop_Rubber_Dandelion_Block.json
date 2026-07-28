@@ -1,0 +1,173 @@
+{
+  "TranslationProperties": {
+    "Name": "server.items.Plant_Crop_Rubber_Dandelion_StageFinal.name"
+  },
+  "Parent": "Template_Crop_Block",
+  "BlockType": {
+    "CustomModel": "Resources/Plants/Rubber_Dandelion/Rubber_Dandelion_0.blockymodel",
+    "CustomModelTexture": [
+      {
+        "Texture": "Resources/Plants/Rubber_Dandelion/Rubber_Dandelion_0.png",
+        "Weight": 1
+      }
+    ],
+    "State": {
+      "Definitions": {
+        "Stage1": {
+          "Opacity": "Semitransparent",
+          "CustomModel": "Resources/Plants/Rubber_Dandelion/Rubber_Dandelion_1.blockymodel",
+          "CustomModelTexture": [
+            {
+              "Texture": "Resources/Plants/Rubber_Dandelion/Rubber_Dandelion_1.png",
+              "Weight": 1
+            }
+          ],
+          "HitboxType": "Plant_Small",
+          "Gathering": {
+            "Soft": {
+              "IsWeaponBreakable": false,
+              "DropList": "Drops_Plant_Crop_Rubber_Dandelion_Stage1"
+            }
+          },
+          "BlockParticleSetId": "Flower",
+          "BlockSoundSetId": "Plant",
+          "ParticleColor": "#8bc752"
+        },
+        "Stage2": {
+          "Material": "Solid",
+          "Opacity": "Semitransparent",
+          "CustomModel": "Resources/Plants/Rubber_Dandelion/Rubber_Dandelion_2.blockymodel",
+          "CustomModelTexture": [
+            {
+              "Texture": "Resources/Plants/Rubber_Dandelion/Rubber_Dandelion_2.png",
+              "Weight": 1
+            }
+          ],
+          "HitboxType": "Plant_Medium",
+          "Gathering": {
+            "Soft": {
+              "IsWeaponBreakable": false,
+              "DropList": "Drops_Plant_Crop_Rubber_Dandelion_Stage2"
+            }
+          },
+          "BlockParticleSetId": "Flower",
+          "BlockSoundSetId": "Plant",
+          "ParticleColor": "#8bc752"
+        },
+        "StageFinal": {
+          "CustomModel": "Resources/Plants/Rubber_Dandelion/Rubber_Dandelion_3.blockymodel",
+          "CustomModelTexture": [
+            {
+              "Texture": "Resources/Plants/Rubber_Dandelion/Rubber_Dandelion_3.png",
+              "Weight": 1
+            }
+          ],
+          "CustomModelScale": 0.9,
+          "HitboxType": "Plant_Medium",
+          "InteractionHint": "server.interactionHints.harvest",
+          "Gathering": {
+            "Harvest": {
+              "DropList": "Drops_Plant_Crop_Rubber_Dandelion_StageFinal_Harvest"
+            },
+            "Soft": {
+              "IsWeaponBreakable": false,
+              "DropList": "Drops_Plant_Crop_Rubber_Dandelion_StageFinal"
+            }
+          },
+          "BlockParticleSetId": "Grass",
+          "BlockSoundSetId": "Plant",
+          "ParticleColor": "#1e951c"
+        }
+      }
+    },
+    "Farming": {
+      "Stages": {
+        "Default": [
+          {
+            "Duration": {
+              "Min": 10500,
+              "Max": 10500
+            },
+            "Type": "BlockState",
+            "State": "default"
+          },
+          {
+            "Duration": {
+              "Min": 18975,
+              "Max": 18975
+            },
+            "Type": "BlockState",
+            "SoundEventId": "SFX_Crops_Grow",
+            "State": "Stage1"
+          },
+          {
+            "Duration": {
+              "Min": 18975,
+              "Max": 18975
+            },
+            "Type": "BlockState",
+            "SoundEventId": "SFX_Crops_Grow",
+            "State": "Stage2"
+          },
+          {
+            "Type": "BlockState",
+            "SoundEventId": "SFX_Crops_Grow_Stage_Complete",
+            "State": "StageFinal"
+          }
+        ],
+        "Harvested": [
+          {
+            "Duration": {
+              "Min": 18975,
+              "Max": 18975
+            },
+            "Type": "BlockState",
+            "SoundEventId": "SFX_Crops_Grow",
+            "State": "Stage1"
+          },
+          {
+            "Duration": {
+              "Min": 18975,
+              "Max": 18975
+            },
+            "Type": "BlockState",
+            "SoundEventId": "SFX_Crops_Grow",
+            "State": "Stage2"
+          },
+          {
+            "Type": "BlockState",
+            "SoundEventId": "SFX_Crops_Grow_Stage_Complete",
+            "State": "StageFinal"
+          }
+        ]
+      },
+      "StartingStageSet": "Default",
+      "ActiveGrowthModifiers": [
+        "Fertilizer",
+        "Water",
+        "LightLevel"
+      ]
+    },
+    "Gathering": {
+      "Soft": {
+        "IsWeaponBreakable": false,
+        "DropList": "Plant_Crop_Rubber_Dandelion_Block"
+      }
+    },
+    "CustomModelScale": 1.0,
+    "ParticleColor": "#aa946e"
+  },
+  "IconProperties": {
+    "Scale": 1.115,
+    "Rotation": [
+      22.5,
+      45.0,
+      22.5
+    ],
+    "Translation": [
+      1.2,
+      -4.2
+    ]
+  },
+  "Icon": "Icons/ItemsGenerated/Plant_Crop_Lettuce_Block.png"
+}

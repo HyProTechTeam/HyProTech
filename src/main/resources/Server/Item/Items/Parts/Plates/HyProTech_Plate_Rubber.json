@@ -1,0 +1,58 @@
+{
+  "TranslationProperties": {
+    "Name": "server.items.HyProTech_Plate_Rubber.name",
+    "Description": "server.items.HyProTech_Plate_Rubber.description"
+  },
+  "Categories": [
+    "Items"
+  ],
+  "Recipe": {
+    "TimeSeconds": 1,
+    "Input": [
+      {
+        "ItemId": "HyProTech_Rubber",
+        "Quantity": 1
+      }
+    ],
+    "BenchRequirement": [
+      {
+        "Type": "Crafting",
+        "Id": "HyProTech_Workbench",
+        "Categories": [
+          "HyProTech_Parts"
+        ]
+      }
+    ]
+  },
+  "Model": "Items/Models/Parts/Plates/Plate_Base.blockymodel",
+  "Texture": "Items/Textures/Materials/Copper.png",
+  "Icon": "Icons/ItemsGenerated/Parts/Plate_Iron.png",
+  "PlayerAnimationsId": "Item",
+  "IconProperties": {
+    "Scale": 1,
+    "Translation": [
+      0,
+      -3
+    ],
+    "Rotation": [
+      22.5,
+      45,
+      22.5
+    ]
+  },
+  "Tags": {
+    "Type": [
+      "Ingredient"
+    ]
+  },
+  "ItemEntity": {
+    "ParticleSystemId": null
+  },
+  "ItemSoundSetId": "ISS_Items_Ingots",
+  "DropOnDeath": true,
+  "ResourceTypes": [
+    {
+      "Id": "Metal_Bars"
+    }
+  ]
+}

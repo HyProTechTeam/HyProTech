@@ -1,0 +1,15 @@
+items.HyProTech_Electrical_Workbench.name=Elektrische Werkbank
+items.HyProTech_Electrical_Workbench.description=Stellt HyProTech-Komponenten her.
+items.HyProTech_Cable_Tool.name=Kabelwerkzeug
+items.HyProTech_Cable_Tool.description=Wechselt die Kabelseiten zwischen Eingang und Ausgang.
+items.HyProTech_Cable_Upgrade_Tool.name=Schraubenschlüssel
+items.HyProTech_Cable_Upgrade_Tool.description=Aktualisiert alle Kabel in einem verbundenen Netzwerk.
+server.items.HyProTech_Cable_Upgrade_Tool.name=Schraubenschlüssel
+server.items.HyProTech_Cable_Upgrade_Tool.description=Aktualisiert alle Kabel in einem verbundenen Netzwerk.
+items.HyProTech_Quarry.description=Gewinnt Ressourcen mit Energie.
+items.HyProTech_Quarry_T1.description=Gewinnt Ressourcen mit Energie.
+items.HyProTech_Quarry_T2.description=Gewinnt Ressourcen mit Energie.
+items.HyProTech_Quarry_T3.description=Gewinnt Ressourcen mit Energie.
+items.HyProTech_Quarry_T4.description=Gewinnt Ressourcen mit Energie.
+items.HyProTech_Quarry_T5.description=Gewinnt Ressourcen mit Energie.
+items.HyProTech_Cable_Copper_S5.description=Überträgt Energie zwischen Maschinen.

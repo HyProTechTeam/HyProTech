@@ -75,16 +75,7 @@
       }
     },
     "Interactions": {
-      "Use": {
-        "Interactions": [
-          {
-            "Type": "OpenCustomUI",
-            "Page": {
-              "Id": "HyProTech_Battery_Rack_S_page"
-            }
-          }
-        ]
-      }
+      "Use": "HyProTech_Open_UI_Battery_Rack_S"
     }
   }
 }

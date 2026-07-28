@@ -1,13 +1,13 @@
 {
   "TranslationProperties": {
-    "Name": "server.items.HyProTech_Copper_Wire.name",
-    "Description": "server.items.HyProTech_Copper_Wire.description"
+    "Name": "server.items.HyProTech_Wastes_Rubber.name",
+    "Description": "server.items.HyProTech_Wastes_Rubber.description"
   },
   "Categories": [
     "Items"
   ],
-  "Model": "Items/PH.blockymodel",
-  "Texture": "Items/PH.png",
+  "Model": "Items/Models/Materials/Rubber.blockymodel",
+  "Texture": "Items/Textures/Materials/Rubber.png",
   "Icon": "Icons/ItemsGenerated/PHI.png",
   "PlayerAnimationsId": "Item",
   "IconProperties": {

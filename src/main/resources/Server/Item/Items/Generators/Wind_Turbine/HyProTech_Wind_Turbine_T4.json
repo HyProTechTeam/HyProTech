@@ -187,16 +187,7 @@
     "HitboxType": "HyProTech_Wind_Turbine_1x1_Tall",
     "InteractionHitboxType": "HyProTech_Wind_Turbine_1x1_Tall",
     "Interactions": {
-      "Use": {
-        "Interactions": [
-          {
-            "Type": "OpenCustomUI",
-            "Page": {
-              "Id": "HyProTech_wind_page"
-            }
-          }
-        ]
-      }
+      "Use": "HyProTech_Open_UI_Wind_Turbine"
     }
   }
 }

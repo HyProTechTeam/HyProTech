@@ -1,0 +1,29 @@
+{
+  "Container": {
+    "Type": "Multiple",
+    "Containers": [
+      {
+        "Type": "Single",
+        "Item": {
+          "ItemId": "Plant_Crop_Rubber_Dandelion_Root"
+        }
+      },
+      {
+        "Type": "Single",
+        "Weight": 50.0,
+        "Item": {
+          "ItemId": "Plant_Crop_Rubber_Dandelion_Root"
+        }
+      },
+      {
+        "Type": "Single",
+        "Weight": 100,
+        "Item": {
+          "ItemId": "Ingredient_Life_Essence",
+          "QuantityMin": 2,
+          "QuantityMax": 3
+        }
+      }
+    ]
+  }
+}

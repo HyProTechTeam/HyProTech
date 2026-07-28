@@ -1,40 +1,36 @@
 {
   "TranslationProperties": {
-    "Name": "server.items.HyProTech_Ingot_Bronze.name",
-    "Description": "server.items.HyProTech_Ingot_Bronze.description"
+    "Name": "server.items.HyProTech_Wire_Copper.name",
+    "Description": "server.items.HyProTech_Wire_Copper.description"
   },
   "Categories": [
     "Items"
   ],
   "Recipe": {
+    "TimeSeconds": 0,
     "Input": [
       {
         "ItemId": "Ingredient_Bar_Copper",
-        "Quantity": 3
-      },
-      {
-        "ItemId": "HyProTech_Ingot_Tin",
         "Quantity": 1
       }
     ],
-    "Output": [
-      {
-        "ItemId": "Ingredient_Bar_Bronze",
-        "Quantity": 4
-      }
-    ],
+  "PrimaryOutput": {
+    "ItemId": "HyProTech_Wire_Copper",
+    "Quantity": 2
+  },
     "BenchRequirement": [
       {
-        "Type": "Processing",
-        "Id": "AlloySmelter"
+        "Type": "Crafting",
+        "Id": "HyProTech_Workbench",
+        "Categories": [
+          "HyProTech_Parts"
+        ]
       }
-    ],
-    "OutputQuantity": 1,
-    "TimeSeconds": 10
+    ]
   },
-  "Model": "Items/Models/Materials/Ingots/Ingot.blockymodel",
-  "Texture": "Items/Textures/Materials/Ingots/Ingot_Bronze.png",
-  "Icon": "Icons/ItemsGenerated/Materials/Ingots/Ingot_Bronze.png",
+  "Model": "Items/PH.blockymodel",
+  "Texture": "Items/PH.png",
+  "Icon": "Icons/ItemsGenerated/PHI.png",
   "PlayerAnimationsId": "Item",
   "IconProperties": {
     "Scale": 1,

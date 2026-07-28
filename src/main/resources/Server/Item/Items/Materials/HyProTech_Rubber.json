@@ -1,21 +1,17 @@
 {
   "TranslationProperties": {
-    "Name": "server.items.HyProTech_Circuit_Board.name",
-    "Description": "server.items.HyProTech_Circuit_Board.description"
+    "Name": "server.items.HyProTech_Rubber.name",
+    "Description": "server.items.HyProTech_Rubber.description"
   },
   "Categories": [
     "Items"
   ],
   "Recipe": {
-    "TimeSeconds": 2,
+    "TimeSeconds": 4,
     "Input": [
       {
-        "ItemId": "Ingredient_Bar_Copper",
+        "ItemId": "Plant_Crop_Rubber_Dandelion_Root",
         "Quantity": 2
-      },
-      {
-        "ItemId": "HyProTech_Ingot_Silicon",
-        "Quantity": 1
       }
     ],
     "BenchRequirement": [
@@ -23,14 +19,14 @@
         "Type": "Crafting",
         "Id": "HyProTech_Workbench",
         "Categories": [
-          "HyProTech_Components"
+          "HyProTech_Recycle"
         ]
       }
     ]
   },
-  "Model": "Items/CraftingItems/Circuitboard/Circuitboard.blockymodel",
-  "Texture": "Items/CraftingItems/Circuitboard/Circuitboard.png",
-  "Icon": "Icons/ItemsGenerated/HyProTech_Circuit_Board.png",
+  "Model": "Items/Models/Materials/Rubber.blockymodel",
+  "Texture": "Items/Textures/Materials/Rubber.png",
+  "Icon": "Icons/ItemsGenerated/PHI.png",
   "PlayerAnimationsId": "Item",
   "IconProperties": {
     "Scale": 1,

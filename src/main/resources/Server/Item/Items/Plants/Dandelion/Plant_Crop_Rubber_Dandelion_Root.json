@@ -1,0 +1,50 @@
+{
+  "TranslationProperties": {
+    "Name": "server.items.Plant_Crop_Rubber_Dandelion_Root.name",
+    "Description": "server.items.Plant_Crop_Rubber_Dandelion_Root.description"
+  },
+  "Quality": "Common",
+  "Parent": "Template_Crop_Item",
+  "Icon": "Icons/ItemsGenerated/Plant_Crop_Lettuce.png",
+  "IconProperties": {
+    "Scale": 0.7,
+    "Translation": [
+      -3,
+      -7.8
+    ],
+    "Rotation": [
+      42.8,
+      29.3,
+      0
+    ]
+  },
+  "Texture": "Resources/Plants/Rubber_Dandelion/Rubber_Dandelion_Root.png",
+  "Model": "Resources/Plants/Rubber_Dandelion/Rubber_Dandelion_Root.blockymodel",
+  "BlockType": {
+    "Material": "Solid",
+    "DrawType": "Model",
+    "HitboxType": "Food_Medium",
+    "CustomModel": "Resources/Plants/Rubber_Dandelion/Rubber_Dandelion_Root.blockymodel",
+    "CustomModelScale": 0.7,
+    "CustomModelTexture": [
+      {
+        "Texture": "Resources/Plants/Rubber_Dandelion/Rubber_Dandelion_Root.png",
+        "Weight": 1
+      }
+    ],
+    "Support": {
+      "Down": [
+        {
+          "FaceType": "Full"
+        }
+      ]
+    },
+    "ParticleColor": "#cabc3f",
+    "RandomRotation": "YawStep1",
+    "Gathering": {
+      "Harvest": {},
+      "Soft": {}
+    }
+  },
+  "DropOnDeath": true
+}

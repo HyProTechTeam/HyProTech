@@ -89,16 +89,7 @@
       }
     },
     "Interactions": {
-      "Use": {
-        "Interactions": [
-          {
-            "Type": "HyProTech_open_ui_with_windows",
-            "Page": {
-              "Id": "HyProTech_quarry_page"
-            }
-          }
-        ]
-      }
+      "Use": "HyProTech_Open_UI_Quarry"
     }
   }
 }

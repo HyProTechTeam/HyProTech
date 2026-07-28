@@ -12,7 +12,7 @@ public final class HyProTechIds {
     public static final String TOGGLE_CABLE_SIDE_INTERACTION_ID = "HyProTech_toggle_cable_side";
     public static final String UPGRADE_CABLE_NETWORK_INTERACTION_ID = "HyProTech_upgrade_cable_network";
     public static final String BATTERY_PAGE_ID = "HyProTech_Battery_Rack_S_page";
-    public static final String SOLAR_PAGE_ID = "HyProTech_solar_page";
+    public static final String SOLAR_PAGE_ID = "HyProTech_Solar_Page";
     public static final String WIND_PAGE_ID = "HyProTech_wind_page";
     public static final String FURNACE_PAGE_ID = "HyProTech_furnace_page";
     public static final String ORE_CRUSHER_PAGE_ID = "HyProTech_ore_crusher_page";

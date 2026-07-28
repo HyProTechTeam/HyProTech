@@ -93,10 +93,12 @@ public class ItemMigrationListener {
         replace_map.put("HyProTech_Item_Cable_S3",                        "HyProTech_Item_Cable_T3");
         replace_map.put("HyProTech_Item_Cable_S4",                        "HyProTech_Item_Cable_T4");
         replace_map.put("HyProTech_Item_Cable_S5",                        "HyProTech_Item_Cable_T5");
-        // Rods
+        // Parts
         replace_map.put("Machinarium_Heavy_Spring",                       "HyProTech_Spring_Heavy_Iron");
         replace_map.put("Machinarium_Spring",                             "HyProTech_Spring_Iron");
-        replace_map.put("Machinarium_Circuit_Board",                      "HyProTech_Circuit_Board");
+        replace_map.put("Machinarium_Circuit_Board",                      "HyProTech_Printed_Circuit_Board");
+        replace_map.put("HyProTech_Circuit_Board",                        "HyProTech_Printed_Circuit_Board");
+        replace_map.put("HyProTech_Copper_Wire",                          "HyProTech_Wire_Copper");
         // Rods
         replace_map.put("Machinarium_Metal_Rod",                          "HyProTech_Rod_Iron");
         replace_map.put("Machinarium_Rod_Iron",                           "HyProTech_Rod_Iron");

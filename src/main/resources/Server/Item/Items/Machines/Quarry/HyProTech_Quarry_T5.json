@@ -1,110 +1,99 @@
 {
-    "TranslationProperties":  {
-                                  "Name":  "server.items.HyProTech_Quarry_T5.name",
-                                  "Description":  "server.items.HyProTech_Quarry_T5.description"
-                              },
-    "MaxStack":  100,
-    "Icon":  "Icons/ItemsGenerated/Machines/Quarry/Quarry_T5.png",
-    "Recipe":  {
-                   "TimeSeconds":  2,
-                   "Input":  [
-                                 {
-                                     "ItemId":  "Ingredient_Bar_Adamantite",
-                                     "Quantity":  1
-                                 },
-                                 {
-                                     "ItemId":  "Ingredient_Bar_Cobalt",
-                                     "Quantity":  1
-                                 },
-                                 {
-                                     "ItemId":  "Ingredient_Hide_Medium",
-                                     "Quantity":  1
-                                 }
-                             ],
-                   "BenchRequirement":  [
-                                            {
-                                                "Type":  "Crafting",
-                                                "Id":  "HyProTech_Workbench",
-                                                "Categories":  [
-                                                                   "HyProTech_Crafting"
-                                                               ]
-                                            }
-                                        ]
-               },
-    "Interactions":  {
-                         "Primary":  "Block_Primary",
-                         "Secondary":  "Block_Secondary"
-                     },
-    "PlayerAnimationsId":  "Block",
-    "Set":  "Rock_Stone",
-    "Metadata":  {
-                     "BlockState":  {
-                                        "Type":  "container"
-                                    }
-                 },
-    "BlockType":  {
-                      "Material":  "Solid",
-                      "DrawType":  "Model",
-                      "Group":  "Tech",
-                      "Flags":  {
-
-                                },
-                      "Gathering":  {
-                                        "Breaking":  {
-                                                         "GatherType":  "Rocks"
-                                                     }
-                                    },
-                      "BlockParticleSetId":  "Stone",
-                      "CustomModel":  "Blocks/HyProTech/Quarry/Quarry_T5.blockymodel",
-                      "CustomModelTexture":  [
-                                                 {
-                                                     "Texture":  "BlockTextures/Quarry_T5.png",
-                                                     "Weight":  1
-                                                 }
-                                             ],
-                      "VariantRotation":  "NESW",
-                      "ParticleColor":  "#c9c9b0",
-                      "BlockSoundSetId":  "Stone",
-                      "BlockBreakingDecalId":  "Breaking_Decals_Rock",
-                      "BlockEntity":  {
-                                          "Components":  {
-                                                             "HyProTech:energy_node":  {
-                                                                                             "NodeType":  "Machine",
-                                                                                             "Energy":  0,
-                                                                                             "Capacity":  500000,
-                                                                                             "MaxTransfer":  60000,
-                                                                                             "Consumption":  60000,
-                                                                                             "InputMask":  63,
-                                                                                             "OutputMask":  0,
-                                                                                             "Enabled":  true
-                                                                                         }
-                                                         }
-                                      },
-                      "State":  {
-                                    "Id":  "container",
-                                    "Definitions":  {
-                                                        "Quarry_T5":  {
-                                                                          "CustomModel":  "Blocks/HyProTech/Quarry/Quarry_T5.blockymodel",
-                                                                          "CustomModelTexture":  [
-                                                                                                     {
-                                                                                                         "Weight":  1,
-                                                                                                         "Texture":  "BlockTextures/Quarry_T5.png"
-                                                                                                     }
-                                                                                                 ]
-                                                                      }
-                                                    }
-                                },
-                      "Interactions":  {
-                                           "Use":  {
-                                                       "Interactions":  [
-                                                                            {
-                                                                                "Type":  "HyProTech_open_ui_with_windows",
-                                                                                "Page":  {
-                                                                                             "Id":  "HyProTech_quarry_page"
-                                                                                         }
-                                                                            }
-                                                                        ]
-                                                   }
-                                       }
-                  }
+    "TranslationProperties": {
+        "Name": "server.items.HyProTech_Quarry_T5.name",
+        "Description": "server.items.HyProTech_Quarry_T5.description"
+    },
+    "MaxStack": 100,
+    "Icon": "Icons/ItemsGenerated/Machines/Quarry/Quarry_T5.png",
+    "Recipe": {
+        "TimeSeconds": 2,
+        "Input": [
+            {
+                "ItemId": "Ingredient_Bar_Adamantite",
+                "Quantity": 1
+            },
+            {
+                "ItemId": "Ingredient_Bar_Cobalt",
+                "Quantity": 1
+            },
+            {
+                "ItemId": "Ingredient_Hide_Medium",
+                "Quantity": 1
+            }
+        ],
+        "BenchRequirement": [
+            {
+                "Type": "Crafting",
+                "Id": "HyProTech_Workbench",
+                "Categories": [
+                    "HyProTech_Crafting"
+                ]
+            }
+        ]
+    },
+    "Interactions": {
+        "Primary": "Block_Primary",
+        "Secondary": "Block_Secondary"
+    },
+    "PlayerAnimationsId": "Block",
+    "Set": "Rock_Stone",
+    "Metadata": {
+        "BlockState": {
+            "Type": "container"
+        }
+    },
+    "BlockType": {
+        "Material": "Solid",
+        "DrawType": "Model",
+        "Group": "Tech",
+        "Flags": {},
+        "Gathering": {
+            "Breaking": {
+                "GatherType": "Rocks"
+            }
+        },
+        "BlockParticleSetId": "Stone",
+        "CustomModel": "Blocks/HyProTech/Quarry/Quarry_T5.blockymodel",
+        "CustomModelTexture": [
+            {
+                "Texture": "BlockTextures/Quarry_T5.png",
+                "Weight": 1
+            }
+        ],
+        "VariantRotation": "NESW",
+        "ParticleColor": "#c9c9b0",
+        "BlockSoundSetId": "Stone",
+        "BlockBreakingDecalId": "Breaking_Decals_Rock",
+        "BlockEntity": {
+            "Components": {
+                "HyProTech:energy_node": {
+                    "NodeType": "Machine",
+                    "Energy": 0,
+                    "Capacity": 500000,
+                    "MaxTransfer": 60000,
+                    "Consumption": 60000,
+                    "InputMask": 63,
+                    "OutputMask": 0,
+                    "Enabled": true
+                }
+            }
+        },
+        "State": {
+            "Id": "container",
+            "Definitions": {
+                "Quarry_T5": {
+                    "CustomModel": "Blocks/HyProTech/Quarry/Quarry_T5.blockymodel",
+                    "CustomModelTexture": [
+                        {
+                            "Weight": 1,
+                            "Texture": "BlockTextures/Quarry_T5.png"
+                        }
+                    ]
+                }
+            }
+        },
+        "Interactions": {
+            "Use": "HyProTech_Open_UI_Quarry"
+        }
+    }
 }

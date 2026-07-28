@@ -1,0 +1,57 @@
+{
+  "TranslationProperties": {
+    "Name": "server.items.Plant_Seeds_Rubber_Dandelion.name",
+    "Description": "server.items.Plant_Seeds_Rubber_Dandelion.description"
+  },
+  "Parent": "Template_Seeds",
+  "Quality": "Junk",
+  "InteractionVars": {
+    "SeedId": {
+      "Interactions": [
+        {
+          "Parent": "Seed_Place",
+          "BlockTypeToPlace": "Plant_Crop_Rubber_Dandelion_Block"
+        }
+      ]
+    }
+  },
+  "Texture": "Resources/Plants/SeedBag_Textures/Lettuce.png",
+  "Icon": "Icons/ItemsGenerated/Plant_Seeds_Lettuce.png",
+  "IconProperties": {
+    "Scale": 1.1,
+    "Rotation": [
+      0.0,
+      30.0,
+      15.0
+    ],
+    "Translation": [
+      2.5,
+      -11.0
+    ]
+  },
+  "Recipe": {
+    "TimeSeconds": 0,
+    "Input": [
+      {
+        "ItemId": "Ingredient_Life_Essence",
+        "Quantity": 2
+      }
+    ],
+    "Output": [
+      {
+        "ItemId": "Plant_Seeds_Rubber_Dandelion",
+        "Quantity": 1
+      }
+    ],
+    "BenchRequirement": [
+      {
+        "Type": "Crafting",
+        "Id": "Farmingbench",
+        "Categories": [
+          "Seeds"
+        ]
+      }
+    ]
+  },
+  "ItemLevel": 3
+}
