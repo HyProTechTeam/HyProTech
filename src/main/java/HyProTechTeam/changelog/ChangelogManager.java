@@ -238,6 +238,20 @@ Early preparation work for upcoming Nuclear Science and Heat Science.
         if (config == null) {
             return;
         }
+        // TODO(0.7.5): the engine writes a .tmp next to the target file and renames it; make sure the
+        // parent directory exists first (it does not on a fresh save folder).
+        try {
+            Path parent = configPath == null ? null : configPath.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+        } catch (java.io.IOException ex) {
+            if (plugin != null) {
+                plugin.getLogger().atWarning().log(
+                        "[HyProTech] Failed to create changelog config directory: %s", ex.getMessage());
+            }
+            return;
+        }
         config.save().exceptionally(ex -> {
             if (plugin != null) {
                 plugin.getLogger().atWarning().log(
