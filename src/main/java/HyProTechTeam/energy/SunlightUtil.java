@@ -76,7 +76,7 @@ public final class SunlightUtil {
             return true;
         }
         long chunkIndex = ChunkUtil.indexChunkFromBlock(worldX, worldZ);
-        BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+        BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
         if (accessor == null) {
             return false;
         }

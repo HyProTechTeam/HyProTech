@@ -62,7 +62,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
-import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
 import com.hypixel.hytale.math.vector.Vector3i;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import java.nio.file.Files;
@@ -168,24 +167,22 @@ public class HyProTech extends JavaPlugin {
             if (world == null || y < ChunkUtil.MIN_Y || y >= ChunkUtil.HEIGHT) {
                 return null;
             }
-            ChunkStore chunkStore = world.getChunkStore();
-            if (chunkStore == null) {
+            // ChunkView.getComponent() returns the live component (block entity first, then the
+            // section holder), which the energy storage API mutates in place and persists via the
+            // dirty marker. BlockComponentCompat.get() would hand out a copy (SectionReader copies
+            // the holder), so it must not be used for write-through lookups.
+            BlockComponentCompat.ChunkView view =
+                    BlockComponentCompat.ChunkView.of(world, ChunkUtil.indexChunkFromBlock(x, z));
+            if (view == null) {
                 return null;
             }
-            long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-            BlockComponentChunk components =
-                    chunkStore.getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-            if (components == null) {
-                return null;
-            }
-            int localX = ChunkUtil.localCoordinate((long) x);
-            int localZ = ChunkUtil.localCoordinate((long) z);
-            int blockIndex = ChunkUtil.indexBlockInColumn(localX, y, localZ);
-            EnergyNodeComponent node = components.getComponent(blockIndex, energyType);
+            int blockIndex = BlockComponentCompat.index(
+                    ChunkUtil.localCoordinate((long) x), y, ChunkUtil.localCoordinate((long) z));
+            EnergyNodeComponent node = view.getComponent(blockIndex, energyType);
             if (node == null) {
                 return null;
             }
-            return node.getStorage(components::markNeedsSaving);
+            return node.getStorage(() -> view.markNeedsSaving(blockIndex));
         });
 
         getChunkStoreRegistry().registerSystem(new EnergyNetworkSystem(energyType));
@@ -275,7 +272,7 @@ public class HyProTech extends JavaPlugin {
                     if (!UpgradePersistence.isUpgradeableBlockId(blockId)) {
                         return;
                     }
-                    Vector3i pos = event.getTargetBlock();
+                    Vector3i pos = targetPos(event.getTargetBlock());
                     if (pos == null) {
                         return;
                     }
@@ -304,7 +301,7 @@ public class HyProTech extends JavaPlugin {
                     }
                     BlockType blockType = event.getBlockType();
                     String blockId = blockType == null ? null : blockType.getId();
-                    Vector3i pos = event.getTargetBlock();
+                    Vector3i pos = targetPos(event.getTargetBlock());
                     World world = null;
                     if (pos != null) {
                         world = UpgradePersistence.findWorld(pos, blockType);
@@ -368,7 +365,7 @@ public class HyProTech extends JavaPlugin {
                     if (stack == null || ItemStack.isEmpty(stack)) {
                         return;
                     }
-                    Vector3i pos = event.getTargetBlock();
+                    Vector3i pos = targetPos(event.getTargetBlock());
                     if (pos == null) {
                         return;
                     }
@@ -504,6 +501,11 @@ public class HyProTech extends JavaPlugin {
                 });
     }
 
+    /** 0.7.5 block events expose JOML vectors; convert to the shim type used by the mod's helpers. */
+    private static Vector3i targetPos(org.joml.Vector3i target) {
+        return target == null ? null : new Vector3i(target);
+    }
+
     private static MachineComponent getMachineAt(
             World world,
             Vector3i pos,
@@ -514,20 +516,7 @@ public class HyProTech extends JavaPlugin {
         if (pos.getY() < ChunkUtil.MIN_Y || pos.getY() >= ChunkUtil.HEIGHT) {
             return null;
         }
-        ChunkStore chunkStore = world.getChunkStore();
-        if (chunkStore == null) {
-            return null;
-        }
-        long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-        BlockComponentChunk blockComponents =
-                chunkStore.getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-        if (blockComponents == null) {
-            return null;
-        }
-        int localX = ChunkUtil.localCoordinate((long) pos.getX());
-        int localZ = ChunkUtil.localCoordinate((long) pos.getZ());
-        int blockIndex = ChunkUtil.indexBlockInColumn(localX, pos.getY(), localZ);
-        return blockComponents.getComponent(blockIndex, machineType);
+        return BlockComponentCompat.get(world, pos.getX(), pos.getY(), pos.getZ(), machineType);
     }
 
     private static boolean isBlockedByWindTurbine(World world, Vector3i pos) {
@@ -539,7 +528,7 @@ public class HyProTech extends JavaPlugin {
         int z = pos.getZ();
         int minY = Math.max(ChunkUtil.MIN_Y, y - (WIND_TURBINE_BLOCK_HEIGHT - 1));
         for (int checkY = y; checkY >= minY; checkY--) {
-            BlockType blockType = world.getBlockType(x, checkY, z);
+            BlockType blockType = BlockAccessor.blockTypeAt(world, x, checkY, z);
             if (blockType == null) {
                 continue;
             }
@@ -603,7 +592,7 @@ public class HyProTech extends JavaPlugin {
             return;
         }
         long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-        BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+        BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
         if (accessor == null) {
             return;
         }

@@ -57,17 +57,17 @@ public class HyProTechCommand extends AbstractPlayerCommand {
         String action = actionArg.get(commandContext);
         if ("changelog".equalsIgnoreCase(action)) {
             if (changelogManager == null) {
-                player.sendMessage(Message.raw("Changelog neni dostupny."));
+                playerRef.sendMessage(Message.raw("Changelog neni dostupny."));
                 return;
             }
             boolean opened = changelogManager.openForPlayer(player, playerRef, true);
             if (!opened) {
-                player.sendMessage(Message.raw("Zavri otevrene okno a zkus prikaz znovu."));
+                playerRef.sendMessage(Message.raw("Zavri otevrene okno a zkus prikaz znovu."));
             }
             return;
         }
         if (!"give".equalsIgnoreCase(action)) {
-            player.sendMessage(Message.raw(
+            playerRef.sendMessage(Message.raw(
                     "Pouziti: /hyprotech give [item] [count] | /hpt changelog"));
             return;
         }
@@ -95,7 +95,7 @@ public class HyProTechCommand extends AbstractPlayerCommand {
 
         if (itemId != null) {
             if (giveItem(container, itemId, count, player)) {
-                player.sendMessage(Message.raw("Pridano " + count + "x " + itemId));
+                playerRef.sendMessage(Message.raw("Pridano " + count + "x " + itemId));
             }
             return;
         }
@@ -108,7 +108,7 @@ public class HyProTechCommand extends AbstractPlayerCommand {
         giveItem(container, HyProTechIds.BLOCK_ORE_CRUSHER, count, player);
         giveItem(container, HyProTechIds.BLOCK_ALLOY_SMELTER, count, player);
         giveItem(container, HyProTechIds.BLOCK_ELECTRICAL_WORKBENCH, count, player);
-        player.sendMessage(Message.raw("Pridany HyProTech bloky do inventare."));
+        playerRef.sendMessage(Message.raw("Pridany HyProTech bloky do inventare."));
     }
 
     private String resolveItemId(String itemId) {
@@ -194,7 +194,10 @@ public class HyProTechCommand extends AbstractPlayerCommand {
     private boolean giveItem(ItemContainer container, String itemId, int count, Player player) {
         Item item = Item.getAssetMap().getAsset(itemId);
         if (item == null || item == Item.UNKNOWN) {
-            player.sendMessage(Message.raw("Neznamy item: " + itemId));
+            PlayerRef playerRef = player == null ? null : player.getPlayerRef();
+            if (playerRef != null) {
+                playerRef.sendMessage(Message.raw("Neznamy item: " + itemId));
+            }
             return false;
         }
 

@@ -16,7 +16,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3f;
+import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.math.vector.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
@@ -29,7 +29,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import com.hypixel.hytale.server.core.modules.block.components.ItemContainerBlock;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
-import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -146,7 +145,7 @@ public final class UpgradePersistence {
 
         world.execute(() -> {
             long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-            BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+            BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
             if (accessor == null) {
                 if (debug) {
                     System.out.println("[HyProTech] queueBlockSwap skipped (chunk not loaded) pos=" + pos);
@@ -169,7 +168,7 @@ public final class UpgradePersistence {
                 return;
             }
             clearBlockComponents(world, pos);
-            int rotationIndex = world.getBlockRotationIndex(pos.getX(), pos.getY(), pos.getZ());
+            int rotationIndex = BlockAccessor.rotationIndexAt(world, pos.getX(), pos.getY(), pos.getZ());
             setBlockWithRotation(accessor, pos.getX(), pos.getY(), pos.getZ(), newBlockId, rotationIndex);
             ensureBlockState(world, pos.getX(), pos.getY(), pos.getZ());
             applyPendingComponents(world, pos);
@@ -196,7 +195,7 @@ public final class UpgradePersistence {
 
         world.execute(() -> {
             long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-            BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+            BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
             if (accessor == null) {
                 return;
             }
@@ -208,7 +207,7 @@ public final class UpgradePersistence {
 
             List<ItemStack> items = snapshotContainerItems(world, pos.getX(), pos.getY(), pos.getZ());
             clearBlockComponents(world, pos);
-            int rotationIndex = world.getBlockRotationIndex(pos.getX(), pos.getY(), pos.getZ());
+            int rotationIndex = BlockAccessor.rotationIndexAt(world, pos.getX(), pos.getY(), pos.getZ());
             setBlockWithRotation(accessor, pos.getX(), pos.getY(), pos.getZ(), newBlockId, rotationIndex);
             ensureBlockState(world, pos.getX(), pos.getY(), pos.getZ());
             applyPendingComponents(world, pos);
@@ -234,7 +233,7 @@ public final class UpgradePersistence {
 
         world.execute(() -> {
             long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-            BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+            BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
             if (accessor == null) {
                 return;
             }
@@ -246,7 +245,7 @@ public final class UpgradePersistence {
 
             List<ItemStack> items = snapshotBenchItems(world, pos.getX(), pos.getY(), pos.getZ());
             clearBlockComponents(world, pos);
-            int rotationIndex = world.getBlockRotationIndex(pos.getX(), pos.getY(), pos.getZ());
+            int rotationIndex = BlockAccessor.rotationIndexAt(world, pos.getX(), pos.getY(), pos.getZ());
             setBlockWithRotation(accessor, pos.getX(), pos.getY(), pos.getZ(), newBlockId, rotationIndex);
             ensureBlockState(world, pos.getX(), pos.getY(), pos.getZ());
             applyPendingComponents(world, pos);
@@ -289,7 +288,7 @@ public final class UpgradePersistence {
         final List<ItemStack> finalDrops = precomputedDrops == null ? null : new ArrayList<>(precomputedDrops);
         world.execute(() -> {
             long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-            BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+            BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
             if (accessor == null) {
                 return;
             }
@@ -480,7 +479,7 @@ public final class UpgradePersistence {
                 continue;
             }
             long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-            BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+            BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
             if (accessor == null) {
                 continue;
             }
@@ -612,37 +611,17 @@ public final class UpgradePersistence {
     }
 
     private static EnergyNodeComponent getEnergyNode(World world, Vector3i pos) {
-        ChunkStore chunkStore = world.getChunkStore();
-        if (chunkStore == null) {
+        if (world == null || pos == null) {
             return null;
         }
-        long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-        BlockComponentChunk blockComponents =
-                chunkStore.getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-        if (blockComponents == null) {
-            return null;
-        }
-        int localX = ChunkUtil.localCoordinate((long) pos.getX());
-        int localZ = ChunkUtil.localCoordinate((long) pos.getZ());
-        int blockIndex = ChunkUtil.indexBlockInColumn(localX, pos.getY(), localZ);
-        return blockComponents.getComponent(blockIndex, HyProTechComponents.ENERGY);
+        return BlockComponentCompat.get(world, pos.getX(), pos.getY(), pos.getZ(), HyProTechComponents.ENERGY);
     }
 
     private static ItemNodeComponent getItemNode(World world, Vector3i pos) {
-        ChunkStore chunkStore = world.getChunkStore();
-        if (chunkStore == null) {
+        if (world == null || pos == null) {
             return null;
         }
-        long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-        BlockComponentChunk blockComponents =
-                chunkStore.getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-        if (blockComponents == null) {
-            return null;
-        }
-        int localX = ChunkUtil.localCoordinate((long) pos.getX());
-        int localZ = ChunkUtil.localCoordinate((long) pos.getZ());
-        int blockIndex = ChunkUtil.indexBlockInColumn(localX, pos.getY(), localZ);
-        return blockComponents.getComponent(blockIndex, HyProTechComponents.ITEM);
+        return BlockComponentCompat.get(world, pos.getX(), pos.getY(), pos.getZ(), HyProTechComponents.ITEM);
     }
 
     private static EnergyNodeComponent snapshotEnergy(EnergyNodeComponent node) {
@@ -737,12 +716,13 @@ public final class UpgradePersistence {
     private static void spawnDrop(World world, ItemStack stack, Vector3i pos) {
         Store<EntityStore> store = world.getEntityStore().getStore();
         Vector3d position = new Vector3d(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
-        Vector3f velocity = new Vector3f(0f, 0.1f, 0f);
+        // TODO(0.7.5): the old API passed a Vector3f here (used as a rotation); 0.7.5 types it as Rotation3f.
+        Rotation3f dropRotation = new Rotation3f(0f, 0.1f, 0f);
         Holder<EntityStore>[] holders = ItemComponent.generateItemDrops(
                 store,
                 List.of(stack),
                 position,
-                velocity);
+                dropRotation);
         store.addEntities(holders, AddReason.SPAWN);
     }
 
@@ -762,12 +742,13 @@ public final class UpgradePersistence {
         }
         Store<EntityStore> store = world.getEntityStore().getStore();
         Vector3d position = new Vector3d(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
-        Vector3f velocity = new Vector3f(0f, 0.1f, 0f);
+        // TODO(0.7.5): the old API passed a Vector3f here (used as a rotation); 0.7.5 types it as Rotation3f.
+        Rotation3f dropRotation = new Rotation3f(0f, 0.1f, 0f);
         Holder<EntityStore>[] holders = ItemComponent.generateItemDrops(
                 store,
                 drops,
                 position,
-                velocity);
+                dropRotation);
         store.addEntities(holders, AddReason.SPAWN);
     }
 
@@ -898,25 +879,15 @@ public final class UpgradePersistence {
             return;
         }
         long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-        BlockComponentChunk blockComponents =
-                world.getChunkStore().getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
+        BlockComponentCompat.ChunkView blockComponents = BlockComponentCompat.ChunkView.of(world, chunkIndex);
         if (blockComponents == null) {
             return;
         }
-        int localX = ChunkUtil.localCoordinate((long) pos.getX());
-        int localZ = ChunkUtil.localCoordinate((long) pos.getZ());
-        int blockIndex = ChunkUtil.indexBlockInColumn(localX, pos.getY(), localZ);
-        Ref<ChunkStore> ref = blockComponents.getEntityReference(blockIndex);
-        if (ref != null) {
-            blockComponents.removeEntityReference(blockIndex, ref);
-        }
-        Holder<ChunkStore> holder = blockComponents.getEntityHolder(blockIndex);
-        if (holder != null) {
-            blockComponents.removeEntityHolder(blockIndex);
-        }
-        if (ref != null || holder != null) {
-            blockComponents.markNeedsSaving();
-        }
+        int blockIndex = BlockComponentCompat.index(
+                ChunkUtil.localCoordinate((long) pos.getX()),
+                pos.getY(),
+                ChunkUtil.localCoordinate((long) pos.getZ()));
+        blockComponents.removeAllBlockComponents(blockIndex);
     }
 
     public static void cleanupInvalidChunkReferences(World world, Vector3i pos) {
@@ -928,48 +899,7 @@ public final class UpgradePersistence {
     }
 
     public static void cleanupInvalidChunkReferences(World world, long chunkIndex) {
-        if (world == null) {
-            return;
-        }
-        ChunkStore chunkStore = world.getChunkStore();
-        if (chunkStore == null) {
-            return;
-        }
-        BlockComponentChunk blockComponents =
-                chunkStore.getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-        if (blockComponents == null) {
-            return;
-        }
-
-        IntArrayList invalid = null;
-        for (it.unimi.dsi.fastutil.ints.Int2ReferenceMap.Entry<Ref<ChunkStore>> entry : blockComponents.getEntityReferences().int2ReferenceEntrySet()) {
-            Ref<ChunkStore> ref = entry.getValue();
-            if (ref == null || !ref.isValid()) {
-                if (invalid == null) {
-                    invalid = new IntArrayList();
-                }
-                invalid.add(entry.getIntKey());
-            }
-        }
-
-        if (invalid == null || invalid.isEmpty()) {
-            return;
-        }
-
-        boolean changed = false;
-        for (int i = 0; i < invalid.size(); i++) {
-            int blockIndex = invalid.getInt(i);
-            Ref<ChunkStore> ref = blockComponents.getEntityReference(blockIndex);
-            if (ref == null || !ref.isValid()) {
-                if (ref != null) {
-                    blockComponents.removeEntityReference(blockIndex, ref);
-                }
-                changed = true;
-            }
-        }
-        if (changed) {
-            blockComponents.markNeedsSaving();
-        }
+        BlockComponentCompat.removeInvalidReferences(world, chunkIndex);
     }
 
     private static void applyPendingComponents(World world, Vector3i pos) {
@@ -985,69 +915,35 @@ public final class UpgradePersistence {
             return;
         }
         long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-        BlockComponentChunk blockComponents =
-                world.getChunkStore().getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
+        BlockComponentCompat.ChunkView blockComponents = BlockComponentCompat.ChunkView.of(world, chunkIndex);
         if (blockComponents == null) {
             return;
         }
-        int localX = ChunkUtil.localCoordinate((long) pos.getX());
-        int localZ = ChunkUtil.localCoordinate((long) pos.getZ());
-        int blockIndex = ChunkUtil.indexBlockInColumn(localX, pos.getY(), localZ);
-        Ref<ChunkStore> ref = blockComponents.getEntityReference(blockIndex);
-        if (ref != null && !ref.isValid()) {
-            blockComponents.removeEntityReference(blockIndex, ref);
-            ref = null;
-        }
-        Holder<ChunkStore> holder = ref == null ? blockComponents.getEntityHolder(blockIndex) : null;
-        boolean holderFromChunk = holder != null;
-        if (ref == null && holder == null) {
-            holder = ChunkStore.REGISTRY.newHolder();
-        }
+        int blockIndex = BlockComponentCompat.index(
+                ChunkUtil.localCoordinate((long) pos.getX()),
+                pos.getY(),
+                ChunkUtil.localCoordinate((long) pos.getZ()));
         boolean changed = false;
         if (pending.energy != null && HyProTechComponents.ENERGY != null) {
-            if (ref != null) {
-                Store<ChunkStore> store = world.getChunkStore().getStore();
-                if (store != null) {
-                    store.putComponent(ref, HyProTechComponents.ENERGY, pending.energy);
-                }
-            } else if (holder != null) {
-                holder.putComponent(HyProTechComponents.ENERGY, pending.energy);
-            }
+            // TODO(0.7.5): the old API spawned a standalone block entity for the pending components
+            // (BlockComponentChunk.addEntityReference). 0.7.5 block entities are created by the
+            // engine from the block type's declared BlockEntity (which every HyProTech block has),
+            // so the components are written onto that entity; when the block has no block entity
+            // they are stored in the section's block-component holder instead.
+            changed |= blockComponents.putComponent(
+                    blockIndex, HyProTechComponents.ENERGY, pending.energy);
             pending.energy = null;
-            changed = true;
         }
         if (pending.item != null && HyProTechComponents.ITEM != null) {
-            if (ref != null) {
-                Store<ChunkStore> store = world.getChunkStore().getStore();
-                if (store != null) {
-                    store.putComponent(ref, HyProTechComponents.ITEM, pending.item);
-                }
-            } else if (holder != null) {
-                holder.putComponent(HyProTechComponents.ITEM, pending.item);
-            }
+            changed |= blockComponents.putComponent(
+                    blockIndex, HyProTechComponents.ITEM, pending.item);
             pending.item = null;
-            changed = true;
         }
-        if (ref == null && changed && holder != null) {
-            Store<ChunkStore> store = world.getChunkStore().getStore();
-            if (store != null) {
-                if (holderFromChunk) {
-                    blockComponents.removeEntityHolder(blockIndex);
-                }
-                Ref<ChunkStore> newRef = store.addEntity(holder, AddReason.SPAWN);
-                blockComponents.addEntityReference(blockIndex, newRef);
-            } else {
-                if (!holderFromChunk) {
-                    blockComponents.storeEntityHolder(blockIndex, holder);
-                }
-                blockComponents.markNeedsSaving();
-            }
+        if (changed) {
+            blockComponents.markNeedsSaving(blockIndex);
         }
         if (pending.energy == null && pending.item == null) {
             removePending(world, pos.getX(), pos.getY(), pos.getZ());
-        }
-        if (changed && ref != null) {
-            blockComponents.markNeedsSaving();
         }
     }
 
@@ -1056,7 +952,7 @@ public final class UpgradePersistence {
             return true;
         }
         long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-        BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+        BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
         if (accessor == null) {
             return false;
         }
@@ -1122,7 +1018,7 @@ public final class UpgradePersistence {
         }
 
         long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-        if (world.getChunkIfLoaded(chunkIndex) == null) {
+        if (BlockAccessor.loaded(world, chunkIndex) == null) {
             return null;
         }
 
@@ -1147,7 +1043,7 @@ public final class UpgradePersistence {
         }
 
         long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-        if (world.getChunkIfLoaded(chunkIndex) == null) {
+        if (BlockAccessor.loaded(world, chunkIndex) == null) {
             return null;
         }
 

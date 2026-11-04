@@ -1,5 +1,8 @@
 package HyProTechTeam.ui;
 
+import HyProTechTeam.BlockComponentCompat;
+import HyProTechTeam.ChunkCompat;
+import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import HyProTechTeam.energy.EnergyNodeComponent;
 import HyProTechTeam.energy.EnergyUnits;
 import HyProTechTeam.HyProTechIds;
@@ -241,7 +244,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
             return false;
         }
 
-        BlockType blockType = world.getBlockType(pos.getX(), pos.getY(), pos.getZ());
+        BlockType blockType = BlockAccessor.blockTypeAt(world, pos.getX(), pos.getY(), pos.getZ());
         if (blockType == null || blockType.getBench() == null) {
             pageManager.openCustomPage(playerEntityRef, store, this);
             return false;
@@ -286,7 +289,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
             Store<EntityStore> store,
             PageManager pageManager) {
         try {
-            pageManager.handleEvent(
+            pageManager.handleLegacyCustomPageEvent(
                     playerEntityRef,
                     store,
                     new CustomPageEvent(CustomPageEventType.Dismiss, ""));
@@ -335,7 +338,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         if (benchBlock == null) {
             return null;
         }
-        BlockType benchBlockType = world.getBlockType(pos.getX(), pos.getY(), pos.getZ());
+        BlockType benchBlockType = BlockAccessor.blockTypeAt(world, pos.getX(), pos.getY(), pos.getZ());
         if (benchBlockType == null) {
             return null;
         }
@@ -417,49 +420,14 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         if (blockPosition != null) {
             return blockPosition;
         }
-
-        ChunkStore chunkStoreResource = world.getChunkStore();
-        for (long chunkIndex : chunkStoreResource.getChunkIndexes()) {
-            BlockComponentChunk blockComponents =
-                    chunkStoreResource.getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-            if (blockComponents == null) {
-                continue;
-            }
-
-            int blockIndex = findBlockIndex(blockComponents);
-            if (blockIndex == Integer.MIN_VALUE) {
-                continue;
-            }
-
-            int chunkX = ChunkUtil.xOfChunkIndex(chunkIndex);
-            int chunkZ = ChunkUtil.zOfChunkIndex(chunkIndex);
-            int localX = ChunkUtil.xFromBlockInColumn(blockIndex);
-            int localY = ChunkUtil.yFromBlockInColumn(blockIndex);
-            int localZ = ChunkUtil.zFromBlockInColumn(blockIndex);
-
-            int worldX = ChunkUtil.worldCoordFromLocalCoord(chunkX, localX);
-            int worldZ = ChunkUtil.worldCoordFromLocalCoord(chunkZ, localZ);
-            blockPosition = new Vector3i(worldX, localY, worldZ);
-            return blockPosition;
+        Vector3i found = BlockComponentCompat.findBlockPosition(world, blockRef);
+        if (found == null) {
+            return null;
         }
-
-        return null;
+        blockPosition = new Vector3i(found);
+        return blockPosition;
     }
 
-    private int findBlockIndex(BlockComponentChunk blockComponents) {
-        int targetIndex = blockRef.getIndex();
-        if (targetIndex == Integer.MIN_VALUE) {
-            return Integer.MIN_VALUE;
-        }
-        for (Int2ReferenceMap.Entry<Ref<ChunkStore>> entry
-                : blockComponents.getEntityReferences().int2ReferenceEntrySet()) {
-            Ref<ChunkStore> entryRef = entry.getValue();
-            if (entryRef != null && entryRef.getIndex() == targetIndex) {
-                return entry.getIntKey();
-            }
-        }
-        return Integer.MIN_VALUE;
-    }
 
     private ProcessingBenchBlock getProcessingBenchState(World world, Vector3i pos) {
         if (world == null || pos == null) {
@@ -467,7 +435,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         }
 
         long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-        if (world.getChunkIfLoaded(chunkIndex) == null) {
+        if (BlockAccessor.loaded(world, chunkIndex) == null) {
             return null;
         }
 

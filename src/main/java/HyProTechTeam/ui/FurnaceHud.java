@@ -6,13 +6,15 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 
 public class FurnaceHud extends CustomUIHud {
+    public static final String KEY = "HyProTech_FurnaceHud";
+
     private int lastEnergy = Integer.MIN_VALUE;
     private int lastCapacity = Integer.MIN_VALUE;
     private int lastProgress = Integer.MIN_VALUE;
     private int lastProgressMax = Integer.MIN_VALUE;
 
     public FurnaceHud(PlayerRef playerRef) {
-        super(playerRef);
+        super(playerRef, KEY);
     }
 
     @Override

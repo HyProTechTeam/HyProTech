@@ -214,8 +214,10 @@ public final class HyProTechSounds {
             return;
         }
         try {
+            // TODO(0.7.5): 0.7.5 added a third float to this constructor; 0 keeps the old behaviour.
             SoundEventLayer layer = new SoundEventLayer(
                     1f,
+                    0f,
                     0f,
                     false,
                     100,
@@ -223,14 +225,13 @@ public final class HyProTechSounds {
                     SoundEventLayer.RandomSettings.DEFAULT,
                     new String[] { soundFile },
                     0);
+            // TODO(0.7.5): 0.7.5 keeps four floats here (was six); mapped by intent.
             SoundEvent event = new SoundEvent(
                     eventId,
                     1f,
                     1f,
                     1f,
                     1f,
-                    2f,
-                    16f,
                     1,
                     false,
                     new SoundEventLayer[] { layer });

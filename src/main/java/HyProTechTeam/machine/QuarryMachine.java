@@ -1,5 +1,6 @@
 package HyProTechTeam.machine;
 
+import HyProTechTeam.BlockComponentCompat;
 import HyProTechTeam.BlockIdUtil;
 import HyProTechTeam.HyProTechIds;
 import HyProTechTeam.TieredIdUtil;
@@ -11,6 +12,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.vector.Vector3d;
+import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.math.vector.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockBreakingDropType;
@@ -27,7 +29,7 @@ import com.hypixel.hytale.server.core.modules.entity.item.ItemComponent;
 import com.hypixel.hytale.server.core.modules.interaction.BlockHarvestUtils;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
-import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
+import HyProTechTeam.BlockComponentCompat;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import java.util.ArrayList;
@@ -366,7 +368,7 @@ public final class QuarryMachine extends MasterMachine {
                         }
                     }
                     long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-                    BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+                    BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
                     if (accessor == null) {
                         continue;
                     }
@@ -374,7 +376,7 @@ public final class QuarryMachine extends MasterMachine {
                     if (!isMineable(blockType, replaceMode)) {
                         continue;
                     }
-                    int rotationIndex = world.getBlockRotationIndex(x, y, z);
+                    int rotationIndex = BlockAccessor.rotationIndexAt(world, x, y, z);
                     return new BlockTarget(new Vector3i(x, y, z), blockType, rotationIndex);
                 }
             }
@@ -436,7 +438,7 @@ public final class QuarryMachine extends MasterMachine {
                         }
                     }
                     long chunkIndex = ChunkUtil.indexChunkFromBlock(worldX, worldZ);
-                    BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+                    BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
                     if (accessor == null) {
                         continue;
                     }
@@ -444,7 +446,7 @@ public final class QuarryMachine extends MasterMachine {
                     if (!isMineable(blockType, replaceMode)) {
                         continue;
                     }
-                    int rotationIndex = world.getBlockRotationIndex(worldX, y, worldZ);
+                    int rotationIndex = BlockAccessor.rotationIndexAt(world, worldX, y, worldZ);
                     return new BlockTarget(new Vector3i(worldX, y, worldZ), blockType, rotationIndex);
                 }
             }
@@ -557,7 +559,7 @@ public final class QuarryMachine extends MasterMachine {
         }
         Store<EntityStore> store = world.getEntityStore().getStore();
         Vector3d position = new Vector3d(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
-        Vector3f velocity = new Vector3f(0f, 0.1f, 0f);
+        Rotation3f velocity = new Rotation3f(0f, 0.1f, 0f);
         Holder<EntityStore>[] holders = ItemComponent.generateItemDrops(
                 store,
                 filtered,
@@ -630,10 +632,10 @@ public final class QuarryMachine extends MasterMachine {
 
     private Rotation getBlockYaw(World world, int x, int y, int z) {
         long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-        if (world.getChunkIfLoaded(chunkIndex) == null) {
+        if (BlockAccessor.loaded(world, chunkIndex) == null) {
             return Rotation.None;
         }
-        RotationTuple rotation = RotationTuple.get(world.getBlockRotationIndex(x, y, z));
+        RotationTuple rotation = RotationTuple.get(BlockAccessor.rotationIndexAt(world, x, y, z));
         if (rotation == null || rotation.yaw() == null) {
             return Rotation.None;
         }
@@ -681,7 +683,7 @@ public final class QuarryMachine extends MasterMachine {
         int z = pos.getZ();
         world.execute(() -> {
             long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-            BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+            BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
             if (accessor != null) {
                 clearBlockComponents(world, x, y, z);
                 accessor.setBlock(x, y, z, BlockType.EMPTY);
@@ -714,7 +716,7 @@ public final class QuarryMachine extends MasterMachine {
         final int finalRotationIndex = rotationIndex;
         world.execute(() -> {
             long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-            BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+            BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
             if (accessor == null) {
                 return;
             }
@@ -765,14 +767,14 @@ public final class QuarryMachine extends MasterMachine {
             return;
         }
         long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-        BlockComponentChunk blockComponents =
-                chunkStore.getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
+        BlockComponentCompat.ChunkView blockComponents =
+                BlockComponentCompat.ChunkView.of(chunkStore.getWorld(), chunkIndex);
         if (blockComponents == null) {
             return;
         }
         int localX = ChunkUtil.localCoordinate((long) x);
         int localZ = ChunkUtil.localCoordinate((long) z);
-        int blockIndex = ChunkUtil.indexBlockInColumn(localX, y, localZ);
+        int blockIndex = BlockComponentCompat.index(localX, y, localZ);
         Ref<ChunkStore> ref = blockComponents.getEntityReference(blockIndex);
         if (ref != null) {
             blockComponents.removeEntityReference(blockIndex, ref);

@@ -1,5 +1,7 @@
 package HyProTechTeam.ui;
 
+import HyProTechTeam.BlockComponentCompat;
+import HyProTechTeam.ChunkCompat;
 import HyProTechTeam.HyProTechIds;
 import HyProTechTeam.TieredIdUtil;
 import HyProTechTeam.UpgradePersistence;
@@ -393,16 +395,8 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         if (pos == null) {
             return blockRef;
         }
-        long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-        BlockComponentChunk blockComponents =
-                world.getChunkStore().getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-        if (blockComponents == null) {
-            return blockRef;
-        }
-        int localX = ChunkUtil.localCoordinate((long) pos.getX());
-        int localZ = ChunkUtil.localCoordinate((long) pos.getZ());
-        int blockIndex = ChunkUtil.indexBlockInColumn(localX, pos.getY(), localZ);
-        Ref<ChunkStore> ref = blockComponents.getEntityReferences().get(blockIndex);
+        Ref<ChunkStore> ref =
+                BlockComponentCompat.blockReference(world, pos.getX(), pos.getY(), pos.getZ());
         if (ref != null && (blockRef == null || ref.getIndex() != blockRef.getIndex())) {
             blockRef = ref;
         }
@@ -415,21 +409,14 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         }
         Vector3i pos = resolveBlockPosition(world);
         if (pos != null) {
-            long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-            BlockComponentChunk blockComponents =
-                    world.getChunkStore().getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-            if (blockComponents != null) {
-                int localX = ChunkUtil.localCoordinate((long) pos.getX());
-                int localZ = ChunkUtil.localCoordinate((long) pos.getZ());
-                int blockIndex = ChunkUtil.indexBlockInColumn(localX, pos.getY(), localZ);
-                EnergyNodeComponent node = blockComponents.getComponent(blockIndex, energyType);
-                if (node != null) {
-                    return node;
-                }
+            EnergyNodeComponent node =
+                    BlockComponentCompat.get(world, pos.getX(), pos.getY(), pos.getZ(), energyType);
+            if (node != null) {
+                return node;
             }
         }
-        Store<ChunkStore> chunkStore = world.getChunkStore().getStore();
         Ref<ChunkStore> resolvedRef = resolveBlockRef(world);
+        Store<ChunkStore> chunkStore = world.getChunkStore().getStore();
         try {
             return chunkStore.getComponent(resolvedRef, energyType);
         } catch (IllegalStateException ignored) {
@@ -443,39 +430,11 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         }
         Vector3i pos = resolveBlockPosition(world);
         if (pos != null) {
-            long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-            BlockComponentChunk blockComponents =
-                    world.getChunkStore().getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-            if (blockComponents != null) {
-                int localX = ChunkUtil.localCoordinate((long) pos.getX());
-                int localZ = ChunkUtil.localCoordinate((long) pos.getZ());
-                int blockIndex = ChunkUtil.indexBlockInColumn(localX, pos.getY(), localZ);
-                Ref<ChunkStore> ref = blockComponents.getEntityReference(blockIndex);
-                if (ref != null && !ref.isValid()) {
-                    blockComponents.removeEntityReference(blockIndex, ref);
-                    ref = null;
-                }
-                if (ref != null) {
-                    Store<ChunkStore> store = world.getChunkStore().getStore();
-                    if (store != null) {
-                        store.putComponent(ref, energyType, node);
-                    }
-                } else {
-                    Holder<ChunkStore> holder = blockComponents.getEntityHolder(blockIndex);
-                    if (holder == null) {
-                        holder = ChunkStore.REGISTRY.newHolder();
-                        holder.putComponent(energyType, node);
-                        blockComponents.storeEntityHolder(blockIndex, holder);
-                    } else {
-                        holder.putComponent(energyType, node);
-                    }
-                }
-                blockComponents.markNeedsSaving();
-                return;
-            }
+            BlockComponentCompat.put(world, pos.getX(), pos.getY(), pos.getZ(), energyType, node);
+            return;
         }
-        Store<ChunkStore> chunkStore = world.getChunkStore().getStore();
         Ref<ChunkStore> resolvedRef = resolveBlockRef(world);
+        Store<ChunkStore> chunkStore = world.getChunkStore().getStore();
         try {
             chunkStore.putComponent(resolvedRef, energyType, node);
         } catch (IllegalStateException ignored) {
@@ -488,7 +447,11 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         if (player == null) {
             return;
         }
-        player.sendMessage(Message.raw(text));
+        com.hypixel.hytale.server.core.universe.PlayerRef target =
+                store.getComponent(playerRef, com.hypixel.hytale.server.core.universe.PlayerRef.getComponentType());
+        if (target != null) {
+            target.sendMessage(Message.raw(text));
+        }
     }
 
     private World getWorld(Store<EntityStore> store) {
@@ -503,47 +466,12 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         if (blockPosition != null) {
             return blockPosition;
         }
-
-        ChunkStore chunkStoreResource = world.getChunkStore();
-        for (long chunkIndex : chunkStoreResource.getChunkIndexes()) {
-            BlockComponentChunk blockComponents =
-                    chunkStoreResource.getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-            if (blockComponents == null) {
-                continue;
-            }
-
-            int blockIndex = findBlockIndex(blockComponents);
-            if (blockIndex == Integer.MIN_VALUE) {
-                continue;
-            }
-
-            int chunkX = ChunkUtil.xOfChunkIndex(chunkIndex);
-            int chunkZ = ChunkUtil.zOfChunkIndex(chunkIndex);
-            int localX = ChunkUtil.xFromBlockInColumn(blockIndex);
-            int localY = ChunkUtil.yFromBlockInColumn(blockIndex);
-            int localZ = ChunkUtil.zFromBlockInColumn(blockIndex);
-
-            int worldX = ChunkUtil.worldCoordFromLocalCoord(chunkX, localX);
-            int worldZ = ChunkUtil.worldCoordFromLocalCoord(chunkZ, localZ);
-            blockPosition = new Vector3i(worldX, localY, worldZ);
-            return blockPosition;
+        Vector3i found = BlockComponentCompat.findBlockPosition(world, blockRef);
+        if (found == null) {
+            return null;
         }
-
-        return null;
+        blockPosition = new Vector3i(found);
+        return blockPosition;
     }
 
-    private int findBlockIndex(BlockComponentChunk blockComponents) {
-        int targetIndex = blockRef.getIndex();
-        if (targetIndex == Integer.MIN_VALUE) {
-            return Integer.MIN_VALUE;
-        }
-        for (it.unimi.dsi.fastutil.ints.Int2ReferenceMap.Entry<Ref<ChunkStore>> entry
-                : blockComponents.getEntityReferences().int2ReferenceEntrySet()) {
-            Ref<ChunkStore> entryRef = entry.getValue();
-            if (entryRef != null && entryRef.getIndex() == targetIndex) {
-                return entry.getIntKey();
-            }
-        }
-        return Integer.MIN_VALUE;
-    }
 }

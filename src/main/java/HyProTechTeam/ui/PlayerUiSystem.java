@@ -1,5 +1,8 @@
 package HyProTechTeam.ui;
 
+import HyProTechTeam.BlockComponentCompat;
+
+import HyProTechTeam.ChunkCompat;
 import HyProTechTeam.energy.EnergyNodeComponent;
 import HyProTechTeam.energy.EnergySide;
 import HyProTechTeam.energy.EnergyUnits;
@@ -122,7 +125,8 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
             World world,
             Store<EntityStore> store,
             CommandBuffer<EntityStore> commandBuffer) {
-        Vector3i target = TargetUtil.getTargetBlock(entityRef, LOOK_DISTANCE, commandBuffer);
+        org.joml.Vector3i targetRaw = TargetUtil.getTargetBlock(entityRef, LOOK_DISTANCE, commandBuffer);
+        Vector3i target = targetRaw == null ? null : new Vector3i(targetRaw);
         DisplayState state = getDisplayState(playerRef);
 
         if (target == null) {
@@ -131,7 +135,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         }
 
         long chunkIndex = ChunkUtil.indexChunkFromBlock(target.getX(), target.getZ());
-        BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+        BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
         if (accessor == null) {
             hideTitleIfNeeded(playerRef, state);
             return;
@@ -420,7 +424,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
             return;
         }
         try {
-            player.getPageManager().handleEvent(
+            player.getPageManager().handleLegacyCustomPageEvent(
                     playerEntityRef,
                     store,
                     new CustomPageEvent(CustomPageEventType.Dismiss, ""));
@@ -433,7 +437,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         HudManager hudManager = player.getHudManager();
         if (!ENABLE_FURNACE_HUD) {
             if (hudManager != null && state.visible) {
-                hideFurnaceHudIfOwned(state, playerRef, hudManager, hudManager.getCustomHud());
+                hideFurnaceHudIfOwned(state, playerRef, hudManager, hudManager.getCustomHud(FurnaceHud.KEY));
             }
             return;
         }
@@ -444,7 +448,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
             }
             return;
         }
-        CustomUIHud activeHud = hudManager.getCustomHud();
+        CustomUIHud activeHud = hudManager.getCustomHud(FurnaceHud.KEY);
         CustomUIPage openPage = player.getPageManager().getCustomPage();
         if (openPage instanceof FurnacePage) {
             hideFurnaceHudIfOwned(state, playerRef, hudManager, activeHud);
@@ -480,7 +484,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         }
 
         long chunkIndex = ChunkUtil.indexChunkFromBlock(basePos.getX(), basePos.getZ());
-        BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+        BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
         if (accessor == null) {
             if (state.visible && now - state.lastWindowSeenMs > FURNACE_WINDOW_GRACE_MS) {
                 hideFurnaceHudIfOwned(state, playerRef, hudManager, activeHud);
@@ -516,7 +520,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
 
         if (!state.visible) {
             state.hud.resetCache();
-            hudManager.setCustomHud(playerRef, state.hud);
+            hudManager.addCustomHud(playerRef, state.hud);
             state.visible = true;
             state.lastHudShownMs = now;
             return;
@@ -526,7 +530,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
             return;
         }
 
-        CustomUIHud currentHud = hudManager.getCustomHud();
+        CustomUIHud currentHud = hudManager.getCustomHud(FurnaceHud.KEY);
         if (currentHud != state.hud) {
             state.visible = false;
             state.hud.resetCache();
@@ -567,7 +571,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         int x = window.getX();
         int y = window.getY();
         int z = window.getZ();
-        BlockPosition baseBlock = world.getBaseBlock(new BlockPosition(x, y, z));
+        BlockPosition baseBlock = BlockAccessor.resolveBaseBlock(world, new BlockPosition(x, y, z));
         if (baseBlock != null) {
             return new Vector3i(baseBlock.x, baseBlock.y, baseBlock.z);
         }
@@ -687,7 +691,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
         int localX = ChunkUtil.localCoordinate((long) x);
         int localZ = ChunkUtil.localCoordinate((long) z);
-        int blockIndex = ChunkUtil.indexBlockInColumn(localX, y, localZ);
+        int blockIndex = ChunkCompat.indexBlockInColumn(localX, y, localZ);
 
         IntOpenHashSet set = visited.get(chunkIndex);
         if (set == null) {
@@ -725,45 +729,14 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
             return null;
         }
         long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-        if (world.getChunkIfLoaded(chunkIndex) == null) {
+        if (BlockAccessor.loaded(world, chunkIndex) == null) {
             return null;
         }
         ChunkStore chunkStore = world.getChunkStore();
         if (chunkStore == null) {
             return null;
         }
-        BlockComponentChunk blockComponents =
-                chunkStore.getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-        if (blockComponents == null) {
-            return null;
-        }
-        int localX = ChunkUtil.localCoordinate((long) x);
-        int localZ = ChunkUtil.localCoordinate((long) z);
-        int blockIndex = ChunkUtil.indexBlockInColumn(localX, y, localZ);
-        Ref<ChunkStore> ref = blockComponents.getEntityReference(blockIndex);
-        if (ref != null && !ref.isValid()) {
-            blockComponents.removeEntityReference(blockIndex, ref);
-            blockComponents.markNeedsSaving();
-            return null;
-        }
-        Holder<ChunkStore> holder = ref == null ? blockComponents.getEntityHolder(blockIndex) : null;
-        if (holder != null) {
-            return holder.getComponent(type);
-        }
-        if (ref == null) {
-            return null;
-        }
-        Store<ChunkStore> chunkStoreData = chunkStore.getStore();
-        if (chunkStoreData == null) {
-            return null;
-        }
-        try {
-            return chunkStoreData.getComponent(ref, type);
-        } catch (IllegalStateException ex) {
-            blockComponents.removeEntityReference(blockIndex, ref);
-            blockComponents.markNeedsSaving();
-            return null;
-        }
+        return BlockComponentCompat.get(world, x, y, z, type);
     }
 
     private ItemCableNetworkInfo getItemCableNetworkInfo(World world, Vector3i target) {

@@ -1,5 +1,9 @@
 package HyProTechTeam.ui;
 
+import com.hypixel.hytale.server.core.inventory.InventoryComponent;
+import HyProTechTeam.BlockComponentCompat;
+import HyProTechTeam.ChunkCompat;
+import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import HyProTechTeam.HyProTechIds;
 import HyProTechTeam.TieredIdUtil;
 import HyProTechTeam.UpgradePersistence;
@@ -38,7 +42,7 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
+import HyProTechTeam.BlockComponentCompat;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -379,7 +383,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         if (world != null) {
             Vector3i pos = resolveBlockPosition(world);
             if (pos != null) {
-                BlockType blockType = world.getBlockType(pos.getX(), pos.getY(), pos.getZ());
+                BlockType blockType = BlockAccessor.blockTypeAt(world, pos.getX(), pos.getY(), pos.getZ());
                 String blockId = blockType == null ? null : blockType.getId();
                 int parsedTier = TieredIdUtil.parseTierSuffix(blockId, HyProTechIds.BLOCK_ALLOY_SMELTER);
                 if (parsedTier > 0 && machine != null && machine.getTier() != parsedTier && node != null) {
@@ -1188,7 +1192,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         Vector3i pos = resolveBlockPosition(world);
         if (pos != null) {
             String upgradedId = TieredIdUtil.buildTieredId(HyProTechIds.BLOCK_ALLOY_SMELTER, nextTier);
-            BlockType blockType = world.getBlockType(pos.getX(), pos.getY(), pos.getZ());
+            BlockType blockType = BlockAccessor.blockTypeAt(world, pos.getX(), pos.getY(), pos.getZ());
             String blockId = blockType == null ? null : blockType.getId();
             upgradedId = TieredIdUtil.applyNamespace(blockId, HyProTechIds.BLOCK_ALLOY_SMELTER, upgradedId);
             UpgradePersistence.queueBlockSwapWithContainer(world, pos, upgradedId, node);
@@ -1569,12 +1573,12 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
 
     private int getHotbarCapacity(Inventory inventory) {
         ItemContainer hotbar = inventory == null ? null : inventory.getHotbar();
-        return hotbar == null ? Inventory.DEFAULT_HOTBAR_CAPACITY : hotbar.getCapacity();
+        return hotbar == null ? InventoryComponent.DEFAULT_HOTBAR_CAPACITY : hotbar.getCapacity();
     }
 
     private int getStorageCapacity(Inventory inventory) {
         ItemContainer storage = inventory == null ? null : inventory.getStorage();
-        return storage == null ? Inventory.DEFAULT_STORAGE_CAPACITY : storage.getCapacity();
+        return storage == null ? InventoryComponent.DEFAULT_STORAGE_CAPACITY : storage.getCapacity();
     }
 
     private String buildInventoryKey(Inventory inventory, int hotbarCapacity, int storageCapacity) {
@@ -1619,15 +1623,15 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
             return blockRef;
         }
         long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-        BlockComponentChunk blockComponents =
-                world.getChunkStore().getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
+        BlockComponentCompat.ChunkView blockComponents =
+                BlockComponentCompat.ChunkView.of(world, chunkIndex);
         if (blockComponents == null) {
             return blockRef;
         }
         int localX = ChunkUtil.localCoordinate((long) pos.getX());
         int localZ = ChunkUtil.localCoordinate((long) pos.getZ());
-        int blockIndex = ChunkUtil.indexBlockInColumn(localX, pos.getY(), localZ);
-        Ref<ChunkStore> ref = blockComponents.getEntityReferences().get(blockIndex);
+        int blockIndex = BlockComponentCompat.index(localX, pos.getY(), localZ);
+        Ref<ChunkStore> ref = blockComponents.getEntityReference(blockIndex);
         if (ref != null && (blockRef == null || ref.getIndex() != blockRef.getIndex())) {
             blockRef = ref;
         }
@@ -1641,12 +1645,12 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         Vector3i pos = resolveBlockPosition(world);
         if (pos != null) {
             long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-            BlockComponentChunk blockComponents =
-                    world.getChunkStore().getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
+            BlockComponentCompat.ChunkView blockComponents =
+                    BlockComponentCompat.ChunkView.of(world, chunkIndex);
             if (blockComponents != null) {
                 int localX = ChunkUtil.localCoordinate((long) pos.getX());
                 int localZ = ChunkUtil.localCoordinate((long) pos.getZ());
-                int blockIndex = ChunkUtil.indexBlockInColumn(localX, pos.getY(), localZ);
+                int blockIndex = BlockComponentCompat.index(localX, pos.getY(), localZ);
                 EnergyNodeComponent node = blockComponents.getComponent(blockIndex, energyType);
                 if (node != null) {
                     return node;
@@ -1669,12 +1673,12 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         Vector3i pos = resolveBlockPosition(world);
         if (pos != null) {
             long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-            BlockComponentChunk blockComponents =
-                    world.getChunkStore().getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
+            BlockComponentCompat.ChunkView blockComponents =
+                    BlockComponentCompat.ChunkView.of(world, chunkIndex);
             if (blockComponents != null) {
                 int localX = ChunkUtil.localCoordinate((long) pos.getX());
                 int localZ = ChunkUtil.localCoordinate((long) pos.getZ());
-                int blockIndex = ChunkUtil.indexBlockInColumn(localX, pos.getY(), localZ);
+                int blockIndex = BlockComponentCompat.index(localX, pos.getY(), localZ);
                 MachineComponent machine = blockComponents.getComponent(blockIndex, machineType);
                 if (machine != null) {
                     return machine;
@@ -1697,12 +1701,12 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         Vector3i pos = resolveBlockPosition(world);
         if (pos != null) {
             long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-            BlockComponentChunk blockComponents =
-                    world.getChunkStore().getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
+            BlockComponentCompat.ChunkView blockComponents =
+                    BlockComponentCompat.ChunkView.of(world, chunkIndex);
             if (blockComponents != null) {
                 int localX = ChunkUtil.localCoordinate((long) pos.getX());
                 int localZ = ChunkUtil.localCoordinate((long) pos.getZ());
-                int blockIndex = ChunkUtil.indexBlockInColumn(localX, pos.getY(), localZ);
+                int blockIndex = BlockComponentCompat.index(localX, pos.getY(), localZ);
                 Ref<ChunkStore> ref = blockComponents.getEntityReference(blockIndex);
                 if (ref != null && !ref.isValid()) {
                     blockComponents.removeEntityReference(blockIndex, ref);
@@ -1743,12 +1747,12 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         Vector3i pos = resolveBlockPosition(world);
         if (pos != null) {
             long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-            BlockComponentChunk blockComponents =
-                    world.getChunkStore().getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
+            BlockComponentCompat.ChunkView blockComponents =
+                    BlockComponentCompat.ChunkView.of(world, chunkIndex);
             if (blockComponents != null) {
                 int localX = ChunkUtil.localCoordinate((long) pos.getX());
                 int localZ = ChunkUtil.localCoordinate((long) pos.getZ());
-                int blockIndex = ChunkUtil.indexBlockInColumn(localX, pos.getY(), localZ);
+                int blockIndex = BlockComponentCompat.index(localX, pos.getY(), localZ);
                 Ref<ChunkStore> ref = blockComponents.getEntityReference(blockIndex);
                 if (ref != null && !ref.isValid()) {
                     blockComponents.removeEntityReference(blockIndex, ref);
@@ -1790,7 +1794,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         if (player == null) {
             return;
         }
-        player.sendMessage(Message.raw(text));
+        player.getPlayerRef().sendMessage(Message.raw(text));
     }
 
     Vector3i resolveBlockPosition(World world) {
@@ -1803,8 +1807,8 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
 
         ChunkStore chunkStoreResource = world.getChunkStore();
         for (long chunkIndex : chunkStoreResource.getChunkIndexes()) {
-            BlockComponentChunk blockComponents =
-                    chunkStoreResource.getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
+            BlockComponentCompat.ChunkView blockComponents =
+                    BlockComponentCompat.ChunkView.of(chunkStoreResource.getWorld(), chunkIndex);
             if (blockComponents == null) {
                 continue;
             }
@@ -1816,9 +1820,9 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
 
             int chunkX = ChunkUtil.xOfChunkIndex(chunkIndex);
             int chunkZ = ChunkUtil.zOfChunkIndex(chunkIndex);
-            int localX = ChunkUtil.xFromBlockInColumn(blockIndex);
-            int localY = ChunkUtil.yFromBlockInColumn(blockIndex);
-            int localZ = ChunkUtil.zFromBlockInColumn(blockIndex);
+            int localX = BlockComponentCompat.localX(blockIndex);
+            int localY = BlockComponentCompat.localY(blockIndex);
+            int localZ = BlockComponentCompat.localZ(blockIndex);
 
             int worldX = ChunkUtil.worldCoordFromLocalCoord(chunkX, localX);
             int worldZ = ChunkUtil.worldCoordFromLocalCoord(chunkZ, localZ);
@@ -1829,19 +1833,18 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return null;
     }
 
-    private int findBlockIndex(BlockComponentChunk blockComponents) {
-        int targetIndex = blockRef.getIndex();
-        if (targetIndex == Integer.MIN_VALUE) {
+    private int findBlockIndex(BlockComponentCompat.ChunkView blockComponents) {
+        if (blockComponents == null) {
             return Integer.MIN_VALUE;
         }
-        for (it.unimi.dsi.fastutil.ints.Int2ReferenceMap.Entry<Ref<ChunkStore>> entry
-                : blockComponents.getEntityReferences().int2ReferenceEntrySet()) {
-            Ref<ChunkStore> entryRef = entry.getValue();
-            if (entryRef != null && entryRef.getIndex() == targetIndex) {
-                return entry.getIntKey();
-            }
+        // TODO(0.7.5): 0.7.5 exposes no Ref->block-index lookup; derive the index from the block position.
+        Vector3i pos = resolveBlockPosition(blockComponents.getWorld());
+        if (pos == null) {
+            return Integer.MIN_VALUE;
         }
-        return Integer.MIN_VALUE;
+        int localX = ChunkUtil.localCoordinate((long) pos.getX());
+        int localZ = ChunkUtil.localCoordinate((long) pos.getZ());
+        return BlockComponentCompat.index(localX, pos.getY(), localZ);
     }
 
     private World getWorld(Store<EntityStore> store) {

@@ -85,7 +85,7 @@ public final class ChangelogPage extends InteractiveCustomUIPage<ChangelogEvent>
             return;
         }
         try {
-            pageManager.handleEvent(
+            pageManager.handleLegacyCustomPageEvent(
                     playerRef,
                     store,
                     new CustomPageEvent(CustomPageEventType.Dismiss, ""));

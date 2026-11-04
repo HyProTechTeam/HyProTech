@@ -1,5 +1,6 @@
 package HyProTechTeam.machine;
 
+import HyProTechTeam.BlockComponentCompat;
 import HyProTechTeam.HyProTechIds;
 import HyProTechTeam.TieredIdUtil;
 import HyProTechTeam.energy.EnergyNodeComponent;
@@ -17,7 +18,7 @@ import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
-import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
+import HyProTechTeam.BlockComponentCompat;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -36,7 +37,7 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
 
     @Override
     public Query<ChunkStore> getQuery() {
-        return Archetype.of(WorldChunk.getComponentType(), BlockComponentChunk.getComponentType());
+        return Archetype.of(WorldChunk.getComponentType());
     }
 
     @Override
@@ -52,84 +53,64 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
             Store<ChunkStore> store,
             CommandBuffer<ChunkStore> commandBuffer) {
         WorldChunk worldChunk = chunk.getComponent(entityIndex, WorldChunk.getComponentType());
-        BlockComponentChunk blockComponents = chunk.getComponent(entityIndex, BlockComponentChunk.getComponentType());
-        if (worldChunk == null || blockComponents == null) {
+        if (worldChunk == null) {
             return;
         }
-
-        World world = worldChunk.getWorld();
-        ChunkStore chunkStore = world == null ? null : world.getChunkStore();
-        if (chunkStore == null) {
+        ChunkStore chunkStore = store.getExternalData();
+        World world = chunkStore == null ? null : chunkStore.getWorld();
+        if (world == null) {
             return;
         }
 
         int chunkX = worldChunk.getX();
         int chunkZ = worldChunk.getZ();
-
-        IntArrayList duplicateHolders = null;
-        IntArrayList invalidReferences = null;
-        boolean referencesChanged = false;
-        for (Int2ObjectMap.Entry<Holder<ChunkStore>> entry : blockComponents.getEntityHolders().int2ObjectEntrySet()) {
-            int blockIndex = entry.getIntKey();
-            Holder<ChunkStore> holder = entry.getValue();
-            Ref<ChunkStore> existingRef = blockComponents.getEntityReference(blockIndex);
-            if (existingRef != null) {
-                if (!existingRef.isValid()) {
-                    blockComponents.removeEntityReference(blockIndex, existingRef);
-                    referencesChanged = true;
-                } else {
-                    if (store != null && holder != null) {
-                        MachineComponent holderMachine = holder.getComponent(machineType);
-                        if (holderMachine != null) {
-                            store.putComponent(existingRef, machineType, holderMachine);
-                        }
-                        EnergyNodeComponent holderEnergy = holder.getComponent(energyType);
-                        if (holderEnergy != null) {
-                            store.putComponent(existingRef, energyType, holderEnergy);
-                        }
-                    }
-                    if (duplicateHolders == null) {
-                        duplicateHolders = new IntArrayList();
-                    }
-                    duplicateHolders.add(blockIndex);
-                    continue;
-                }
-            }
-            processBlock(blockComponents, commandBuffer, chunkStore, world, chunkX, chunkZ, blockIndex, holder, null, delta);
+        BlockComponentCompat.ChunkView blockComponents = BlockComponentCompat.ChunkView.of(world, chunkX, chunkZ);
+        if (blockComponents == null) {
+            return;
         }
 
-        for (it.unimi.dsi.fastutil.ints.Int2ReferenceMap.Entry<Ref<ChunkStore>> entry : blockComponents.getEntityReferences().int2ReferenceEntrySet()) {
-            int blockIndex = entry.getIntKey();
-            Ref<ChunkStore> ref = entry.getValue();
-            if (ref == null || !ref.isValid()) {
-                if (invalidReferences == null) {
-                    invalidReferences = new IntArrayList();
-                }
+        IntArrayList duplicateHolders = new IntArrayList();
+        IntArrayList invalidReferences = new IntArrayList();
+        Ref<ChunkStore> chunkRef = chunk.getReferenceTo(entityIndex);
+
+        BlockComponentCompat.forEachBlock(store, chunkRef, (blockIndex, holder, ref) -> {
+            if (ref != null && !ref.isValid()) {
                 invalidReferences.add(blockIndex);
-                continue;
+                return;
             }
-            processBlock(blockComponents, commandBuffer, chunkStore, world, chunkX, chunkZ, blockIndex, null, ref, delta);
-        }
-
-        if (invalidReferences != null && !invalidReferences.isEmpty()) {
-            for (int i = 0; i < invalidReferences.size(); i++) {
-                int blockIndex = invalidReferences.getInt(i);
-                Ref<ChunkStore> ref = blockComponents.getEntityReference(blockIndex);
-                if (ref != null && !ref.isValid()) {
-                    blockComponents.removeEntityReference(blockIndex, ref);
-                    disableTickingAt(world, chunkX, chunkZ, blockIndex);
-                    referencesChanged = true;
+            if (ref != null && holder != null) {
+                // A block entity owns the components; migrate any legacy holder copy onto it.
+                MachineComponent holderMachine = holder.getComponent(machineType);
+                if (holderMachine != null) {
+                    store.putComponent(ref, machineType, holderMachine);
                 }
+                EnergyNodeComponent holderEnergy = holder.getComponent(energyType);
+                if (holderEnergy != null) {
+                    store.putComponent(ref, energyType, holderEnergy);
+                }
+                duplicateHolders.add(blockIndex);
+                return;
+            }
+            processBlock(blockComponents, commandBuffer, chunkStore, world, chunkX, chunkZ, blockIndex,
+                    holder, ref, delta);
+        });
+
+        boolean referencesChanged = false;
+        for (int i = 0; i < invalidReferences.size(); i++) {
+            int blockIndex = invalidReferences.getInt(i);
+            Ref<ChunkStore> ref = blockComponents.getEntityReference(blockIndex);
+            if (ref != null && !ref.isValid()) {
+                blockComponents.removeEntityReference(blockIndex, ref);
+                disableTickingAt(world, chunkX, chunkZ, blockIndex);
+                referencesChanged = true;
             }
         }
-
-        if (duplicateHolders != null && !duplicateHolders.isEmpty()) {
+        if (!duplicateHolders.isEmpty()) {
             for (int i = 0; i < duplicateHolders.size(); i++) {
                 blockComponents.removeEntityHolder(duplicateHolders.getInt(i));
             }
             referencesChanged = true;
         }
-
         if (referencesChanged) {
             blockComponents.markNeedsSaving();
         }
@@ -139,13 +120,13 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
         if (world == null) {
             return;
         }
-        int localX = ChunkUtil.xFromBlockInColumn(blockIndex);
-        int localY = ChunkUtil.yFromBlockInColumn(blockIndex);
-        int localZ = ChunkUtil.zFromBlockInColumn(blockIndex);
+        int localX = BlockComponentCompat.localX(blockIndex);
+        int localY = BlockComponentCompat.localY(blockIndex);
+        int localZ = BlockComponentCompat.localZ(blockIndex);
         int worldX = ChunkUtil.worldCoordFromLocalCoord(chunkX, localX);
         int worldZ = ChunkUtil.worldCoordFromLocalCoord(chunkZ, localZ);
         long chunkIndex = ChunkUtil.indexChunkFromBlock(worldX, worldZ);
-        BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+        BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
         if (accessor == null) {
             return;
         }
@@ -157,7 +138,7 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
     }
 
     private void processBlock(
-            BlockComponentChunk blockComponents,
+            BlockComponentCompat.ChunkView blockComponents,
             CommandBuffer<ChunkStore> commandBuffer,
             ChunkStore chunkStore,
             World world,
@@ -245,9 +226,9 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
             changed = true;
         }
 
-        int worldX = ChunkUtil.worldCoordFromLocalCoord(chunkX, ChunkUtil.xFromBlockInColumn(blockIndex));
-        int worldY = ChunkUtil.yFromBlockInColumn(blockIndex);
-        int worldZ = ChunkUtil.worldCoordFromLocalCoord(chunkZ, ChunkUtil.zFromBlockInColumn(blockIndex));
+        int worldX = ChunkUtil.worldCoordFromLocalCoord(chunkX, BlockComponentCompat.localX(blockIndex));
+        int worldY = BlockComponentCompat.localY(blockIndex);
+        int worldZ = ChunkUtil.worldCoordFromLocalCoord(chunkZ, BlockComponentCompat.localZ(blockIndex));
 
         if (blockType == null || blockType == BlockType.EMPTY || blockId == null) {
             return;
@@ -290,16 +271,16 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
     }
 
     private BlockType getBlockTypeAt(World world, int chunkX, int chunkZ, int blockIndex) {
-        int localX = ChunkUtil.xFromBlockInColumn(blockIndex);
-        int localY = ChunkUtil.yFromBlockInColumn(blockIndex);
-        int localZ = ChunkUtil.zFromBlockInColumn(blockIndex);
+        int localX = BlockComponentCompat.localX(blockIndex);
+        int localY = BlockComponentCompat.localY(blockIndex);
+        int localZ = BlockComponentCompat.localZ(blockIndex);
 
         int worldX = ChunkUtil.worldCoordFromLocalCoord(chunkX, localX);
         int worldZ = ChunkUtil.worldCoordFromLocalCoord(chunkZ, localZ);
         int worldY = localY;
 
         long chunkIndex = ChunkUtil.indexChunkFromBlock(worldX, worldZ);
-        BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+        BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
         if (accessor == null) {
             return null;
         }
@@ -308,7 +289,7 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
     }
 
     private <T extends Component<ChunkStore>> void putComponent(
-            BlockComponentChunk blockComponents,
+            BlockComponentCompat.ChunkView blockComponents,
             CommandBuffer<ChunkStore> commandBuffer,
             Holder<ChunkStore> holder,
             Ref<ChunkStore> ref,
