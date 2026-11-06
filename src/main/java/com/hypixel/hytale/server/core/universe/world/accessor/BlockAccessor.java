@@ -146,6 +146,9 @@ public final class BlockAccessor {
      * no-op is safe here.
      */
     public void setTicking(int x, int y, int z, boolean ticking) {
+        // TODO(0.7.5): 0.7.5 keeps the ticking queue on the section/tick systems, not on the block,
+        // so there is no per-block toggle to write. All callers use this for queue clean-up only;
+        // a no-op is safe, but a public API for it should replace this if one is exposed.
     }
 
     // -------------------------------------------------------------- helpers
