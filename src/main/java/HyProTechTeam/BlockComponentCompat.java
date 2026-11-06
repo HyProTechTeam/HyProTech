@@ -44,7 +44,14 @@ public final class BlockComponentCompat {
         if (chunkStore == null || y < ChunkUtil.MIN_Y || y >= ChunkUtil.HEIGHT) {
             return null;
         }
-        return new SectionReader(chunkStore).getBlockComponentHolder(x, y, z);
+        try {
+            return new SectionReader(chunkStore).getBlockComponentHolder(x, y, z);
+        } catch (IllegalStateException ex) {
+            // 0.7.5's copyBlockHolder validates the stored Ref and throws when the block entity was
+            // removed/unloaded in the meantime. Treat that as "no components"; callers recreate on
+            // demand (the old API returned null in this situation too).
+            return null;
+        }
     }
 
     /** Reads a component attached to the given block, or {@code null}. */
@@ -318,14 +325,28 @@ public final class BlockComponentCompat {
             if (references == null) {
                 continue;
             }
-            for (Short2ObjectMap.Entry<Ref<ChunkStore>> entry : references.short2ObjectEntrySet()) {
-                Ref<ChunkStore> blockRef = entry.getValue();
-                if (blockRef != null && blockRef.isValid()) {
-                    section.loadBlockReference(entry.getShortKey(), blockRef);
+            try {
+                // Put the references back first (loadBlockReference does not mark anything dirty).
+                for (Short2ObjectMap.Entry<Ref<ChunkStore>> entry : references.short2ObjectEntrySet()) {
+                    Ref<ChunkStore> blockRef = entry.getValue();
+                    if (blockRef != null && blockRef.isValid()) {
+                        section.loadBlockReference(entry.getShortKey(), blockRef);
+                    }
                 }
-            }
-            for (Short2ObjectMap.Entry<Ref<ChunkStore>> entry : references.short2ObjectEntrySet()) {
-                visitor.visit(absoluteIndex(chunkSection, entry.getShortKey()), null, entry.getValue());
+                for (Short2ObjectMap.Entry<Ref<ChunkStore>> entry : references.short2ObjectEntrySet()) {
+                    visitor.visit(absoluteIndex(chunkSection, entry.getShortKey()), null, entry.getValue());
+                }
+            } finally {
+                // takeBlockReferences() clears the live map; if the visitor throws we must not
+                // orphan every block entity of this section. Restore any reference that is still
+                // valid and no longer registered.
+                for (Short2ObjectMap.Entry<Ref<ChunkStore>> entry : references.short2ObjectEntrySet()) {
+                    Ref<ChunkStore> blockRef = entry.getValue();
+                    if (blockRef != null && blockRef.isValid()
+                            && section.getBlockReference(entry.getShortKey()) == null) {
+                        section.loadBlockReference(entry.getShortKey(), blockRef);
+                    }
+                }
             }
         }
     }
@@ -374,18 +395,28 @@ public final class BlockComponentCompat {
                 continue;
             }
             boolean changed = false;
-            for (Short2ObjectMap.Entry<Ref<ChunkStore>> entry : references.short2ObjectEntrySet()) {
-                Ref<ChunkStore> blockRef = entry.getValue();
-                if (blockRef != null && blockRef.isValid()) {
-                    section.loadBlockReference(entry.getShortKey(), blockRef);
-                } else {
-                    section.tombstoneBlock(entry.getShortKey());
-                    removed++;
-                    changed = true;
+            try {
+                for (Short2ObjectMap.Entry<Ref<ChunkStore>> entry : references.short2ObjectEntrySet()) {
+                    Ref<ChunkStore> blockRef = entry.getValue();
+                    if (blockRef != null && blockRef.isValid()) {
+                        section.loadBlockReference(entry.getShortKey(), blockRef);
+                    } else {
+                        section.tombstoneBlock(entry.getShortKey());
+                        removed++;
+                        changed = true;
+                    }
                 }
-            }
-            if (changed) {
-                section.markNeedsSaving();
+            } finally {
+                for (Short2ObjectMap.Entry<Ref<ChunkStore>> entry : references.short2ObjectEntrySet()) {
+                    Ref<ChunkStore> blockRef = entry.getValue();
+                    if (blockRef != null && blockRef.isValid()
+                            && section.getBlockReference(entry.getShortKey()) == null) {
+                        section.loadBlockReference(entry.getShortKey(), blockRef);
+                    }
+                }
+                if (changed) {
+                    section.markNeedsSaving();
+                }
             }
         }
         return removed;

@@ -736,7 +736,15 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         if (chunkStore == null) {
             return null;
         }
-        return BlockComponentCompat.get(world, x, y, z, type);
+        try {
+            return BlockComponentCompat.get(world, x, y, z, type);
+        } catch (IllegalStateException ex) {
+            // The block entity was removed while the reference was still cached (0.7.5 validates
+            // refs strictly). Clean the stale reference and treat the block as having no component,
+            // matching the previous engine API's behaviour; this runs per tick.
+            BlockComponentCompat.removeInvalidReferences(world, chunkIndex);
+            return null;
+        }
     }
 
     private ItemCableNetworkInfo getItemCableNetworkInfo(World world, Vector3i target) {

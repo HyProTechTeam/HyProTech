@@ -2,9 +2,11 @@ package com.hypixel.hytale.server.core.universe.world.accessor;
 
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockOperations;
+import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 
 /**
@@ -141,14 +143,27 @@ public final class BlockAccessor {
     }
 
     /**
-     * Best-effort port of the old per-block ticking toggle. The current API keeps ticking flags on
-     * {@code BlockSection}; the only caller wraps this in a try/catch for queue clean-up, so a
-     * no-op is safe here.
+     * Port of the old per-block ticking toggle: 0.7.5 keeps the ticking queue on the chunk section,
+     * so resolve the section at the block position and toggle the entry there. Best effort - the
+     * call sites only use it for queue clean-up after a cable/machine is replaced.
      */
     public void setTicking(int x, int y, int z, boolean ticking) {
-        // TODO(0.7.5): 0.7.5 keeps the ticking queue on the section/tick systems, not on the block,
-        // so there is no per-block toggle to write. All callers use this for queue clean-up only;
-        // a no-op is safe, but a public API for it should replace this if one is exposed.
+        // Best-effort port of the old per-block ticking toggle. 0.7.5 keeps the queue on
+        // BlockSection; a failure here only leaves a stale queue entry for the engine to clean up,
+        // so callers keep their lenient behaviour.
+        try {
+            Ref<ChunkStore> sectionRef = chunkStore.getChunkSectionReferenceAtBlock(x, y, z);
+            Store<ChunkStore> store = chunkStore.getStore();
+            if (sectionRef == null || !sectionRef.isValid() || store == null) {
+                return;
+            }
+            BlockSection section = store.getComponent(sectionRef, BlockSection.getComponentType());
+            if (section != null) {
+                section.setTicking(x, y, z, ticking);
+            }
+        } catch (RuntimeException ignored) {
+            // engine already removed the section/block - nothing to clean up
+        }
     }
 
     // -------------------------------------------------------------- helpers

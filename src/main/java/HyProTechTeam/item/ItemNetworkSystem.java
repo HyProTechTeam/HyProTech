@@ -1394,11 +1394,10 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
         int localX = ChunkUtil.localCoordinate((long) x);
         int localZ = ChunkUtil.localCoordinate((long) z);
-        // TODO(0.7.5): the section-local 15-bit block index is the only index the 0.7.5 API offers
-        // (ChunkUtil.indexBlock masks the world Y). The ui/** pages key this chunk-level config map
-        // the same way, so both sides stay consistent; an absolute-in-column key would need a
-        // coordinated change there too.
-        int blockIndex = ChunkUtil.indexBlock(localX, y, localZ);
+        // Persisted per-block config keys use the pre-0.7.5 absolute-in-column layout
+        // ((worldY << 10) | (localZ << 5) | localX); ChunkUtil.indexBlock masks world Y to 5 bits and
+        // would collide across sections as well as break configs written before the patch.
+        int blockIndex = BlockComponentCompat.index(localX, y, localZ);
         chunkConfig.setConfig(blockIndex, config);
         Store<ChunkStore> store = chunkStore.getStore();
         Ref<ChunkStore> chunkRef = chunkStore.getChunkReference(chunkIndex);
@@ -1433,7 +1432,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
         int localX = ChunkUtil.localCoordinate((long) x);
         int localZ = ChunkUtil.localCoordinate((long) z);
-        int blockIndex = ChunkUtil.indexBlock(localX, y, localZ);
+        int blockIndex = BlockComponentCompat.index(localX, y, localZ);
         ItemStorageConfigComponent config = chunkConfig.getConfig(blockIndex);
         return config == null ? fallback : config.getPriority();
     }
