@@ -53,6 +53,7 @@ import java.util.Map;
 import java.lang.reflect.Field;
 import HyProTechTeam.UpgradePersistence;
 
+/** Ticks energy nodes and transfers energy through connected cable networks. */
 public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
     private static final int BASIC_MACHINE_CAPACITY = 50000;
     private static final int BASIC_MACHINE_MAX_TRANSFER = 5000;
@@ -108,6 +109,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
         UpgradePersistence.cleanupExpired(world);
 
+        // Reset the visited set once per world tick, not once per chunk.
         CableState cableState = getCableState(world);
         long worldTick = world.getTick();
         if (worldTick != cableState.lastTick) {
@@ -115,6 +117,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             cableState.lastTick = worldTick;
         }
 
+        // Compute the world-level sunlight factor; individual panels also check sky access.
         double sunlightFactor = 1.0;
         WorldTimeResource timeResource = world.getEntityStore().getStore().getResource(WorldTimeResource.getResourceType());
         if (timeResource != null) {
@@ -126,6 +129,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         int chunkZ = worldChunk.getZ();
         IntArrayList invalidReferences = null;
 
+        // Visit saved holders and live references separately, creating missing furnace nodes.
         for (Int2ObjectMap.Entry<Holder<ChunkStore>> entry : blockComponents.getEntityHolders().int2ObjectEntrySet()) {
             int blockIndex = entry.getIntKey();
             Holder<ChunkStore> holder = entry.getValue();
@@ -613,6 +617,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Processes a connected network once per world tick, starting at the given cable. */
     private void processCableNetwork(
             ChunkStore chunkStore,
             World world,
@@ -635,6 +640,8 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             return;
         }
 
+        // Pull from external storage, transfer with internal nodes, then push outward.
+        // Finally distribute the network's remaining energy among its cables.
         updateCableConnectedMasks(network);
         applyNeighborMaxTransfers(network);
         updateCableStates(world, network);
@@ -645,6 +652,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         distributeCableEnergy(network);
     }
 
+    /** Breadth-first traversal of loaded, compatible cables and their adjacent storages. */
     private CableNetwork buildCableNetwork(
             ChunkStore chunkStore,
             World world,
@@ -700,6 +708,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 int neighborIndex = ChunkUtil.indexBlockInColumn(neighborLocalX, neighborY, neighborLocalZ);
                 EnergyNodeComponent neighbor = neighborComponents.getComponent(neighborIndex, energyType);
                 if (neighbor == null) {
+                    // Nodes from other energy implementations are discovered through the API.
                     EnergyStorage external = EnergyStorageLookup.find(world, neighborX, neighborY, neighborZ);
                     if (external == null) {
                         continue;
@@ -740,6 +749,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
 
                 EnergySide neighborSide = side.opposite();
                 if (neighbor.getNodeType() == EnergyNodeComponent.NodeType.CABLE) {
+                    // Cable color and both facing sides must permit the connection.
                     if (!sameCableColor(node, neighbor)) {
                         continue;
                     }

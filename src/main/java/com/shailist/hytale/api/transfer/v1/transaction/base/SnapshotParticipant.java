@@ -3,6 +3,7 @@ package com.shailist.hytale.api.transfer.v1.transaction.base;
 import com.shailist.hytale.api.transfer.v1.transaction.Transaction;
 import com.shailist.hytale.api.transfer.v1.transaction.TransactionContext;
 
+/** Base for mutable state that can be restored when a transaction is aborted. */
 public abstract class SnapshotParticipant<T> {
     protected abstract T createSnapshot();
 
@@ -31,6 +32,7 @@ public abstract class SnapshotParticipant<T> {
         onFinalAbort();
     }
 
+    /** Registers the current state before a transaction mutates this participant. */
     protected final void updateSnapshots(TransactionContext transaction) {
         if (transaction == null) {
             throw new IllegalArgumentException("TransactionContext may not be null.");

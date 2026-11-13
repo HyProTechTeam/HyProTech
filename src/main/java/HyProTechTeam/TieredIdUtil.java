@@ -1,9 +1,11 @@
 package HyProTechTeam;
 
+/** Recognizes and builds tiered block IDs while preserving optional namespaces. */
 public final class TieredIdUtil {
     private TieredIdUtil() {
     }
 
+    /** Removes a namespace only if the remaining ID begins with the expected base. */
     public static String stripNamespace(String blockId, String baseId) {
         if (blockId == null || baseId == null) {
             return blockId;
@@ -21,6 +23,7 @@ public final class TieredIdUtil {
         return blockId;
     }
 
+    /** Copies the original namespace to an unqualified replacement ID, if present. */
     public static String applyNamespace(String blockId, String baseId, String targetId) {
         if (blockId == null || baseId == null || targetId == null) {
             return targetId;
@@ -38,6 +41,7 @@ public final class TieredIdUtil {
         return targetId;
     }
 
+    /** Accepts the base ID, a state-suffixed base, or a numeric tier with a boundary. */
     public static boolean isTieredId(String blockId, String baseId) {
         if (blockId == null || baseId == null) {
             return false;
@@ -59,6 +63,7 @@ public final class TieredIdUtil {
         if (normalized.length() == prefix.length()) {
             return false;
         }
+        // Require at least one digit and reject a tier followed directly by a letter or digit.
         int i = prefix.length();
         boolean foundDigit = false;
         for (; i < normalized.length(); i++) {
@@ -74,6 +79,7 @@ public final class TieredIdUtil {
         return i == normalized.length() || !Character.isLetterOrDigit(normalized.charAt(i));
     }
 
+    /** Parses the numeric tier after _T; returns -1 when no valid tier is present. */
     public static int parseTierSuffix(String blockId, String baseId) {
         if (blockId == null || baseId == null) {
             return -1;
@@ -109,6 +115,7 @@ public final class TieredIdUtil {
         return tier;
     }
 
+    /** Uses the base ID for tier zero or below, and appends _T followed by higher tiers. */
     public static String buildTieredId(String baseId, int tier) {
         if (baseId == null) {
             return null;
@@ -119,6 +126,7 @@ public final class TieredIdUtil {
         return baseId + "_T" + tier;
     }
 
+    /** A non-alphanumeric character after the base separates a block state suffix. */
     private static boolean isStateSuffixedBaseId(String normalized, String baseId) {
         if (normalized == null || baseId == null) {
             return false;

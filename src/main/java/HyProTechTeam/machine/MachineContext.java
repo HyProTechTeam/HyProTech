@@ -7,6 +7,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 
+/** Supplies a machine tick with its world position, components, and dirty flag. */
 public final class MachineContext {
     private final World world;
     private final ChunkStore chunkStore;
@@ -65,6 +66,7 @@ public final class MachineContext {
         return energy;
     }
 
+    /** Returns transactional storage, or an empty storage when the block has no energy node. */
     public EnergyStorage getEnergyStorage() {
         if (energy == null) {
             return EnergyStorage.empty();
@@ -72,10 +74,12 @@ public final class MachineContext {
         return energy.getStorage(components::markNeedsSaving);
     }
 
+    /** Looks up the inventory associated with this machine's block position. */
     public ItemContainer getItemContainer() {
         return MachineItemAccess.getContainer(world, x, y, z);
     }
 
+    /** Requests that the machine system persist changes made during this tick. */
     public void markDirty() {
         dirty = true;
     }

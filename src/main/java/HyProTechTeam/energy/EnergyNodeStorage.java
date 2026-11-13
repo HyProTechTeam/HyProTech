@@ -9,6 +9,7 @@ import com.shailist.hytale.api.transfer.v1.transaction.base.SnapshotParticipant;
 import java.util.Collections;
 import java.util.Iterator;
 
+/** Adapts a node's stored energy to the transactional energy-storage API. */
 public final class EnergyNodeStorage extends SnapshotParticipant<Integer>
         implements EnergyStorage, EnergyStorageView, EnergyTransferer {
     private final EnergyNodeComponent node;
@@ -37,11 +38,13 @@ public final class EnergyNodeStorage extends SnapshotParticipant<Integer>
 
         int capacity = node.getCapacity();
         int energy = node.getEnergy();
+        // Limit insertion to the node's remaining capacity.
         long insertable = Math.min(maxAmount, (long) capacity - energy);
         if (insertable <= 0) {
             return 0;
         }
 
+        // Snapshot before mutation so an aborted transaction can restore the old amount.
         updateSnapshots(transaction);
         node.setEnergy(energy + (int) insertable);
         return insertable;
@@ -60,11 +63,13 @@ public final class EnergyNodeStorage extends SnapshotParticipant<Integer>
         }
 
         int energy = node.getEnergy();
+        // A transaction cannot extract more energy than the node currently contains.
         long extracted = Math.min(maxAmount, energy);
         if (extracted <= 0) {
             return 0;
         }
 
+        // Record the pre-extraction amount for transaction rollback.
         updateSnapshots(transaction);
         node.setEnergy(energy - (int) extracted);
         return extracted;
@@ -97,6 +102,7 @@ public final class EnergyNodeStorage extends SnapshotParticipant<Integer>
 
     @Override
     protected void onFinalCommit() {
+        // Notify the owner only after the outermost transaction commits.
         if (onChanged != null) {
             onChanged.run();
         }

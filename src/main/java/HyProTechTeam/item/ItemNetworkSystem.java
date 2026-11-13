@@ -53,6 +53,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/** Discovers item cable networks and moves items between their connected inventories. */
 public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
     private static final int DEFAULT_MAX_TRANSFER = 16;
     private static final int MAX_BUDGET_PER_TICK = 256;
@@ -97,6 +98,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
         UpgradePersistence.cleanupExpired(world);
 
+        // Reset per-world traversal and time budgets once for each world tick.
         CableState cableState = getCableState(world);
         long worldTick = world.getTick();
         if (worldTick != cableState.lastTick) {
@@ -162,6 +164,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Reconstructs a missing cable component from its placed block and tier. */
     private ItemNodeComponent ensureItemCableNode(
             BlockComponentChunk blockComponents,
             CommandBuffer<ChunkStore> commandBuffer,
@@ -363,6 +366,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return BlockIdUtil.isIdOrState(blockId, baseId);
     }
 
+    /** Builds and processes one network unless the current tick's limits are exhausted. */
     private void processCableNetwork(
             ChunkStore chunkStore,
             World world,
@@ -386,6 +390,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         int localZ = ChunkUtil.localCoordinate((long) worldZ);
         int blockIndex = ChunkUtil.indexBlockInColumn(localX, worldY, localZ);
 
+        // A cable already reached by another traversal belongs to a processed network.
         if (!markVisited(cableState, chunkIndex, blockIndex)) {
             return;
         }
@@ -401,6 +406,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         applyTransfers(world, network, deltaSeconds, cableState);
     }
 
+    /** Traverses adjacent item cables in loaded chunks using a breadth-first queue. */
     private CableNetwork buildCableNetwork(
             ChunkStore chunkStore,
             int startX,
@@ -463,6 +469,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return network;
     }
 
+    /** Builds source and sink lists from enabled cable sides and neighboring inventories. */
     private void collectEndpoints(World world, ChunkStore chunkStore, CableNetwork network) {
         List<SourceEndpoint> sources = new ArrayList<>();
         List<SinkEndpoint> sinks = new ArrayList<>();
@@ -505,6 +512,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 boolean isMachine = lookup.isMachine;
                 SlotRange sourceRange = null;
                 SlotRange sinkRange = null;
+                // Machine output slots are sources; machine input slots are destinations.
                 if (lookup.machineSlots != null) {
                     sourceRange = lookup.machineSlots.outputRange;
                     sinkRange = lookup.machineSlots.inputRange;
