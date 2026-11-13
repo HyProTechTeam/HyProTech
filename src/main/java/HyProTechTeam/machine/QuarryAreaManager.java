@@ -1,5 +1,7 @@
 package HyProTechTeam.machine;
 
+import HyProTechTeam.BlockComponentCompat;
+import HyProTechTeam.ChunkCompat;
 import HyProTechTeam.HyProTechIds;
 import HyProTechTeam.TieredIdUtil;
 import com.hypixel.hytale.math.util.ChunkUtil;
@@ -12,7 +14,7 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
-import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
+import HyProTechTeam.BlockComponentCompat;
 import com.hypixel.hytale.component.Store;
 import java.util.HashMap;
 import java.util.Map;
@@ -151,7 +153,7 @@ public final class QuarryAreaManager {
         for (int x = startX; x <= endX; x++) {
             for (int z = startZ; z <= endZ; z++) {
                 long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-                BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+                BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
                 if (accessor == null) {
                     continue;
                 }
@@ -490,12 +492,12 @@ public final class QuarryAreaManager {
 
     private static Rotation getBlockYaw(World world, Vector3i origin) {
         long chunkIndex = ChunkUtil.indexChunkFromBlock(origin.getX(), origin.getZ());
-        if (world.getChunkIfLoaded(chunkIndex) == null) {
+        if (BlockAccessor.loaded(world, chunkIndex) == null) {
             return Rotation.None;
         }
 
         RotationTuple rotation = RotationTuple.get(
-                world.getBlockRotationIndex(origin.getX(), origin.getY(), origin.getZ()));
+                BlockAccessor.rotationIndexAt(world, origin.getX(), origin.getY(), origin.getZ()));
         if (rotation == null || rotation.yaw() == null) {
             return Rotation.None;
         }
@@ -558,7 +560,7 @@ public final class QuarryAreaManager {
         for (int x = minX; x <= maxXWorld; x++) {
             for (int z = minZ; z <= maxZWorld; z++) {
                 long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-                BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+                BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
                 if (accessor == null) {
                     continue;
                 }
@@ -583,7 +585,7 @@ public final class QuarryAreaManager {
         Map<String, BlockSnapshot> snapshots = getSnapshotMap(world);
         for (Vector3i pos : record.positions.values()) {
             long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-            BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+            BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
             if (accessor == null) {
                 continue;
             }
@@ -606,7 +608,7 @@ public final class QuarryAreaManager {
         if (snapshots.containsKey(key)) {
             return;
         }
-        int rotationIndex = world.getBlockRotationIndex(x, y, z);
+        int rotationIndex = BlockAccessor.rotationIndexAt(world, x, y, z);
         snapshots.put(key, new BlockSnapshot(current.getId(), rotationIndex));
     }
 
@@ -643,7 +645,7 @@ public final class QuarryAreaManager {
         for (int x = minX; x <= maxXWorld; x++) {
             for (int z = minZ; z <= maxZWorld; z++) {
                 long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-                BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+                BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
                 if (accessor == null) {
                     continue;
                 }
@@ -662,14 +664,14 @@ public final class QuarryAreaManager {
             return false;
         }
         long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-        BlockComponentChunk components =
-                world.getChunkStore().getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
+        BlockComponentCompat.ChunkView components =
+                BlockComponentCompat.ChunkView.of(world, chunkIndex);
         if (components == null) {
             return false;
         }
         int localX = ChunkUtil.localCoordinate((long) x);
         int localZ = ChunkUtil.localCoordinate((long) z);
-        int blockIndex = ChunkUtil.indexBlockInColumn(localX, y, localZ);
+        int blockIndex = BlockComponentCompat.index(localX, y, localZ);
         return components.getEntityHolder(blockIndex) != null;
     }
 

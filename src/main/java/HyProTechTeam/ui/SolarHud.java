@@ -5,10 +5,12 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 
 public class SolarHud extends CustomUIHud {
+    public static final String KEY = "HyProTech_SolarHud";
+
     private int lastOutput = Integer.MIN_VALUE;
 
     public SolarHud(PlayerRef playerRef) {
-        super(playerRef);
+        super(playerRef, KEY);
     }
 
     @Override

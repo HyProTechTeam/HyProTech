@@ -1,5 +1,7 @@
 package HyProTechTeam.interaction;
 
+import HyProTechTeam.BlockComponentCompat;
+import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import HyProTechTeam.HyProTechComponents;
 import HyProTechTeam.energy.EnergyNodeComponent;
 import HyProTechTeam.item.ItemNodeComponent;
@@ -19,8 +21,6 @@ import com.hypixel.hytale.server.core.modules.interaction.interaction.CooldownHa
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.client.SimpleBlockInteraction;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
-import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 public class CableNetworkUpgradeInteraction extends SimpleBlockInteraction {
@@ -43,7 +43,7 @@ public class CableNetworkUpgradeInteraction extends SimpleBlockInteraction {
             InteractionType interactionType,
             InteractionContext context,
             com.hypixel.hytale.server.core.inventory.ItemStack itemStack,
-            Vector3i blockPos,
+            org.joml.Vector3i blockPos,
             CooldownHandler cooldownHandler) {
         if (world == null || context == null || commandBuffer == null) {
             return;
@@ -72,7 +72,7 @@ public class CableNetworkUpgradeInteraction extends SimpleBlockInteraction {
 
         CableUpgradePage.CableType cableType = resolveCableType(world, targetPos);
         if (cableType == null) {
-            player.sendMessage(Message.raw("Target is not a HyProTech cable."));
+            playerRef.sendMessage(Message.raw("Target is not a HyProTech cable."));
             return;
         }
 
@@ -86,8 +86,8 @@ public class CableNetworkUpgradeInteraction extends SimpleBlockInteraction {
             InteractionContext context,
             com.hypixel.hytale.server.core.inventory.ItemStack itemStack,
             World world,
-            Vector3i blockPos) {
-        // Server-side only.
+            org.joml.Vector3i blockPos) {
+        // Server-side only, and simulation must never mutate the world.
     }
 
     @SuppressWarnings("removal")
@@ -97,7 +97,7 @@ public class CableNetworkUpgradeInteraction extends SimpleBlockInteraction {
             return null;
         }
 
-        BlockPosition baseBlock = world.getBaseBlock(target);
+        BlockPosition baseBlock = BlockAccessor.resolveBaseBlock(world, target);
         if (baseBlock == null) {
             return null;
         }
@@ -113,20 +113,13 @@ public class CableNetworkUpgradeInteraction extends SimpleBlockInteraction {
         if (y < ChunkUtil.MIN_Y || y >= ChunkUtil.HEIGHT) {
             return null;
         }
-        long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-        BlockComponentChunk blockComponents =
-                world.getChunkStore().getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-        if (blockComponents == null) {
-            return null;
-        }
-        int localX = ChunkUtil.localCoordinate((long) pos.getX());
-        int localZ = ChunkUtil.localCoordinate((long) pos.getZ());
-        int blockIndex = ChunkUtil.indexBlockInColumn(localX, y, localZ);
-        EnergyNodeComponent energyNode = blockComponents.getComponent(blockIndex, HyProTechComponents.ENERGY);
+        EnergyNodeComponent energyNode =
+                BlockComponentCompat.get(world, pos.getX(), y, pos.getZ(), HyProTechComponents.ENERGY);
         if (energyNode != null && energyNode.getNodeType() == EnergyNodeComponent.NodeType.CABLE) {
             return CableUpgradePage.CableType.ENERGY;
         }
-        ItemNodeComponent itemNode = blockComponents.getComponent(blockIndex, HyProTechComponents.ITEM);
+        ItemNodeComponent itemNode =
+                BlockComponentCompat.get(world, pos.getX(), y, pos.getZ(), HyProTechComponents.ITEM);
         if (itemNode != null) {
             return CableUpgradePage.CableType.ITEM;
         }

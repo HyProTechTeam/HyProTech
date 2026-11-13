@@ -1,5 +1,6 @@
 package HyProTechTeam.interaction;
 
+import HyProTechTeam.BlockComponentCompat;
 import HyProTechTeam.HyProTechComponents;
 import HyProTechTeam.energy.EnergyNodeComponent;
 import HyProTechTeam.energy.EnergySide;
@@ -13,7 +14,6 @@ import com.hypixel.hytale.math.vector.Vector3i;
 import com.hypixel.hytale.protocol.BlockFace;
 import com.hypixel.hytale.protocol.InteractionSyncData;
 import com.hypixel.hytale.protocol.InteractionType;
-import com.hypixel.hytale.protocol.Vector3f;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.entity.InteractionContext;
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -21,11 +21,11 @@ import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.CooldownHandler;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.client.SimpleBlockInteraction;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
-import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
-import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import org.joml.Vector3fc;
 
 public class CableSideToolInteraction extends SimpleBlockInteraction {
     public static final BuilderCodec<CableSideToolInteraction> CODEC =
@@ -48,7 +48,7 @@ public class CableSideToolInteraction extends SimpleBlockInteraction {
             InteractionType interactionType,
             InteractionContext context,
             ItemStack itemStack,
-            Vector3i blockPos,
+            org.joml.Vector3i blockPos,
             CooldownHandler cooldownHandler) {
         if (world == null || context == null || blockPos == null) {
             debug(commandBuffer, context, "CableTool: invalid context.");
@@ -61,20 +61,22 @@ public class CableSideToolInteraction extends SimpleBlockInteraction {
             return;
         }
 
-        int y = blockPos.getY();
+        int blockX = blockPos.x;
+        int y = blockPos.y;
+        int blockZ = blockPos.z;
         if (y < ChunkUtil.MIN_Y || y >= ChunkUtil.HEIGHT) {
             debug(commandBuffer, context, "CableTool: Y out of bounds.");
             return;
         }
 
-        long chunkIndex = ChunkUtil.indexChunkFromBlock(blockPos.getX(), blockPos.getZ());
-        BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+        long chunkIndex = ChunkUtil.indexChunkFromBlock(blockX, blockZ);
+        BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
         if (accessor == null) {
             debug(commandBuffer, context, "CableTool: chunk not loaded.");
             return;
         }
 
-        BlockType blockType = accessor.getBlockType(blockPos.getX(), y, blockPos.getZ());
+        BlockType blockType = accessor.getBlockType(blockX, y, blockZ);
         String blockId = blockType == null ? "unknown" : blockType.getId();
 
         if (HyProTechComponents.ENERGY == null || HyProTechComponents.ITEM == null) {
@@ -82,33 +84,24 @@ public class CableSideToolInteraction extends SimpleBlockInteraction {
             return;
         }
 
-        ChunkStore chunkStore = world.getChunkStore();
-        BlockComponentChunk blockComponents =
-                chunkStore.getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-        if (blockComponents == null) {
-            debug(commandBuffer, context, "CableTool: missing BlockComponentChunk.");
-            return;
-        }
-
-        int localX = ChunkUtil.localCoordinate((long) blockPos.getX());
-        int localZ = ChunkUtil.localCoordinate((long) blockPos.getZ());
-        int blockIndex = ChunkUtil.indexBlockInColumn(localX, y, localZ);
-
         boolean updated = false;
-        ItemNodeComponent itemNode = blockComponents.getComponent(blockIndex, HyProTechComponents.ITEM);
+        ItemNodeComponent itemNode =
+                BlockComponentCompat.get(world, blockX, y, blockZ, HyProTechComponents.ITEM);
         if (itemNode != null) {
             toggleItemSide(itemNode, side);
+            BlockComponentCompat.put(world, blockX, y, blockZ, HyProTechComponents.ITEM, itemNode);
             updated = true;
         } else {
-            EnergyNodeComponent energyNode = blockComponents.getComponent(blockIndex, HyProTechComponents.ENERGY);
+            EnergyNodeComponent energyNode =
+                    BlockComponentCompat.get(world, blockX, y, blockZ, HyProTechComponents.ENERGY);
             if (energyNode != null && energyNode.getNodeType() == EnergyNodeComponent.NodeType.CABLE) {
                 toggleEnergySide(energyNode, side);
+                BlockComponentCompat.put(world, blockX, y, blockZ, HyProTechComponents.ENERGY, energyNode);
                 updated = true;
             }
         }
 
         if (updated) {
-            blockComponents.markNeedsSaving();
             debug(commandBuffer, context, "CableTool: toggled " + side.label() + " on " + blockId + ".");
         } else {
             debug(commandBuffer, context, "CableTool: not a HyProTech cable (" + blockId + ").");
@@ -121,8 +114,8 @@ public class CableSideToolInteraction extends SimpleBlockInteraction {
             InteractionContext context,
             ItemStack itemStack,
             World world,
-            Vector3i blockPos) {
-        // Server-side only.
+            org.joml.Vector3i blockPos) {
+        // Server-side only, and simulation must never mutate the world.
     }
 
     private EnergySide resolveSide(InteractionContext context) {
@@ -168,22 +161,22 @@ public class CableSideToolInteraction extends SimpleBlockInteraction {
         }
     }
 
-    private EnergySide resolveSideFromNormal(Vector3f normal) {
+    private EnergySide resolveSideFromNormal(Vector3fc normal) {
         if (normal == null) {
             return null;
         }
 
-        float ax = Math.abs(normal.x);
-        float ay = Math.abs(normal.y);
-        float az = Math.abs(normal.z);
+        float ax = Math.abs(normal.x());
+        float ay = Math.abs(normal.y());
+        float az = Math.abs(normal.z());
 
         if (ax >= ay && ax >= az) {
-            return normal.x >= 0f ? EnergySide.EAST : EnergySide.WEST;
+            return normal.x() >= 0f ? EnergySide.EAST : EnergySide.WEST;
         }
         if (ay >= ax && ay >= az) {
-            return normal.y >= 0f ? EnergySide.UP : EnergySide.DOWN;
+            return normal.y() >= 0f ? EnergySide.UP : EnergySide.DOWN;
         }
-        return normal.z >= 0f ? EnergySide.SOUTH : EnergySide.NORTH;
+        return normal.z() >= 0f ? EnergySide.SOUTH : EnergySide.NORTH;
     }
 
     private void debug(CommandBuffer<EntityStore> commandBuffer, InteractionContext context, String message) {
@@ -193,11 +186,11 @@ public class CableSideToolInteraction extends SimpleBlockInteraction {
         if (context.getEntity() == null) {
             return;
         }
-        Player player = commandBuffer.getComponent(context.getEntity(), Player.getComponentType());
-        if (player == null) {
+        PlayerRef playerRef = commandBuffer.getComponent(context.getEntity(), PlayerRef.getComponentType());
+        if (playerRef == null) {
             return;
         }
-        player.sendMessage(Message.raw(message));
+        playerRef.sendMessage(Message.raw(message));
     }
 
     private void toggleEnergySide(EnergyNodeComponent node, EnergySide side) {

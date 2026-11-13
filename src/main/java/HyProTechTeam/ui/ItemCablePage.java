@@ -1,5 +1,7 @@
 package HyProTechTeam.ui;
 
+import HyProTechTeam.BlockComponentCompat;
+import HyProTechTeam.ChunkCompat;
 import HyProTechTeam.HyProTechComponents;
 import HyProTechTeam.energy.EnergySide;
 import HyProTechTeam.item.FilterMode;
@@ -1109,7 +1111,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
 
         long chunkIndex = ChunkUtil.indexChunkFromBlock(nx, nz);
-        BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+        BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
         if (accessor == null) {
             return "";
         }
@@ -1245,7 +1247,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
         if (world != null && HyProTechComponents.ITEM_STORAGE != null) {
             long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-            BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+            BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
             if (accessor != null) {
                 Holder<ChunkStore> holder = accessor.getBlockComponentHolder(x, y, z);
                 if (holder != null) {
@@ -1259,16 +1261,9 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         if (chunkStore == null) {
             return null;
         }
-        long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-        BlockComponentChunk components =
-                chunkStore.getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-        if (components != null && HyProTechComponents.ITEM_STORAGE != null) {
-            int localX = ChunkUtil.localCoordinate((long) x);
-            int localZ = ChunkUtil.localCoordinate((long) z);
-            int blockIndex = ChunkUtil.indexBlockInColumn(localX, y, localZ);
-            ItemStorageConfigComponent config = components.getComponent(
-                    blockIndex,
-                    HyProTechComponents.ITEM_STORAGE);
+        if (HyProTechComponents.ITEM_STORAGE != null) {
+            ItemStorageConfigComponent config =
+                    BlockComponentCompat.get(world, x, y, z, HyProTechComponents.ITEM_STORAGE);
             if (config != null) {
                 return config;
             }
@@ -1290,46 +1285,11 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         if (y < ChunkUtil.MIN_Y || y >= ChunkUtil.HEIGHT) {
             return;
         }
-        BlockType blockType = world.getBlockType(x, y, z);
+        BlockType blockType = BlockAccessor.blockTypeAt(world, x, y, z);
         String blockId = blockType == null ? null : blockType.getId();
         boolean allowBlockConfig = isHyProTechBlockId(blockId);
-        long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-        BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
-        BlockComponentChunk components =
-                chunkStore.getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-        boolean stored = false;
-        if (allowBlockConfig && accessor != null && HyProTechComponents.ITEM_STORAGE != null) {
-            Holder<ChunkStore> holder = accessor.getBlockComponentHolder(x, y, z);
-            if (holder != null) {
-                holder.putComponent(HyProTechComponents.ITEM_STORAGE, config);
-                stored = true;
-            }
-        }
-        if (!stored && allowBlockConfig && components != null && HyProTechComponents.ITEM_STORAGE != null) {
-            int localX = ChunkUtil.localCoordinate((long) x);
-            int localZ = ChunkUtil.localCoordinate((long) z);
-            int blockIndex = ChunkUtil.indexBlockInColumn(localX, y, localZ);
-            Ref<ChunkStore> ref = components.getEntityReference(blockIndex);
-            if (ref != null) {
-                Store<ChunkStore> store = ref.getStore();
-                if (store != null) {
-                    store.putComponent(ref, HyProTechComponents.ITEM_STORAGE, config);
-                    stored = true;
-                }
-            } else {
-                Holder<ChunkStore> holder = components.getEntityHolder(blockIndex);
-                if (holder == null) {
-                    holder = ChunkStore.REGISTRY.newHolder();
-                    holder.putComponent(HyProTechComponents.ITEM_STORAGE, config);
-                    components.storeEntityHolder(blockIndex, holder);
-                } else {
-                    holder.putComponent(HyProTechComponents.ITEM_STORAGE, config);
-                }
-                stored = true;
-            }
-        }
-        if (components != null && stored) {
-            components.markNeedsSaving();
+        if (allowBlockConfig && HyProTechComponents.ITEM_STORAGE != null) {
+            BlockComponentCompat.put(world, x, y, z, HyProTechComponents.ITEM_STORAGE, config);
         }
         storeChunkStorageConfig(chunkStore, x, y, z, config);
     }
@@ -1355,7 +1315,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
         int localX = ChunkUtil.localCoordinate((long) x);
         int localZ = ChunkUtil.localCoordinate((long) z);
-        int blockIndex = ChunkUtil.indexBlockInColumn(localX, y, localZ);
+        int blockIndex = ChunkCompat.indexBlockInColumn(localX, y, localZ);
         return chunkConfig.getConfig(blockIndex);
     }
 
@@ -1376,7 +1336,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
         int localX = ChunkUtil.localCoordinate((long) x);
         int localZ = ChunkUtil.localCoordinate((long) z);
-        int blockIndex = ChunkUtil.indexBlockInColumn(localX, y, localZ);
+        int blockIndex = ChunkCompat.indexBlockInColumn(localX, y, localZ);
         chunkConfig.setConfig(blockIndex, config);
         Ref<ChunkStore> chunkRef = chunkStore.getChunkReference(chunkIndex);
         if (chunkRef == null) {
@@ -1413,7 +1373,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
             return null;
         }
         long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-        BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
+        BlockAccessor accessor = BlockAccessor.loaded(world, chunkIndex);
         if (accessor == null) {
             return null;
         }
@@ -1450,33 +1410,12 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         if (blockPosition != null) {
             return blockPosition;
         }
-
-        ChunkStore chunkStoreResource = world.getChunkStore();
-        for (long chunkIndex : chunkStoreResource.getChunkIndexes()) {
-            BlockComponentChunk blockComponents =
-                    chunkStoreResource.getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-            if (blockComponents == null) {
-                continue;
-            }
-
-            int blockIndex = findBlockIndex(blockComponents);
-            if (blockIndex == Integer.MIN_VALUE) {
-                continue;
-            }
-
-            int chunkX = ChunkUtil.xOfChunkIndex(chunkIndex);
-            int chunkZ = ChunkUtil.zOfChunkIndex(chunkIndex);
-            int localX = ChunkUtil.xFromBlockInColumn(blockIndex);
-            int localY = ChunkUtil.yFromBlockInColumn(blockIndex);
-            int localZ = ChunkUtil.zFromBlockInColumn(blockIndex);
-
-            int worldX = ChunkUtil.worldCoordFromLocalCoord(chunkX, localX);
-            int worldZ = ChunkUtil.worldCoordFromLocalCoord(chunkZ, localZ);
-            blockPosition = new Vector3i(worldX, localY, worldZ);
-            return blockPosition;
+        Vector3i found = BlockComponentCompat.findBlockPosition(world, blockRef);
+        if (found == null) {
+            return null;
         }
-
-        return null;
+        blockPosition = new Vector3i(found);
+        return blockPosition;
     }
 
     @SuppressWarnings("removal")
@@ -1484,27 +1423,13 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         if (world == null || pos == null) {
             return pos;
         }
-        BlockPosition base = world.getBaseBlock(new BlockPosition(pos.getX(), pos.getY(), pos.getZ()));
+        BlockPosition base = BlockAccessor.resolveBaseBlock(world, new BlockPosition(pos.getX(), pos.getY(), pos.getZ()));
         if (base != null) {
             return new Vector3i(base.x, base.y, base.z);
         }
         return pos;
     }
 
-    private int findBlockIndex(BlockComponentChunk blockComponents) {
-        int targetIndex = blockRef.getIndex();
-        if (targetIndex == Integer.MIN_VALUE) {
-            return Integer.MIN_VALUE;
-        }
-        for (it.unimi.dsi.fastutil.ints.Int2ReferenceMap.Entry<Ref<ChunkStore>> entry
-                : blockComponents.getEntityReferences().int2ReferenceEntrySet()) {
-            Ref<ChunkStore> entryRef = entry.getValue();
-            if (entryRef != null && entryRef.getIndex() == targetIndex) {
-                return entry.getIntKey();
-            }
-        }
-        return Integer.MIN_VALUE;
-    }
 
     private World getWorld(Store<EntityStore> store) {
         EntityStore entityStore = store.getExternalData();

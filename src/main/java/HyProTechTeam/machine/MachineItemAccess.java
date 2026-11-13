@@ -1,5 +1,6 @@
 package HyProTechTeam.machine;
 
+import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import HyProTechTeam.BlockIdUtil;
 import HyProTechTeam.HyProTechIds;
 import HyProTechTeam.TieredIdUtil;
@@ -26,7 +27,7 @@ public final class MachineItemAccess {
             return null;
         }
 
-        BlockType blockType = world.getBlockType(x, y, z);
+        BlockType blockType = BlockAccessor.blockTypeAt(world, x, y, z);
         if (blockType != null && blockType != BlockType.EMPTY) {
             String blockId = blockType.getId();
             if (blockId != null && isIdOrState(blockId, HyProTechIds.BLOCK_ORE_CRUSHER)) {
@@ -156,7 +157,7 @@ public final class MachineItemAccess {
         if (world == null || state == null) {
             return;
         }
-        BlockType blockType = world.getBlockType(x, y, z);
+        BlockType blockType = BlockAccessor.blockTypeAt(world, x, y, z);
         if (blockType == null || blockType == BlockType.EMPTY) {
             return;
         }
@@ -190,7 +191,7 @@ public final class MachineItemAccess {
         if (world == null || state == null) {
             return;
         }
-        BlockType blockType = world.getBlockType(x, y, z);
+        BlockType blockType = BlockAccessor.blockTypeAt(world, x, y, z);
         if (blockType == null || blockType == BlockType.EMPTY) {
             return;
         }
@@ -219,7 +220,7 @@ public final class MachineItemAccess {
         if (world == null || state == null) {
             return;
         }
-        BlockType blockType = world.getBlockType(x, y, z);
+        BlockType blockType = BlockAccessor.blockTypeAt(world, x, y, z);
         if (blockType == null || blockType == BlockType.EMPTY) {
             return;
         }
@@ -248,7 +249,7 @@ public final class MachineItemAccess {
         if (world == null || state == null) {
             return;
         }
-        BlockType blockType = world.getBlockType(x, y, z);
+        BlockType blockType = BlockAccessor.blockTypeAt(world, x, y, z);
         if (blockType == null || blockType == BlockType.EMPTY) {
             return;
         }

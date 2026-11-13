@@ -1,5 +1,6 @@
 package HyProTechTeam.interaction;
 
+import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import com.hypixel.hytale.builtin.crafting.component.BenchBlock;
 import com.hypixel.hytale.builtin.crafting.component.ProcessingBenchBlock;
 import com.hypixel.hytale.builtin.crafting.window.BenchWindow;
@@ -100,7 +101,7 @@ public class OpenPoweredBenchInteraction extends SimpleInstantInteraction {
             return null;
         }
 
-        BlockPosition baseBlock = world.getBaseBlock(target);
+        BlockPosition baseBlock = BlockAccessor.resolveBaseBlock(world, target);
         if (baseBlock == null) {
             return null;
         }
@@ -117,7 +118,7 @@ public class OpenPoweredBenchInteraction extends SimpleInstantInteraction {
             return null;
         }
 
-        BlockType blockType = world.getBlockType(pos.getX(), pos.getY(), pos.getZ());
+        BlockType blockType = BlockAccessor.blockTypeAt(world, pos.getX(), pos.getY(), pos.getZ());
         if (blockType == null || blockType.getBench() == null) {
             return null;
         }

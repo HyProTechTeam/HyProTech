@@ -1,5 +1,8 @@
 package HyProTechTeam.ui;
 
+import HyProTechTeam.BlockComponentCompat;
+import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
+import HyProTechTeam.ChunkCompat;
 import HyProTechTeam.BlockIdUtil;
 import HyProTechTeam.HyProTechComponents;
 import HyProTechTeam.HyProTechIds;
@@ -389,8 +392,9 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
             }
             cable.node.setCableTier(nextTier);
             applyEnergyCableTier(cable.node, nextTier);
-            cable.components.markNeedsSaving();
             if (cable.position != null) {
+                BlockComponentCompat.markDirty(
+                        world, cable.position.getX(), cable.position.getY(), cable.position.getZ());
                 queueCableUpgrade(world, cable.position, HyProTechIds.BLOCK_ENERGY_CABLE, upgradedId, cable.node, null);
             }
         }
@@ -408,8 +412,9 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
             }
             cable.node.setCableTier(nextTier);
             applyItemCableTier(cable.node, nextTier);
-            cable.components.markNeedsSaving();
             if (cable.position != null) {
+                BlockComponentCompat.markDirty(
+                        world, cable.position.getX(), cable.position.getY(), cable.position.getZ());
                 queueCableUpgrade(world, cable.position, HyProTechIds.BLOCK_ITEM_CABLE, upgradedId, null, cable.node);
             }
         }
@@ -638,17 +643,8 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
 
         while (!queue.isEmpty()) {
             Vector3i pos = queue.removeFirst();
-            long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-            BlockComponentChunk components =
-                    world.getChunkStore().getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-            if (components == null) {
-                continue;
-            }
-
-            int localX = ChunkUtil.localCoordinate((long) pos.getX());
-            int localZ = ChunkUtil.localCoordinate((long) pos.getZ());
-            int blockIndex = ChunkUtil.indexBlockInColumn(localX, pos.getY(), localZ);
-            EnergyNodeComponent node = components.getComponent(blockIndex, HyProTechComponents.ENERGY);
+            EnergyNodeComponent node =
+                    BlockComponentCompat.get(world, pos.getX(), pos.getY(), pos.getZ(), HyProTechComponents.ENERGY);
             if (node == null || node.getNodeType() != EnergyNodeComponent.NodeType.CABLE) {
                 continue;
             }
@@ -659,7 +655,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
                 continue;
             }
 
-            snapshot.addCable(node, components, blockIndex, new Vector3i(pos.getX(), pos.getY(), pos.getZ()));
+            snapshot.addCable(node, new Vector3i(pos.getX(), pos.getY(), pos.getZ()));
 
             for (EnergySide side : EnergySide.VALUES) {
                 if (!canCableConnect(node, side)) {
@@ -675,17 +671,8 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
                     continue;
                 }
 
-                long neighborChunkIndex = ChunkUtil.indexChunkFromBlock(nx, nz);
-                BlockComponentChunk neighborComponents =
-                        world.getChunkStore().getChunkComponent(neighborChunkIndex, BlockComponentChunk.getComponentType());
-                if (neighborComponents == null) {
-                    continue;
-                }
-                int nLocalX = ChunkUtil.localCoordinate((long) nx);
-                int nLocalZ = ChunkUtil.localCoordinate((long) nz);
-                int neighborIndex = ChunkUtil.indexBlockInColumn(nLocalX, ny, nLocalZ);
                 EnergyNodeComponent neighbor =
-                        neighborComponents.getComponent(neighborIndex, HyProTechComponents.ENERGY);
+                        BlockComponentCompat.get(world, nx, ny, nz, HyProTechComponents.ENERGY);
                 EnergySide neighborSide = side.opposite();
                 if (neighbor != null
                         && neighbor.getNodeType() == EnergyNodeComponent.NodeType.CABLE
@@ -715,22 +702,13 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
 
         while (!queue.isEmpty()) {
             Vector3i pos = queue.removeFirst();
-            long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
-            BlockComponentChunk components =
-                    world.getChunkStore().getChunkComponent(chunkIndex, BlockComponentChunk.getComponentType());
-            if (components == null) {
-                continue;
-            }
-
-            int localX = ChunkUtil.localCoordinate((long) pos.getX());
-            int localZ = ChunkUtil.localCoordinate((long) pos.getZ());
-            int blockIndex = ChunkUtil.indexBlockInColumn(localX, pos.getY(), localZ);
-            ItemNodeComponent node = components.getComponent(blockIndex, HyProTechComponents.ITEM);
+            ItemNodeComponent node =
+                    BlockComponentCompat.get(world, pos.getX(), pos.getY(), pos.getZ(), HyProTechComponents.ITEM);
             if (node == null) {
                 continue;
             }
 
-            snapshot.addCable(node, components, blockIndex, new Vector3i(pos.getX(), pos.getY(), pos.getZ()));
+            snapshot.addCable(node, new Vector3i(pos.getX(), pos.getY(), pos.getZ()));
 
             for (EnergySide side : EnergySide.VALUES) {
                 int nx = pos.getX() + side.dx();
@@ -742,17 +720,8 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
                 if (!markVisited(visited, nx, ny, nz)) {
                     continue;
                 }
-                long neighborChunkIndex = ChunkUtil.indexChunkFromBlock(nx, nz);
-                BlockComponentChunk neighborComponents =
-                        world.getChunkStore().getChunkComponent(neighborChunkIndex, BlockComponentChunk.getComponentType());
-                if (neighborComponents == null) {
-                    continue;
-                }
-                int nLocalX = ChunkUtil.localCoordinate((long) nx);
-                int nLocalZ = ChunkUtil.localCoordinate((long) nz);
-                int neighborIndex = ChunkUtil.indexBlockInColumn(nLocalX, ny, nLocalZ);
                 ItemNodeComponent neighbor =
-                        neighborComponents.getComponent(neighborIndex, HyProTechComponents.ITEM);
+                        BlockComponentCompat.get(world, nx, ny, nz, HyProTechComponents.ITEM);
                 if (neighbor != null) {
                     queue.add(new Vector3i(nx, ny, nz));
                 }
@@ -770,7 +739,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
         int localX = ChunkUtil.localCoordinate((long) x);
         int localZ = ChunkUtil.localCoordinate((long) z);
-        int blockIndex = ChunkUtil.indexBlockInColumn(localX, y, localZ);
+        int blockIndex = ChunkCompat.indexBlockInColumn(localX, y, localZ);
 
         IntOpenHashSet set = visited.get(chunkIndex);
         if (set == null) {
@@ -841,7 +810,11 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         if (player == null) {
             return;
         }
-        player.sendMessage(Message.raw(text));
+        com.hypixel.hytale.server.core.universe.PlayerRef target =
+                store.getComponent(playerRef, com.hypixel.hytale.server.core.universe.PlayerRef.getComponentType());
+        if (target != null) {
+            target.sendMessage(Message.raw(text));
+        }
     }
 
     private World getWorld(Store<EntityStore> store) {
@@ -859,7 +832,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         if (world == null || pos == null || baseId == null || upgradedId == null) {
             return;
         }
-        BlockType blockType = world.getBlockType(pos.getX(), pos.getY(), pos.getZ());
+        BlockType blockType = BlockAccessor.blockTypeAt(world, pos.getX(), pos.getY(), pos.getZ());
         if (blockType == null || blockType.getId() == null) {
             return;
         }
@@ -887,12 +860,8 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         private int minTier = Integer.MAX_VALUE;
         private int maxTier = Integer.MIN_VALUE;
 
-        private void addCable(
-                EnergyNodeComponent node,
-                BlockComponentChunk components,
-                int blockIndex,
-                Vector3i position) {
-            cables.add(new EnergyCableEntry(node, components, blockIndex, position));
+        private void addCable(EnergyNodeComponent node, Vector3i position) {
+            cables.add(new EnergyCableEntry(node, position));
             anchor = selectAnchor(anchor, position);
             cableCount++;
             totalEnergy += node.getEnergy();
@@ -911,18 +880,10 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
 
     private static final class EnergyCableEntry {
         private final EnergyNodeComponent node;
-        private final BlockComponentChunk components;
-        private final int blockIndex;
         private final Vector3i position;
 
-        private EnergyCableEntry(
-                EnergyNodeComponent node,
-                BlockComponentChunk components,
-                int blockIndex,
-                Vector3i position) {
+        private EnergyCableEntry(EnergyNodeComponent node, Vector3i position) {
             this.node = node;
-            this.components = components;
-            this.blockIndex = blockIndex;
             this.position = position;
         }
     }
@@ -936,12 +897,8 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         private int minTier = Integer.MAX_VALUE;
         private int maxTier = Integer.MIN_VALUE;
 
-        private void addCable(
-                ItemNodeComponent node,
-                BlockComponentChunk components,
-                int blockIndex,
-                Vector3i position) {
-            cables.add(new ItemCableEntry(node, components, blockIndex, position));
+        private void addCable(ItemNodeComponent node, Vector3i position) {
+            cables.add(new ItemCableEntry(node, position));
             anchor = selectAnchor(anchor, position);
             cableCount++;
             maxTransfer = Math.min(maxTransfer, node.getMaxTransfer());
@@ -958,18 +915,10 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
 
     private static final class ItemCableEntry {
         private final ItemNodeComponent node;
-        private final BlockComponentChunk components;
-        private final int blockIndex;
         private final Vector3i position;
 
-        private ItemCableEntry(
-                ItemNodeComponent node,
-                BlockComponentChunk components,
-                int blockIndex,
-                Vector3i position) {
+        private ItemCableEntry(ItemNodeComponent node, Vector3i position) {
             this.node = node;
-            this.components = components;
-            this.blockIndex = blockIndex;
             this.position = position;
         }
     }

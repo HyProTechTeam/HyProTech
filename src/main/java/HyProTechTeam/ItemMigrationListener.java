@@ -181,32 +181,34 @@ public class ItemMigrationListener {
     }
 
     public static void onPlayerJoin(PlayerConnectEvent event) {
-/*         if (event.isCancelled()) {
+        if (event == null || event.getPlayer() == null) {
             return;
-        } */
-        // Получаем инвентарь игрока
-        ItemContainer inventory = event.getPlayer().getInventory().getStorage();
-        
-        // Проходим по всем слотам
-        for (short i = 0; i < 36; i++) {
-            ItemStack stack = inventory.getItemStack(i);
-            
-            // Если слот не пуст
-            if (stack != null) {
-                String OLD_ID = stack.getItemId();
-                // Проверяем наличие устаревшего ID
-                if( replace_map.containsKey( OLD_ID ) == true ) {
-                    // Создаем новый стак с тем же количеством и метаданными
-                    ItemStack newStack = new ItemStack(
-                        replace_map.get( OLD_ID ), 
-                        stack.getQuantity(), 
-                        stack.getMetadata()
-                    );
-                    
-                    // Устанавливаем новый предмет в тот же слот
-                    inventory.replaceItemStackInSlot(i, stack, newStack);
+        }
+        // TODO(0.7.5): the player's storage container can be absent while the player is still
+        // connecting (on the 2026.03.x API it was always present). Skip the migration instead of
+        // failing the whole PlayerConnectEvent dispatch.
+        com.hypixel.hytale.server.core.inventory.Inventory playerInventory =
+                event.getPlayer().getInventory();
+        ItemContainer inventory = playerInventory == null ? null : playerInventory.getStorage();
+        if (inventory == null) {
+            return;
+        }
+        try {
+            for (short i = 0; i < inventory.getCapacity(); i++) {
+                ItemStack stack = inventory.getItemStack(i);
+                if (stack == null) {
+                    continue;
                 }
+                String oldId = stack.getItemId();
+                String newId = replace_map.get(oldId);
+                if (newId == null || newId.equals(oldId)) {
+                    continue;
+                }
+                ItemStack newStack = new ItemStack(newId, stack.getQuantity(), stack.getMetadata());
+                inventory.replaceItemStackInSlot(i, stack, newStack);
             }
+        } catch (RuntimeException ignored) {
+            // Best effort: a failed migration must never break player join.
         }
     }
 }

@@ -1,5 +1,6 @@
 package HyProTechTeam.ui;
 
+import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import com.hypixel.hytale.builtin.crafting.component.BenchBlock;
 import com.hypixel.hytale.builtin.crafting.component.ProcessingBenchBlock;
 import com.hypixel.hytale.builtin.crafting.window.BenchWindow;
@@ -133,7 +134,7 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
             return null;
         }
 
-        BlockPosition baseBlock = world.getBaseBlock(target);
+        BlockPosition baseBlock = BlockAccessor.resolveBaseBlock(world, target);
         if (baseBlock == null) {
             return null;
         }
@@ -157,7 +158,7 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
             return null;
         }
 
-        BlockPosition baseBlock = world.getBaseBlock(target);
+        BlockPosition baseBlock = BlockAccessor.resolveBaseBlock(world, target);
         if (baseBlock == null) {
             return null;
         }
@@ -175,7 +176,7 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
             return null;
         }
 
-        BlockType blockType = world.getBlockType(x, y, z);
+        BlockType blockType = BlockAccessor.blockTypeAt(world, x, y, z);
         if (blockType == null || blockType.getBench() == null) {
             return null;
         }

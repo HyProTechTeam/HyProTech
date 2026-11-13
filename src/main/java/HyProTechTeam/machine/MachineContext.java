@@ -1,16 +1,17 @@
 package HyProTechTeam.machine;
 
+import HyProTechTeam.BlockComponentCompat;
 import com.doctorreborn.hytale.api.energy.v1.EnergyStorage;
 import HyProTechTeam.energy.EnergyNodeComponent;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
+import HyProTechTeam.BlockComponentCompat;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 
 public final class MachineContext {
     private final World world;
     private final ChunkStore chunkStore;
-    private final BlockComponentChunk components;
+    private final BlockComponentCompat.ChunkView components;
     private final int x;
     private final int y;
     private final int z;
@@ -21,7 +22,7 @@ public final class MachineContext {
     public MachineContext(
             World world,
             ChunkStore chunkStore,
-            BlockComponentChunk components,
+            BlockComponentCompat.ChunkView components,
             int x,
             int y,
             int z,
