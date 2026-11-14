@@ -19,9 +19,11 @@
 
 package com.doctorreborn.hytale.api.energy.v2;
 
+/** Singleton resource identifier used by the version 2 energy storage API. */
 public enum Energy {
     INSTANCE;
 
+    /** Returns the API's energy unit label. */
     public String uom() {
         return "hy/t";
     }

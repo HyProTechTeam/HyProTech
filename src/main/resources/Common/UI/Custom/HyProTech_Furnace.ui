@@ -1,6 +1,7 @@
 $C = "Common.ui";
 @SlotSize = 46;
 
+// Furnace page showing energy, status, progress, and input/output controls.
 $C.@PageOverlay {
   $C.@DecoratedContainer {
     Anchor: (Width: 420, Height: 380);
@@ -20,6 +21,7 @@ $C.@PageOverlay {
         LayoutMode: Top;
         Padding: (Top: 8, Left: 8, Right: 8);
 
+        // Server-populated energy, consumption, status, and progress readouts.
         Label #FurnaceEnergy {
           Style: (
             FontSize: 16,
@@ -73,6 +75,7 @@ $C.@PageOverlay {
               Text: "Input";
             }
 
+            // Input slot button with a non-interactive icon and quantity overlay.
             ItemSlotButton #InputButton {
               Anchor: (Width: @SlotSize, Height: @SlotSize, Top: 6);
               LayoutMode: Full;
@@ -117,6 +120,7 @@ $C.@PageOverlay {
               Text: "Output";
             }
 
+            // Output slot button with a non-interactive icon and quantity overlay.
             ItemSlotButton #OutputButton {
               Anchor: (Width: @SlotSize, Height: @SlotSize, Top: 6);
               LayoutMode: Full;
@@ -149,6 +153,7 @@ $C.@PageOverlay {
           LayoutMode: Top;
           Padding: (Top: 12);
 
+          // Actions open furnace storage and toggle its power state.
           $C.@TextButton #OpenInventory {
             Anchor: (Left: 0, Right: 0);
             Text: "Open Furnace Storage";

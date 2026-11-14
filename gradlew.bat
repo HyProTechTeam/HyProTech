@@ -26,6 +26,7 @@
 @rem Set local scope for the variables with windows NT shell
 if "%OS%"=="Windows_NT" setlocal
 
+@rem Locate the wrapper relative to this script, independent of the caller's working directory.
 set DIRNAME=%~dp0
 if "%DIRNAME%"=="" set DIRNAME=.
 @rem This is normally unused
@@ -41,6 +42,7 @@ set DEFAULT_JVM_OPTS="-Xmx64m" "-Xms64m"
 @rem Find java.exe
 if defined JAVA_HOME goto findJavaFromJavaHome
 
+@rem Without JAVA_HOME, verify that the java command is available on PATH.
 set JAVA_EXE=java.exe
 %JAVA_EXE% -version >NUL 2>&1
 if %ERRORLEVEL% equ 0 goto execute
@@ -54,6 +56,7 @@ echo location of your Java installation. 1>&2
 goto fail
 
 :findJavaFromJavaHome
+@rem Prefer the executable under JAVA_HOME and reject a missing installation.
 set JAVA_HOME=%JAVA_HOME:"=%
 set JAVA_EXE=%JAVA_HOME%/bin/java.exe
 
@@ -73,7 +76,7 @@ goto fail
 set CLASSPATH=
 
 
-@rem Execute Gradle
+@rem Execute the wrapper JAR with JVM options and forward the original command arguments.
 "%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" -jar "%APP_HOME%\gradle\wrapper\gradle-wrapper.jar" %*
 
 :end
@@ -81,6 +84,7 @@ set CLASSPATH=
 if %ERRORLEVEL% equ 0 goto mainEnd
 
 :fail
+@rem Preserve a nonzero error code for either a console exit or a called batch file.
 rem Set variable GRADLE_EXIT_CONSOLE if you need the _script_ return code instead of
 rem the _cmd.exe /c_ return code!
 set EXIT_CODE=%ERRORLEVEL%

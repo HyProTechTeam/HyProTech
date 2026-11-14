@@ -53,6 +53,7 @@ import java.util.Map;
 import java.lang.reflect.Field;
 import HyProTechTeam.UpgradePersistence;
 
+/** Ticks energy nodes and transfers energy through connected cable networks. */
 public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
     private static final int BASIC_MACHINE_CAPACITY = 50000;
     private static final int BASIC_MACHINE_MAX_TRANSFER = 5000;
@@ -78,16 +79,19 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         this.energyType = energyType;
     }
 
+    /** Processes chunks with both world and block-component data. */
     @Override
     public Query<ChunkStore> getQuery() {
         return Archetype.of(WorldChunk.getComponentType(), BlockComponentChunk.getComponentType());
     }
 
+    /** Serializes processing because visited-network state is shared per world. */
     @Override
     public boolean isParallel(int total, int chunkSize) {
         return false;
     }
 
+    /** Processes stored and live nodes, using one traversal state per world tick. */
     @Override
     public void tick(
             float delta,
@@ -108,6 +112,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
         UpgradePersistence.cleanupExpired(world);
 
+        // Reset the visited set once per world tick, not once per chunk.
         CableState cableState = getCableState(world);
         long worldTick = world.getTick();
         if (worldTick != cableState.lastTick) {
@@ -115,6 +120,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             cableState.lastTick = worldTick;
         }
 
+        // Compute the world-level sunlight factor; individual panels also check sky access.
         double sunlightFactor = 1.0;
         WorldTimeResource timeResource = world.getEntityStore().getStore().getResource(WorldTimeResource.getResourceType());
         if (timeResource != null) {
@@ -126,6 +132,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         int chunkZ = worldChunk.getZ();
         IntArrayList invalidReferences = null;
 
+        // Visit saved holders and live references separately, creating missing furnace nodes.
         for (Int2ObjectMap.Entry<Holder<ChunkStore>> entry : blockComponents.getEntityHolders().int2ObjectEntrySet()) {
             int blockIndex = entry.getIntKey();
             Holder<ChunkStore> holder = entry.getValue();
@@ -176,6 +183,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Applies upgrades and generation, synchronizes node state, then performs transfers. */
     private void processNode(
             BlockComponentChunk blockComponents,
             ChunkStore chunkStore,
@@ -200,10 +208,12 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             disableTickingAt(world, chunkX, chunkZ, blockIndex);
         }
 
+        // Apply pending upgrades before calculating this tick's generation and connections.
         boolean changed = UpgradePersistence.applyEnergyUpgrade(world, worldX, worldY, worldZ, node);
         if (node.getNodeType() == EnergyNodeComponent.NodeType.CABLE) {
             changed |= syncCableTierFromBlockId(world, worldX, worldY, worldZ, node);
         }
+        // Solar output needs sky access; wind output uses the turbine clearance check.
         double nodeSunlightFactor = sunlightFactor;
         if (node.getNodeType() == EnergyNodeComponent.NodeType.SOLAR
                 && !SunlightUtil.hasSkyAccess(world, worldX, worldY, worldZ)) {
@@ -265,6 +275,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             transferToNeighbors(blockComponents, chunkStore, world, worldX, worldY, worldZ, node, deltaSeconds);
     }
 
+    /** Applies node defaults and adds solar or wind energy for the elapsed time. */
     private boolean tickNode(
             EnergyNodeComponent node,
             double sunlightFactor,
@@ -298,6 +309,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             // Furnace progress is driven by the processing bench; energy use is handled separately.
         }
 
+        // Keep stored energy within the node's current capacity after generation.
         if (energy > node.getCapacity()) {
             node.setEnergy(node.getCapacity());
             changed = true;
@@ -310,15 +322,18 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return changed;
     }
 
+    /** Reconciles type-specific defaults and tier settings, returning whether fields changed. */
     private boolean ensureDefaults(EnergyNodeComponent node) {
         boolean changed = false;
         EnergyNodeComponent.NodeType type = node.getNodeType();
+        // Convert the legacy quarry energy-node role to the current machine role.
         if (type == EnergyNodeComponent.NodeType.QUARRY) {
             node.setNodeType(EnergyNodeComponent.NodeType.MACHINE);
             changed = true;
             type = EnergyNodeComponent.NodeType.MACHINE;
         }
         if (type == EnergyNodeComponent.NodeType.CABLE) {
+            // Synchronize cable capacity and transfer with the configured tier.
             int tier = CableUpgradeConfig.clampTier(node.getCableTier());
             if (node.getCableTier() != tier) {
                 node.setCableTier(tier);
@@ -343,6 +358,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 changed = true;
             }
         } else if (type == EnergyNodeComponent.NodeType.SOLAR) {
+            // Apply the solar tier's storage, generation and transfer settings.
             int tier = SolarUpgradeConfig.clampTier(node.getSolarTier());
             if (node.getSolarTier() != tier) {
                 node.setSolarTier(tier);
@@ -367,6 +383,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 changed = true;
             }
         } else if (type == EnergyNodeComponent.NodeType.WIND) {
+            // Apply the wind tier's storage, generation and transfer settings.
             int tier = WindUpgradeConfig.clampTier(node.getWindTier());
             if (node.getWindTier() != tier) {
                 node.setWindTier(tier);
@@ -391,6 +408,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 changed = true;
             }
         } else if (type == EnergyNodeComponent.NodeType.BATTERY) {
+            // Supply basic battery limits only when the component has no positive values.
             if (node.getCapacity() <= 0) {
                 node.setCapacity(BASIC_MACHINE_CAPACITY);
                 changed = true;
@@ -400,6 +418,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 changed = true;
             }
         } else if (EnergyNodeComponent.isMachineLike(type)) {
+            // Supply missing machine limits and enable all faces when both masks are empty.
             if (node.getCapacity() <= 0) {
                 node.setCapacity(BASIC_MACHINE_CAPACITY);
                 changed = true;
@@ -414,6 +433,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 changed = true;
             }
         } else if (type == EnergyNodeComponent.NodeType.FURNACE) {
+            // Initialize furnace capacity, base consumption, progress and enabled state.
             if (node.getCapacity() < FURNACE_CAPACITY) {
                 node.setCapacity(FURNACE_CAPACITY);
                 changed = true;
@@ -448,6 +468,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return changed;
     }
 
+    /** Creates a missing energy node when the block is an electric furnace. */
     private EnergyNodeComponent ensureFurnaceNode(
             BlockComponentChunk blockComponents,
             CommandBuffer<ChunkStore> commandBuffer,
@@ -483,6 +504,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
     }
 
 
+    /** Converts a chunk-local index to world coordinates and reads an already-loaded block. */
     private BlockType getBlockTypeAt(World world, int chunkX, int chunkZ, int blockIndex) {
         int localX = ChunkUtil.xFromBlockInColumn(blockIndex);
         int localY = ChunkUtil.yFromBlockInColumn(blockIndex);
@@ -501,6 +523,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return accessor.getBlockType(worldX, worldY, worldZ);
     }
 
+    /** Attempts to disable vanilla ticking for a block in a loaded chunk. */
     private void disableTickingAt(World world, int chunkX, int chunkZ, int blockIndex) {
         if (world == null) {
             return;
@@ -522,6 +545,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Builds an enabled, empty furnace node with initial capacity, consumption, and side masks. */
     private EnergyNodeComponent createFurnaceNode() {
         EnergyNodeComponent node = new EnergyNodeComponent();
         node.setNodeType(EnergyNodeComponent.NodeType.FURNACE);
@@ -539,6 +563,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
     }
 
 
+    /** Examines six neighboring positions and transfers directly to eligible non-cable nodes. */
     private void transferToNeighbors(
             BlockComponentChunk blockComponents,
             ChunkStore chunkStore,
@@ -613,6 +638,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Processes a connected network once per world tick, starting at the given cable. */
     private void processCableNetwork(
             ChunkStore chunkStore,
             World world,
@@ -635,6 +661,8 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             return;
         }
 
+        // Pull from external storage, transfer with internal nodes, then push outward.
+        // Finally distribute the network's remaining energy among its cables.
         updateCableConnectedMasks(network);
         applyNeighborMaxTransfers(network);
         updateCableStates(world, network);
@@ -645,6 +673,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         distributeCableEnergy(network);
     }
 
+    /** Breadth-first traversal of loaded, compatible cables and their adjacent storages. */
     private CableNetwork buildCableNetwork(
             ChunkStore chunkStore,
             World world,
@@ -653,11 +682,13 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             int startZ,
             CableState cableState) {
         CableNetwork network = new CableNetwork();
+        // Index adjacent native and external storages by chunk and block to combine shared connections.
         Long2ObjectMap<Int2ObjectMap<NeighborNode>> neighborsByChunk = new Long2ObjectOpenHashMap<>();
         Long2ObjectMap<Int2ObjectMap<ExternalNeighbor>> externalsByChunk = new Long2ObjectOpenHashMap<>();
         Deque<CablePos> queue = new ArrayDeque<>();
         queue.add(new CablePos(startX, startY, startZ));
 
+        // Walk cable nodes breadth-first, without visiting the same cable twice in this world tick.
         while (!queue.isEmpty()) {
             CablePos pos = queue.removeFirst();
             long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.x, pos.z);
@@ -700,6 +731,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 int neighborIndex = ChunkUtil.indexBlockInColumn(neighborLocalX, neighborY, neighborLocalZ);
                 EnergyNodeComponent neighbor = neighborComponents.getComponent(neighborIndex, energyType);
                 if (neighbor == null) {
+                    // Nodes from other energy implementations are discovered through the API.
                     EnergyStorage external = EnergyStorageLookup.find(world, neighborX, neighborY, neighborZ);
                     if (external == null) {
                         continue;
@@ -708,6 +740,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                         continue;
                     }
 
+                    // A direction is usable only when both the cable and external storage support it.
                     boolean inputAllowed = allowsInput(node, side) && external.supportsExtraction();
                     boolean outputAllowed = allowsOutput(node, side) && external.supportsInsertion();
                     if (!inputAllowed && !outputAllowed) {
@@ -725,6 +758,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                         ext = new ExternalNeighbor(external, getExternalMaxTransfer(external));
                         chunkExternals.put(neighborIndex, ext);
                     }
+                    // Multiple cable faces connected to the same storage contribute transfer capacity.
                     if (inputAllowed) {
                         ext.inputTransfer += cableMaxTransfer;
                     }
@@ -740,6 +774,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
 
                 EnergySide neighborSide = side.opposite();
                 if (neighbor.getNodeType() == EnergyNodeComponent.NodeType.CABLE) {
+                    // Cable color and both facing sides must permit the connection.
                     if (!sameCableColor(node, neighbor)) {
                         continue;
                     }
@@ -763,6 +798,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                         chunkNeighbors.put(neighborIndex, neighborNode);
                     }
 
+                    // Match each cable direction with the opposite direction on the native node.
                     boolean inputAllowed = allowsInput(node, side) && allowsOutput(neighbor, neighborSide);
                     boolean outputAllowed = allowsOutput(node, side) && allowsInput(neighbor, neighborSide);
                     if (!inputAllowed && !outputAllowed) {
@@ -780,6 +816,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             }
         }
 
+        // Flatten the deduplicated neighbor maps for the transfer phase.
         for (Int2ObjectMap<NeighborNode> chunkNeighbors : neighborsByChunk.values()) {
             network.neighbors.addAll(chunkNeighbors.values());
         }
@@ -790,6 +827,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return network;
     }
 
+    /** Transfers between the cable pool and neighboring generators, furnaces, and batteries. */
     private void applyCableTransfers(CableNetwork network, float deltaSeconds) {
         if (network.totalCapacity <= 0) {
             network.totalEnergy = 0;
@@ -804,6 +842,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         List<NeighborNode> idleFurnaces = new ArrayList<>();
         List<NeighborNode> batteries = new ArrayList<>();
 
+        // Group neighbors so generators and active furnaces are handled before idle furnaces.
         for (NeighborNode neighbor : network.neighbors) {
             EnergyNodeComponent node = neighbor.node;
             if (node.getNodeType() == EnergyNodeComponent.NodeType.SOLAR
@@ -822,6 +861,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             }
         }
 
+        // Pull from solar and wind nodes before considering stored energy.
         for (NeighborNode neighbor : solarNodes) {
             transferNodeToNetwork(network, neighbor, deltaSeconds, Integer.MAX_VALUE);
         }
@@ -829,6 +869,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         List<NeighborNode> activeConsumers = new ArrayList<>(activeFurnaces);
         int activeDemand = computeActiveDemand(activeConsumers, deltaSeconds, outputBudgetValue);
         boolean dischargedToFill = false;
+        // Discharge batteries or machine-like nodes when active furnace demand exceeds the pool.
         if (activeDemand > network.totalEnergy) {
             int needed = activeDemand - network.totalEnergy;
             for (NeighborNode neighbor : batteries) {
@@ -843,6 +884,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             transferNetworkToNode(network, neighbor, deltaSeconds, outputBudget);
         }
 
+        // Fill remaining cable capacity from batteries when possible.
         int remainingCapacity = network.totalCapacity - network.totalEnergy;
         if (remainingCapacity > 0) {
             for (NeighborNode neighbor : batteries) {
@@ -857,6 +899,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             }
         }
 
+        // Avoid charging batteries in the same pass that discharged them to fill the network.
         if (!dischargedToFill) {
             for (NeighborNode neighbor : batteries) {
                 transferNetworkToNode(network, neighbor, deltaSeconds, outputBudget);
@@ -873,6 +916,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Computes per-tick pull and push budgets for each external storage neighbor. */
     private void resetExternalBudgets(CableNetwork network, float deltaSeconds) {
         if (network.externals.isEmpty()) {
             return;
@@ -883,6 +927,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Pulls from or pushes to external storages according to their relative fill ratios. */
     private void applyExternalTransfers(CableNetwork network, boolean pull) {
         if (network.externals.isEmpty() || network.totalCapacity <= 0) {
             return;
@@ -905,6 +950,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 }
             }
 
+            // Compare fill ratios with a tolerance to avoid transfers at nearly equal levels.
             EnergyStorageSnapshot snapshot = snapshotStorage(storage);
             double storageRatio = energyRatio(snapshot.amount, snapshot.capacity);
             if (pull) {
@@ -945,6 +991,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Converts the lower cable/storage per-second limit to a non-negative tick budget. */
     private int computeExternalBudget(int cableTransfer, int maxTransfer, float deltaSeconds) {
         if (deltaSeconds <= 0f) {
             return 0;
@@ -957,6 +1004,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return Math.max(0, limit);
     }
 
+    /** Extracts from external storage in a nested transaction, committing positive movement. */
     private long extractFromStorage(EnergyStorage storage, int maxAmount) {
         if (storage == null || maxAmount <= 0) {
             return 0;
@@ -971,6 +1019,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Inserts into external storage in a nested transaction, committing positive movement. */
     private long insertIntoStorage(EnergyStorage storage, int maxAmount) {
         if (storage == null || maxAmount <= 0) {
             return 0;
@@ -985,6 +1034,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Sums non-negative amounts and capacities across the storage's exposed views. */
     private EnergyStorageSnapshot snapshotStorage(EnergyStorage storage) {
         long amount = 0;
         long capacity = 0;
@@ -998,6 +1048,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return new EnergyStorageSnapshot(amount, capacity);
     }
 
+    /** Reads an external transfer rate when available, otherwise uses the integer maximum. */
     private int getExternalMaxTransfer(EnergyStorage storage) {
         if (storage instanceof EnergyTransferer transferer) {
             long rate = transferer.getTransferRate();
@@ -1009,6 +1060,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return Integer.MAX_VALUE;
     }
 
+    /** Totals active furnace demand subject to per-neighbor limits and an optional maximum. */
     private int computeActiveDemand(List<NeighborNode> activeFurnaces, float deltaSeconds, int maxDemand) {
         if (deltaSeconds <= 0f) {
             return 0;
@@ -1040,6 +1092,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return demand;
     }
 
+    /** Pulls from one node subject to availability, network capacity, and transfer limits. */
     private int transferNodeToNetwork(
             CableNetwork network,
             NeighborNode neighbor,
@@ -1083,6 +1136,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return amount;
     }
 
+    /** Supplies one node subject to its demand, transfer limit, and shared output budget. */
     private void transferNetworkToNode(
             CableNetwork network,
             NeighborNode neighbor,
@@ -1129,6 +1183,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         outputBudget.remaining -= amount;
     }
 
+    /** Converts the network's per-second maximum transfer to the current tick budget. */
     private int getOutputBudget(CableNetwork network, float deltaSeconds) {
         if (deltaSeconds <= 0f || network.maxTransfer <= 0) {
             return 0;
@@ -1137,6 +1192,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return Math.max(0, budget);
     }
 
+    /** Distributes pooled energy among cable nodes in proportion to their capacities. */
     private void distributeCableEnergy(CableNetwork network) {
         int cableCount = network.cables.size();
         if (cableCount == 0) {
@@ -1162,6 +1218,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             energy = totalCapacity;
         }
 
+        // Floor proportional shares first, then spread rounding remainder across cables.
         double ratio = (double) energy / totalCapacity;
         int[] allocation = new int[cableCount];
         int allocated = 0;
@@ -1213,6 +1270,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         network.totalEnergy = energy;
     }
 
+    /** Copies discovered connection masks to the corresponding cable nodes. */
     private void updateCableConnectedMasks(CableNetwork network) {
         for (CableNode cable : network.cables) {
             if (cable.node.getConnectedMask() != cable.connectedMask) {
@@ -1221,6 +1279,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Updates cable visual states from connected faces, enabled sides, rotation, and tier. */
     private void updateCableStates(World world, CableNetwork network) {
         for (CableNode cable : network.cables) {
             BlockAccessor accessor = world.getChunkIfLoaded(cable.chunkIndex);
@@ -1248,13 +1307,14 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 accessor.setBlockInteractionState(cable.x, cable.y, cable.z, blockType, stateName, false);
                 node.setLastCableState(stateName);
             } catch (Exception e) {
-                // aspo?? jednou zaloguj, a?? m???? d??kaz
+                // Report missing states and clear the cache so a later tick can retry.
                 System.out.println("[HyProTech] Cable state '" + stateName + "' not found for blockType=" + blockType.getId());
                 node.setLastCableState("");
             }
         }
     }
 
+    /** Converts a world-space face mask into the block's rotated local face mask. */
     private int rotateMaskToLocal(int mask, RotationTuple rotation) {
         int normalized = mask & EnergySide.ALL_MASK;
         if (rotation == null) {
@@ -1280,6 +1340,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return localMask;
     }
 
+    /** Updates each neighboring node's maximum transfer from its connected cable limits. */
     private void applyNeighborMaxTransfers(CableNetwork network) {
         for (NeighborNode neighbor : network.neighbors) {
             int cableTransfer = Math.max(neighbor.inputTransfer, neighbor.outputTransfer);
@@ -1293,6 +1354,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Sets solar side masks to the rotated output face and its opposite. */
     private boolean syncSolarOutputSide(
             World world,
             int worldX,
@@ -1314,6 +1376,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return changed;
     }
 
+    /** Enables all wind-node side bits in both masks. */
     private boolean syncWindOutputSide(
             World world,
             int worldX,
@@ -1334,6 +1397,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return changed;
     }
 
+    /** Restricts battery side masks to the rotated pair of permitted faces. */
     private boolean syncBatterySides(
             World world,
             int worldX,
@@ -1370,6 +1434,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return changed;
     }
 
+    /** Aligns furnace side masks with its rotated base mask. */
     private boolean syncFurnaceSides(
             World world,
             int worldX,
@@ -1392,6 +1457,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return changed;
     }
 
+    /** Synchronizes furnace energy use, bench activity and progress, animation, and sound. */
     private boolean syncFurnaceBench(
             World world,
             ChunkStore chunkStore,
@@ -1425,6 +1491,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             changed = true;
         }
 
+        // Reconcile the bench tier with the tier encoded by the placed furnace block.
         int rawTier = benchBlock.getTierLevel();
         int tier = FurnaceConfig.clampTier(rawTier);
         int overrideTier = getFurnaceTierOverride(world, worldX, worldY, worldZ);
@@ -1448,6 +1515,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             consumption = 1;
         }
 
+        // Start processing only when enabled, a recipe exists, and enough energy is available.
         boolean hasRecipe = benchState.getRecipe() != null;
         boolean shouldBeActive = node.isEnabled() && hasRecipe && consumption > 0 && energy >= consumption;
         long now = System.currentTimeMillis();
@@ -1502,6 +1570,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             inputProgress = 0f;
         }
 
+        // Scale bench progress into the integer progress range exposed by the energy node.
         int progressMax = node.getProgressMax();
         if (progressMax > 0) {
             float progressRatio = 0f;
@@ -1538,6 +1607,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return changed;
     }
 
+    /** Enables all side bits for machine input and output masks. */
     private boolean syncMachineSides(EnergyNodeComponent node) {
         int outputMask = EnergySide.ALL_MASK;
         int inputMask = outputMask;
@@ -1553,6 +1623,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return changed;
     }
 
+    /** Converts a tiered furnace block ID to its one-based bench tier, or returns -1. */
     private int getFurnaceTierOverride(World world, int worldX, int worldY, int worldZ) {
         if (world == null) {
             return -1;
@@ -1572,6 +1643,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return FurnaceConfig.clampTier(tierIndex + 1);
     }
 
+    /** Queues a tier block swap while preserving bench state once the bench is idle. */
     private void syncFurnaceBlockId(
             World world,
             int worldX,
@@ -1613,6 +1685,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 node);
     }
 
+    /** Applies the visual state corresponding to a solar node's tier. */
     private void syncSolarState(
             World world,
             int worldX,
@@ -1626,6 +1699,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         syncTieredMachineState(world, worldX, worldY, worldZ, tier, SOLAR_STATE_NAMES, "Solar");
     }
 
+    /** Selects and caches a tiered wind animation state, falling back to its base state. */
     private void syncWindState(
             World world,
             int worldX,
@@ -1676,6 +1750,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Raises the stored cable tier when the block ID indicates a higher tier. */
     private boolean syncCableTierFromBlockId(
             World world,
             int worldX,
@@ -1699,6 +1774,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return true;
     }
 
+    /** Queues a cable block swap when its ID does not reflect the stored tier. */
     private boolean syncCableBlockId(
             World world,
             int worldX,
@@ -1729,6 +1805,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return true;
     }
 
+    /** Uses the base ID at tier zero and the _S suffix for higher energy-cable tiers. */
     private String buildEnergyCableTieredId(int tier) {
         if (tier <= 0) {
             return HyProTechIds.BLOCK_ENERGY_CABLE;
@@ -1736,6 +1813,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return HyProTechIds.BLOCK_ENERGY_CABLE + "_S" + tier;
     }
 
+    /** Applies a tier-indexed interaction state to an already-loaded block. */
     private void syncTieredMachineState(
             World world,
             int worldX,
@@ -1769,6 +1847,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Chooses furnace idle, startup, or processing visuals and falls back to the tier state. */
     private void syncFurnaceState(
             World world,
             int worldX,
@@ -1836,6 +1915,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Reads and parses a cable tier from the block ID, returning -1 when unavailable. */
     private int getCableTierFromBlockId(World world, int worldX, int worldY, int worldZ, String baseId) {
         if (world == null || baseId == null) {
             return -1;
@@ -1847,10 +1927,12 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return BlockIdUtil.parseCableTierFromIdOrState(blockType.getId(), baseId);
     }
 
+    /** Delegates base-ID and state matching to the shared helper. */
     private boolean isIdOrState(String blockId, String baseId) {
         return BlockIdUtil.isIdOrState(blockId, baseId);
     }
 
+    /** Updates the bench fuel-time field through a cached reflective lookup when possible. */
     private boolean setBenchFuelTime(ProcessingBenchBlock benchState, float value) {
         Field field = benchFuelTimeField;
         if (field == null) {
@@ -1874,6 +1956,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Updates input progress only when its value changes. */
     private boolean setBenchInputProgress(ProcessingBenchBlock benchState, float value) {
         float current = benchState.getInputProgress();
         if (Float.compare(current, value) == 0) {
@@ -1883,6 +1966,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return true;
     }
 
+    /** Retrieves a processing bench component only when its chunk is loaded. */
     private ProcessingBenchBlock getProcessingBenchState(World world, int worldX, int worldY, int worldZ) {
         long chunkIndex = ChunkUtil.indexChunkFromBlock(worldX, worldZ);
         BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
@@ -1898,6 +1982,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 worldZ);
     }
 
+    /** Retrieves a bench component only when its chunk is loaded. */
     private BenchBlock getBenchBlock(World world, int worldX, int worldY, int worldZ) {
         long chunkIndex = ChunkUtil.indexChunkFromBlock(worldX, worldZ);
         BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
@@ -1913,6 +1998,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 worldZ);
     }
 
+    /** Maps the block yaw to the solar panel's world-space output direction. */
     private EnergySide getSolarOutputSide(World world, int worldX, int worldY, int worldZ) {
         Rotation yaw = getBlockYaw(world, worldX, worldY, worldZ);
         if (yaw == Rotation.Ninety) {
@@ -1927,6 +2013,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return EnergySide.NORTH;
     }
 
+    /** Reads yaw from a loaded block, falling back to no rotation. */
     private Rotation getBlockYaw(World world, int worldX, int worldY, int worldZ) {
         long chunkIndex = ChunkUtil.indexChunkFromBlock(worldX, worldZ);
         BlockAccessor accessor = world.getChunkIfLoaded(chunkIndex);
@@ -1943,6 +2030,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return rotation.yaw();
     }
 
+    /** Rotates a horizontal local offset by the block's quarter-turn yaw. */
     private Vector3i rotateLocalOffset(int localX, int localZ, Rotation yaw) {
         if (yaw == Rotation.Ninety) {
             return new Vector3i(localZ, 0, -localX);
@@ -1956,6 +2044,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return new Vector3i(localX, 0, localZ);
     }
 
+    /** Rotates all enabled face bits by yaw while discarding unknown mask bits. */
     private int rotateMaskByYaw(int mask, Rotation yaw) {
         int normalized = mask & EnergySide.ALL_MASK;
         if (yaw == null || yaw == Rotation.None) {
@@ -1975,6 +2064,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return rotated;
     }
 
+    /** Rotates horizontal faces by yaw, leaving vertical faces unchanged. */
     private EnergySide rotateSideByYaw(EnergySide side, Rotation yaw) {
         if (side == EnergySide.UP || side == EnergySide.DOWN) {
             return side;
@@ -2024,6 +2114,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return side;
     }
 
+    /** Orders position pairs lexicographically so direct transfers are attempted once per pair. */
     private boolean shouldTransfer(int x, int y, int z, int nx, int ny, int nz) {
         if (x != nx) {
             return x < nx;
@@ -2034,6 +2125,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return z < nz;
     }
 
+    /** Tests compatible cable sides and colors or directional node input/output permissions. */
     private boolean isNeighborConnectable(
             EnergyNodeComponent node,
             EnergyNodeComponent neighbor,
@@ -2054,14 +2146,17 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return inputAllowed || outputAllowed;
     }
 
+    /** Treats a face as connectable when either input or output is enabled. */
     private boolean canCableConnect(EnergyNodeComponent node, EnergySide side) {
         return node.allowsInput(side) || node.allowsOutput(side);
     }
 
+    /** Requires identical color values for cable-to-cable connection. */
     private boolean sameCableColor(EnergyNodeComponent first, EnergyNodeComponent second) {
         return first.getCableColor() == second.getCableColor();
     }
 
+    /** Checks the face mask and disallows input for solar and wind generators. */
     private boolean allowsInput(EnergyNodeComponent node, EnergySide side) {
         if (!node.allowsInput(side)) {
             return false;
@@ -2071,6 +2166,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 && type != EnergyNodeComponent.NodeType.WIND;
     }
 
+    /** Checks the face mask and disallows output for furnaces. */
     private boolean allowsOutput(EnergyNodeComponent node, EnergySide side) {
         if (!node.allowsOutput(side)) {
             return false;
@@ -2078,6 +2174,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return node.getNodeType() != EnergyNodeComponent.NodeType.FURNACE;
     }
 
+    /** Moves energy between two adjacent nodes using direction, demand, and rate limits. */
     private boolean transferEnergy(
             EnergyNodeComponent first,
             EnergySide firstSide,
@@ -2094,6 +2191,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             return false;
         }
 
+        // Respect the preferred direction when permitted, otherwise try the permitted reverse.
         int direction = chooseTransferDirection(first, second);
         if (direction > 0 && !firstToSecondAllowed) {
             if (secondToFirstAllowed) {
@@ -2148,6 +2246,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return true;
     }
 
+    /** Moves energy transactionally between a node and external storage on one face. */
     private boolean transferEnergyExternal(
             BlockComponentChunk components,
             EnergyNodeComponent node,
@@ -2177,6 +2276,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         double nodeRatio = energyRatio(node);
         double storageRatio = energyRatio(snapshot.amount, snapshot.capacity);
 
+        // A one-way connection fixes the direction; a two-way connection compares fill ratios.
         int direction;
         if (outputAllowed && !inputAllowed) {
             direction = 1;
@@ -2201,6 +2301,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return moved > 0;
     }
 
+    /** Requires a provider, a receiver, and matching output/input permissions on the faces. */
     private boolean canTransferDirectional(
             EnergyNodeComponent from,
             EnergySide fromSide,
@@ -2212,6 +2313,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return allowsOutput(from, fromSide) && allowsInput(to, toSide);
     }
 
+    /** Chooses by provider/receiver eligibility, then priority, then relative fill ratio. */
     private int chooseTransferDirection(EnergyNodeComponent first, EnergyNodeComponent second) {
         boolean firstCanReceive = canReceive(first);
         boolean secondCanReceive = canReceive(second);
@@ -2254,6 +2356,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return diff > 0 ? 1 : -1;
     }
 
+    /** Allows non-generator nodes with remaining capacity to receive energy. */
     private boolean canReceive(EnergyNodeComponent node) {
         EnergyNodeComponent.NodeType type = node.getNodeType();
         if (type == EnergyNodeComponent.NodeType.SOLAR
@@ -2263,6 +2366,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return node.getCapacity() > node.getEnergy();
     }
 
+    /** Allows a non-furnace node with stored energy to provide it. */
     private boolean canProvide(EnergyNodeComponent node) {
         if (node.getNodeType() == EnergyNodeComponent.NodeType.FURNACE) {
             return false;
@@ -2270,6 +2374,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return node.getEnergy() > 0;
     }
 
+    /** Assigns active furnaces the highest receiving priority, then batteries and machines. */
     private int receivePriority(EnergyNodeComponent node) {
         switch (node.getNodeType()) {
             case FURNACE:
@@ -2286,10 +2391,12 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Considers a furnace active when enabled with positive progress and threshold. */
     private boolean isFurnaceActive(EnergyNodeComponent node) {
         return node.isEnabled() && node.getProgress() > 0 && node.getProgressMax() > 0;
     }
 
+    /** Returns the node's fill ratio clamped to zero through one. */
     private double energyRatio(EnergyNodeComponent node) {
         int capacity = node.getCapacity();
         if (capacity <= 0) {
@@ -2298,6 +2405,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return Math.min(1.0, Math.max(0.0, (double) node.getEnergy() / capacity));
     }
 
+    /** Returns a clamped fill ratio, treating positive contents with no capacity as full. */
     private double energyRatio(long amount, long capacity) {
         if (capacity <= 0) {
             return amount > 0 ? 1.0 : 0.0;
@@ -2305,6 +2413,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return Math.min(1.0, Math.max(0.0, (double) amount / capacity));
     }
 
+    /** Retrieves or creates per-world cable traversal state. */
     private CableState getCableState(World world) {
         CableState state = cableStates.get(world);
         if (state == null) {
@@ -2314,6 +2423,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return state;
     }
 
+    /** Adds a block to its chunk's visited set and reports whether it was newly added. */
     private boolean markVisited(CableState state, long chunkIndex, int blockIndex) {
         IntOpenHashSet visited = state.visitedByChunk.get(chunkIndex);
         if (visited == null) {
@@ -2323,11 +2433,13 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return visited.add(blockIndex);
     }
 
+    /** Holds the last processed world tick and cable indices visited during it. */
     private static final class CableState {
         private long lastTick = Long.MIN_VALUE;
         private final Long2ObjectMap<IntOpenHashSet> visitedByChunk = new Long2ObjectOpenHashMap<>();
     }
 
+    /** Aggregates cable nodes, adjacent storages, pooled energy, capacity, and transfer limit. */
     private static final class CableNetwork {
         private final List<CableNode> cables = new ArrayList<>();
         private final List<NeighborNode> neighbors = new ArrayList<>();
@@ -2336,6 +2448,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         private int totalCapacity;
         private int maxTransfer;
 
+        /** Adds a cable's energy and capacity and keeps the lowest cable transfer limit. */
         private void addCable(
                 EnergyNodeComponent node,
                 BlockComponentChunk components,
@@ -2356,6 +2469,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Captures a cable's node, position, transfer settings, and discovered connections. */
     private static final class CableNode {
         private final EnergyNodeComponent node;
         private final BlockComponentChunk components;
@@ -2388,6 +2502,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Aggregates a native node's connected-cable input and output transfer rates. */
     private static final class NeighborNode {
         private final EnergyNodeComponent node;
         private final BlockComponentChunk components;
@@ -2400,6 +2515,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Tracks an external storage's transfer rates and remaining per-tick budgets. */
     private static final class ExternalNeighbor {
         private final EnergyStorage storage;
         private final int maxTransfer;
@@ -2414,6 +2530,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Carries summed amount and capacity read from external storage views. */
     private static final class EnergyStorageSnapshot {
         private final long amount;
         private final long capacity;
@@ -2424,6 +2541,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Coordinates used by the cable network traversal queue. */
     private static final class CablePos {
         private final int x;
         private final int y;
@@ -2436,6 +2554,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Mutable network output budget shared between neighbor transfers. */
     private static final class TransferBudget {
         private int remaining;
 
@@ -2444,6 +2563,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Builds a visual state name for every possible six-face mask. */
     private static String[] buildCableStateNames() {
         String[] names = new String[EnergySide.ALL_MASK + 1];
         for (int mask = 0; mask < names.length; mask++) {
@@ -2452,11 +2572,13 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return names;
     }
 
+    /** Looks up a cable state by the normalized face mask; tier is not used here. */
     private static String cableStateName(int mask, int tier) {
         int normalized = mask & EnergySide.ALL_MASK;
         return CABLE_STATE_NAMES[normalized];
     }
 
+    /** Builds tier-indexed state names from zero through the supplied maximum. */
     private static String[] buildTierStateNames(String prefix, int maxTier) {
         String[] names = new String[maxTier + 1];
         for (int tier = 0; tier <= maxTier; tier++) {

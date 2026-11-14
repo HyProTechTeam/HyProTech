@@ -30,7 +30,9 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import java.util.Map;
 import java.util.UUID;
 
+/** Opens a custom page and attaches the inventory or processing windows it needs. */
 public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction {
+    // The interaction asset supplies the factory used to create the requested page.
     public static final BuilderCodec<OpenCustomUIWithWindowsInteraction> CODEC =
             BuilderCodec.builder(
                             OpenCustomUIWithWindowsInteraction.class,
@@ -49,6 +51,7 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
         super();
     }
 
+    /** Creates the page once, resolves its target block and opens the appropriate windows. */
     @Override
     protected void firstRun(
             InteractionType interactionType,
@@ -77,6 +80,7 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
             return;
         }
 
+        // Machine pages need the base block position even when a multiblock part was targeted.
         Vector3i targetPos = resolveTargetBlockPosition(context, commandBuffer);
         if (targetPos != null) {
             if (page instanceof FurnacePage) {
@@ -94,6 +98,7 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
             return;
         }
 
+        // Prefer windows supplied by the page; otherwise try the target's processing bench.
         Window[] windows = null;
         if (page instanceof WindowProvider) {
             windows = ((WindowProvider) page).createWindows(playerEntityRef, store);
@@ -102,6 +107,7 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
             windows = createBenchWindows(context, commandBuffer, playerEntityRef);
         }
 
+        // A failed window setup still permits the custom page to open on its own.
         if (windows != null && windows.length > 0) {
             Page basePage = resolveBasePage(windows);
             if (!pageManager.setPageWithWindows(
@@ -117,6 +123,7 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
         pageManager.openCustomPage(playerEntityRef, store, page);
     }
 
+    /** Resolves the targeted block to its base position in the player's world. */
     @SuppressWarnings("removal")
     private Vector3i resolveTargetBlockPosition(
             InteractionContext context,
@@ -141,6 +148,7 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
         return new Vector3i(baseBlock.x, baseBlock.y, baseBlock.z);
     }
 
+    /** Reuses or creates a per-player processing-bench window for the targeted block. */
     private Window[] createBenchWindows(
             InteractionContext context,
             CommandBuffer<EntityStore> commandBuffer,
@@ -165,6 +173,7 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
         int y = baseBlock.y;
         int z = baseBlock.z;
 
+        // Look up the processing component and its block definition at the base position.
         ProcessingBenchBlock bench = BlockModule.get().getComponent(
                 ProcessingBenchBlock.getComponentType(),
                 world,
@@ -198,6 +207,7 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
         }
         UUID playerId = uuidComponent.getUuid();
 
+        // Reuse the player's existing window to avoid registering duplicate bench windows.
         Map<UUID, BenchWindow> windows = benchBlock != null ? benchBlock.getWindows() : null;
         if (windows != null) {
             BenchWindow existing = windows.get(playerId);
@@ -206,6 +216,7 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
             }
         }
 
+        // Register one window per player and reuse a concurrently registered window if present.
         ProcessingBenchWindow window = new ProcessingBenchWindow(
                 bench, benchBlock, null, x, y, z, 0, blockType);
         if (windows != null) {
@@ -224,6 +235,7 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
         return new Window[] { window };
     }
 
+    /** Initializes the processing bench from its block asset when the required data exists. */
     private boolean ensureBenchInitialized(ProcessingBenchBlock bench, BlockType blockType) {
         if (bench == null || blockType == null || blockType.getBench() == null) {
             return false;
@@ -232,6 +244,7 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
         return true;
     }
 
+    /** Uses the bench base page for processing windows, otherwise the inventory page. */
     private Page resolveBasePage(Window[] windows) {
         for (Window window : windows) {
             if (window instanceof ProcessingBenchWindow) {

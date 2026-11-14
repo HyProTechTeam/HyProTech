@@ -22,15 +22,18 @@ package com.doctorreborn.hytale.api.energy.v1.base;
 import com.doctorreborn.hytale.api.energy.v1.EnergyConsumer;
 import com.shailist.hytale.api.transfer.v1.storage.StoragePreconditions;
 
+/** Stores the non-negative configured energy consumer limit. */
 public abstract class BaseEnergyConsumer implements EnergyConsumer {
     private long energyConsumption;
 
+    /** Validates and stores the configured limit. */
     protected BaseEnergyConsumer(long energyConsumption) {
         StoragePreconditions.notNegative(energyConsumption);
 
         this.energyConsumption = energyConsumption;
     }
 
+    /** Returns the configured limit. */
     @Override
     public long getEnergyConsumption() {
         return energyConsumption;

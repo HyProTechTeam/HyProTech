@@ -47,6 +47,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+/** Configures item-cable sides, connected storage names and per-side item filters. */
 public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
     private static final String PAGE_LAYOUT = "HyProTech_Item_Cable.ui";
     private static final String NO_LINK_LABEL = "No link";
@@ -109,10 +110,12 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         this.itemType = itemType;
     }
 
+    /** Returns the item-cable component reference used by the UI update system. */
     public Ref<ChunkStore> getBlockRef() {
         return blockRef;
     }
 
+    /** Loads the cable layout and connects its controls to UI events. */
     @Override
     public void build(
             Ref<EntityStore> playerRef,
@@ -123,6 +126,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         bindButtons(uiEventBuilder);
     }
 
+    /** Handles cable modes, storage naming, filter selection, search and preset actions. */
     @Override
     public void handleDataEvent(Ref<EntityStore> playerRef, Store<EntityStore> store, SideToggleEvent data) {
         if (data == null) {
@@ -136,6 +140,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
 
         Store<ChunkStore> chunkStore = world.getChunkStore().getStore();
         ItemNodeComponent node = getOrCreateItemNode(chunkStore);
+        // Search text arrives separately from button actions and applies only to an open filter.
         String searchQuery = data.getSearchQuery();
         if (searchQuery != null) {
             if (!filterPanelVisible || activeFilterSide == null) {
@@ -153,6 +158,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
             return;
         }
 
+        // Target and side actions change which adjacent inventory and directions the cable uses.
         if ("ItemTarget".equalsIgnoreCase(action)) {
             node.setTarget(node.getTarget().next());
         } else if ("OpenNetwork".equalsIgnoreCase(action)) {
@@ -165,6 +171,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
             }
             node.cycleSideMode(side);
         } else if ("RenameStorage".equalsIgnoreCase(action)) {
+            // Keep the target position until the user saves or cancels the rename.
             EnergySide side = EnergySide.fromName(data.getSide());
             Vector3i pos = resolveBlockPosition(world);
             Vector3i storagePos = resolveStoragePosition(world, pos, side);
@@ -196,6 +203,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
             sendUpdate(update);
             return;
         } else if ("OpenFilter".equalsIgnoreCase(action)) {
+            // Only sides configured to put or take items can edit filters.
             EnergySide side = EnergySide.fromName(data.getSide());
             if (side == null) {
                 return;
@@ -226,6 +234,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
             closeFilterPanel();
             return;
         } else if ("PresetOres".equalsIgnoreCase(action)) {
+            // Apply the preset containing catalog items classified as ores.
             if (!filterPanelVisible || activeFilterSide == null) {
                 return;
             }
@@ -290,6 +299,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
             updateFilterUi(node);
             return;
         } else if ("ToggleFilterMode".equalsIgnoreCase(action)) {
+            // Save the new filter mode immediately for the item network.
             if (activeFilterSide == null) {
                 return;
             }
@@ -314,6 +324,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
             updateFilterUi(node);
             return;
         } else if ("FilterPrev".equalsIgnoreCase(action)) {
+            // Paging changes which part of the filtered catalog is visible.
             if (filterPageIndex > 0) {
                 filterPageIndex--;
                 updateFilterUi(node);
@@ -331,10 +342,12 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
             return;
         }
 
+        // Persist the target or side changes handled by the main action branches above.
         chunkStore.putComponent(blockRef, itemType, node);
         update(node);
     }
 
+    /** Sends changed mode, target, side and neighbor details to the page. */
     public void update(ItemNodeComponent node) {
         if (node == null) {
             return;
@@ -383,6 +396,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Binds cable, storage, filter and network controls to their actions. */
     private void bindButtons(UIEventBuilder uiEventBuilder) {
         EventData targetData = EventData.of("Action", "ItemTarget").append("Side", "All");
         uiEventBuilder.addEventBinding(CustomUIEventBindingType.Activating, "#ItemTarget", targetData);
@@ -396,6 +410,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         bindFilterButtons(uiEventBuilder);
     }
 
+    /** Binds each side's mode, filter and storage-name controls. */
     private void bindSideButtons(UIEventBuilder uiEventBuilder) {
         for (EnergySide side : EnergySide.VALUES) {
             EventData data = EventData.of("Action", "ToggleSide").append("Side", side.name());
@@ -405,6 +420,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Binds search, category, preset, paging and filter-row controls. */
     private void bindFilterButtons(UIEventBuilder uiEventBuilder) {
         for (EnergySide side : EnergySide.VALUES) {
             EventData data = EventData.of("Action", "OpenFilter").append("Side", side.name());
@@ -486,12 +502,14 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Binds one category button to the category selection action. */
     private void bindCategoryButton(UIEventBuilder uiEventBuilder, String selector, String category) {
         EventData data = EventData.of("Action", "FilterCategory")
                 .append("Index", category);
         uiEventBuilder.addEventBinding(CustomUIEventBindingType.Activating, selector, data);
     }
 
+    /** Reads the cable node or creates an in-memory default when one is absent. */
     private ItemNodeComponent getOrCreateItemNode(Store<ChunkStore> chunkStore) {
         ItemNodeComponent node = chunkStore.getComponent(blockRef, itemType);
         if (node == null) {
@@ -500,6 +518,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return node;
     }
 
+    /** Builds a change-detection key from the neighboring item IDs. */
     private String buildNeighborKey(World world, Vector3i blockPos) {
         if (world == null || blockPos == null) {
             return "";
@@ -516,6 +535,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return key.toString();
     }
 
+    /** Builds a change-detection key from the number of filters on each side. */
     private String buildFilterKey(ItemNodeComponent node) {
         if (node == null) {
             return "";
@@ -530,6 +550,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return key.toString();
     }
 
+    /** Renders side modes, neighbor icons and names, and available filter controls. */
     private void updateSideButtons(UICommandBuilder update, ItemNodeComponent node, World world, Vector3i blockPos) {
         for (EnergySide side : EnergySide.VALUES) {
             Vector3i storagePos = resolveStoragePosition(world, blockPos, side);
@@ -556,12 +577,14 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Shows a side's filter button only when the side can insert or extract items. */
     private void updateFilterButton(UICommandBuilder update, ItemNodeComponent node, EnergySide side) {
         ItemMode sideMode = node.getSideMode(side);
         boolean allowsFilter = sideMode != null && (sideMode.allowsPut() || sideMode.allowsTake());
         update.set(sideFilterId(side) + ".Visible", allowsFilter);
     }
 
+    /** Opens a side's filter panel with its current mode, presets and searchable item list. */
     private void openFilterPanel(
             Ref<EntityStore> playerRef,
             Store<EntityStore> store,
@@ -588,6 +611,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         sendUpdate(update);
     }
 
+    /** Hides the filter panel and clears transient search and selection state. */
     private void closeFilterPanel() {
         if (!filterPanelVisible) {
             return;
@@ -604,6 +628,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         sendUpdate(update);
     }
 
+    /** Refreshes side labels and the currently open filter controls. */
     private void updateFilterUi(ItemNodeComponent node) {
         Ref<EntityStore> playerEntityRef = playerRef.getReference();
         if (playerEntityRef == null) {
@@ -627,6 +652,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         sendUpdate(update);
     }
 
+    /** Displays whitelist or blacklist mode for the selected side. */
     private void updateFilterModeUi(UICommandBuilder update, ItemNodeComponent node) {
         if (activeFilterSide == null || update == null || node == null) {
             return;
@@ -638,6 +664,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
                 mode == FilterMode.BLACKLIST ? FILTER_HINT_BLACKLIST : FILTER_HINT_WHITELIST);
     }
 
+    /** Displays the current item page and marks entries included in the side's filter. */
     private void updateFilterRows(UICommandBuilder update, ItemNodeComponent node) {
         rebuildFilterItems();
         Set<String> activeFilters = activeFilterSide == null
@@ -660,6 +687,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Displays the current result range and available paging controls. */
     private void updateFilterPaging(UICommandBuilder update) {
         int total = filteredItemIds.size();
         if (total <= 0) {
@@ -676,6 +704,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         update.set("#FilterNext.Visible", end < total);
     }
 
+    /** Builds a searchable catalog from known non-state item assets on first use. */
     private void ensureAllItemsLoaded() {
         if (!allItemIds.isEmpty()) {
             return;
@@ -706,11 +735,13 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         allItemIds.sort(Comparator.comparing(this::getDisplayName, String.CASE_INSENSITIVE_ORDER));
     }
 
+    /** Normalizes the search text and rebuilds the filtered catalog. */
     private void applySearchQuery(String query) {
         filterQuery = query == null ? "" : query.trim().toLowerCase();
         applyFilters();
     }
 
+    /** Filters the item catalog by selected category and ID or display-name text. */
     private void applyFilters() {
         filteredItemIds.clear();
         if (allItemIds.isEmpty()) {
@@ -737,6 +768,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Updates category labels and indicates the active category. */
     private void updateCategoryUi(UICommandBuilder update) {
         if (update == null) {
             return;
@@ -754,6 +786,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         updateCategoryButton(update, "#FilterCategoryOther", CATEGORY_OTHER);
     }
 
+    /** Marks the active category in an individual button label. */
     private void updateCategoryButton(UICommandBuilder update, String selector, String category) {
         String label = category;
         if (category.equalsIgnoreCase(activeCategory)) {
@@ -762,6 +795,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         update.set(selector + ".Text", label);
     }
 
+    /** Displays saved preset names in the fixed preset slots. */
     private void updatePresetUi(UICommandBuilder update, ItemNodeComponent node) {
         if (update == null || node == null) {
             return;
@@ -775,6 +809,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Refreshes the displayed preset-name list from the cable node. */
     private void refreshPresetNames(ItemNodeComponent node) {
         presetNames.clear();
         if (node == null) {
@@ -783,6 +818,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         presetNames.addAll(node.getFilterPresetNames());
     }
 
+    /** Resolves a preset slot index to its current name. */
     private String resolvePresetName(ItemNodeComponent node, int index) {
         refreshPresetNames(node);
         if (index < 0 || index >= presetNames.size()) {
@@ -791,6 +827,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return presetNames.get(index);
     }
 
+    /** Replaces the selected side's filter items with a preset and saves the node. */
     private void applyPresetItems(Store<ChunkStore> chunkStore, ItemNodeComponent node, Set<String> items) {
         if (chunkStore == null || node == null || activeFilterSide == null) {
             return;
@@ -805,6 +842,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         updateFilterUi(node);
     }
 
+    /** Builds a preset from catalog items classified as ores. */
     private Set<String> buildOrePreset() {
         ensureAllItemsLoaded();
         Set<String> ores = new LinkedHashSet<>();
@@ -816,6 +854,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return ores;
     }
 
+    /** Copies selected filter names to the per-player in-memory clipboard and text field. */
     private void sendPresetCopy(ItemNodeComponent node, Store<EntityStore> store) {
         if (node == null || activeFilterSide == null) {
             return;
@@ -828,6 +867,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         sendUpdate(update);
     }
 
+    /** Reads this player's in-memory filter clipboard. */
     private String getClipboardText(Store<EntityStore> store) {
         UUID playerId = resolvePlayerId(store);
         if (playerId == null) {
@@ -836,6 +876,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return FILTER_CLIPBOARD.getOrDefault(playerId, "");
     }
 
+    /** Stores trimmed filter clipboard text per player, clearing empty values. */
     private void setClipboardText(Store<EntityStore> store, String text) {
         UUID playerId = resolvePlayerId(store);
         if (playerId == null) {
@@ -849,6 +890,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Resolves the player's UUID used as the clipboard key. */
     private UUID resolvePlayerId(Store<EntityStore> store) {
         if (store == null) {
             return null;
@@ -861,6 +903,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return uuidComponent == null ? null : uuidComponent.getUuid();
     }
 
+    /** Serializes selected item display names as a comma-separated list. */
     private String serializePresetText(Set<String> items) {
         if (items == null || items.isEmpty()) {
             return "";
@@ -880,6 +923,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return out.toString();
     }
 
+    /** Parses comma-, semicolon- or newline-separated names and IDs into unique known items. */
     private Set<String> parsePresetText(String text) {
         ensureAllItemsLoaded();
         Set<String> items = new LinkedHashSet<>();
@@ -896,6 +940,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return items;
     }
 
+    /** Resolves a preset token as an ID, display name or common prefixed ID. */
     private String resolveItemIdFromToken(String token) {
         if (token == null) {
             return null;
@@ -927,6 +972,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return null;
     }
 
+    /** Accepts known item assets while excluding unknown items and state variants. */
     private boolean isKnownItemId(String itemId) {
         if (itemId == null || itemId.isEmpty()) {
             return false;
@@ -935,6 +981,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return item != null && item != Item.UNKNOWN && !item.isState();
     }
 
+    /** Returns a cached display name or derives one from the item ID. */
     private String getDisplayName(String itemId) {
         if (UiItemIds.isEmptyItemId(itemId)) {
             return "";
@@ -946,11 +993,13 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return humanizeItemId(itemId);
     }
 
+    /** Derives the catalog label from an item ID, falling back to the ID itself. */
     private String resolveDisplayName(String itemId, Item item) {
         String name = humanizeItemId(itemId);
         return name == null || name.isEmpty() ? itemId : name;
     }
 
+    /** Trims and lowercases a name for preset lookups. */
     private String normalizeDisplayName(String name) {
         if (name == null) {
             return "";
@@ -958,6 +1007,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return name.trim().toLowerCase();
     }
 
+    /** Removes common prefixes and formats an item ID, retaining an Ore suffix when appropriate. */
     private String humanizeItemId(String itemId) {
         if (itemId == null || itemId.isEmpty()) {
             return "";
@@ -981,6 +1031,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return title;
     }
 
+    /** Formats words for display while preserving known technical abbreviations. */
     private String toTitleCase(String input) {
         if (input == null || input.isEmpty()) {
             return "";
@@ -1009,6 +1060,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return out.toString();
     }
 
+    /** Assigns a filter category using ordered substring checks on the item ID. */
     private String categorizeItem(String itemId) {
         if (itemId == null) {
             return CATEGORY_OTHER;
@@ -1068,6 +1120,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return CATEGORY_OTHER;
     }
 
+    /** Copies the current page of filtered IDs, clamping the page after the result set shrinks. */
     private void rebuildFilterItems() {
         filterItems.clear();
         int total = filteredItemIds.size();
@@ -1085,6 +1138,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Parses a UI index, returning -1 for missing or invalid text. */
     private int parseIndex(String value) {
         if (value == null) {
             return -1;
@@ -1096,6 +1150,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Resolves a neighboring block's item icon without loading an absent chunk. */
     private String getNeighborItemId(World world, Vector3i blockPos, EnergySide side) {
         if (world == null || blockPos == null) {
             return "";
@@ -1126,6 +1181,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return UiItemIds.safeItemId(blockType.getItem().getId());
     }
 
+    /** Finds the base position of a container adjacent to the selected cable side. */
     private Vector3i resolveStoragePosition(World world, Vector3i blockPos, EnergySide side) {
         if (world == null || blockPos == null || side == null) {
             return null;
@@ -1143,6 +1199,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return resolveBasePosition(world, lookup.position);
     }
 
+    /** Finds a container at the position or on a horizontally adjacent matching block. */
     private ContainerLookup resolveContainerState(World world, int x, int y, int z) {
         Object state = MachineItemAccess.getContainerState(world, x, y, z);
         if (state != null) {
@@ -1184,6 +1241,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return null;
     }
 
+    /** Returns the saved name of a storage, or an empty string when none is configured. */
     private String getStorageConfiguredName(World world, Vector3i pos) {
         if (world == null || pos == null) {
             return "";
@@ -1193,6 +1251,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return config == null || config.getName() == null ? "" : config.getName();
     }
 
+    /** Resolves the storage block's associated item ID for its icon. */
     private String getStorageItemId(World world, Vector3i pos) {
         BlockType blockType = getBlockTypeIfLoaded(world, pos.getX(), pos.getY(), pos.getZ());
         if (blockType == null) {
@@ -1205,6 +1264,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return "";
     }
 
+    /** Trims and saves a storage name. */
     private void updateStorageName(World world, Vector3i pos, String value) {
         if (world == null || pos == null) {
             return;
@@ -1213,6 +1273,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         applyStorageConfig(world, pos, config -> config.setName(name));
     }
 
+    /** Loads or creates a base-block configuration, applies the edit and saves it. */
     private void applyStorageConfig(World world, Vector3i pos, ConfigUpdate update) {
         if (world == null || pos == null || update == null) {
             return;
@@ -1233,6 +1294,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         storeStorageConfig(world, chunkStore, basePos, config);
     }
 
+    /** Checks the block holder, chunk component and chunk-level configuration fallback. */
     private ItemStorageConfigComponent getStorageConfig(World world, ChunkStore chunkStore, Vector3i pos) {
         if (pos == null) {
             return null;
@@ -1276,6 +1338,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return getChunkStorageConfig(chunkStore, x, y, z);
     }
 
+    /** Stores HyProTech block settings where possible and also updates the chunk-level map. */
     private void storeStorageConfig(
             World world,
             ChunkStore chunkStore,
@@ -1334,6 +1397,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         storeChunkStorageConfig(chunkStore, x, y, z, config);
     }
 
+    /** Checks for the HyProTech prefix after removing an optional namespace. */
     private boolean isHyProTechBlockId(String blockId) {
         if (blockId == null || blockId.isEmpty()) {
             return false;
@@ -1343,6 +1407,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return normalized.regionMatches(true, 0, "HyProTech_", 0, "HyProTech_".length());
     }
 
+    /** Reads the storage configuration indexed within its chunk. */
     private ItemStorageConfigComponent getChunkStorageConfig(ChunkStore chunkStore, int x, int y, int z) {
         if (chunkStore == null || HyProTechComponents.ITEM_STORAGE_CHUNK == null) {
             return null;
@@ -1359,6 +1424,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return chunkConfig.getConfig(blockIndex);
     }
 
+    /** Stores the configuration in the per-chunk fallback component. */
     private void storeChunkStorageConfig(
             ChunkStore chunkStore,
             int x,
@@ -1388,26 +1454,32 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Builds the selector for a side mode button. */
     private String sideId(EnergySide side) {
         return "#Side" + side.label();
     }
 
+    /** Builds the selector for a side's neighbor icon. */
     private String sideIconId(EnergySide side) {
         return "#Side" + side.label() + "Icon";
     }
 
+    /** Builds the selector for a side's filter button. */
     private String sideFilterId(EnergySide side) {
         return "#Side" + side.label() + "Filter";
     }
 
+    /** Builds the selector for a side's storage rename button. */
     private String sideRenameId(EnergySide side) {
         return "#Side" + side.label() + "Rename";
     }
 
+    /** Builds the selector for an indexed filter row. */
     private String filterRowId(int index) {
         return "#FilterRow" + index;
     }
 
+    /** Reads a block type only if its chunk is loaded. */
     private BlockType getBlockTypeIfLoaded(World world, int x, int y, int z) {
         if (world == null) {
             return null;
@@ -1420,6 +1492,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return accessor.getBlockType(x, y, z);
     }
 
+    /** Compares two non-null block IDs case-insensitively. */
     private boolean sameBlockId(String firstId, String secondId) {
         if (firstId == null || secondId == null) {
             return false;
@@ -1427,22 +1500,27 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return firstId.equalsIgnoreCase(secondId);
     }
 
+    /** Builds the selector for an indexed filter item icon. */
     private String filterIconId(int index) {
         return "#FilterItem" + index + "Icon";
     }
 
+    /** Builds the selector for an indexed filter checkbox. */
     private String filterCheckId(int index) {
         return "#FilterItem" + index + "Check";
     }
 
+    /** Builds the selector for an indexed filter item label. */
     private String filterLabelId(int index) {
         return "#FilterItem" + index + "Label";
     }
 
+    /** Builds the selector for an indexed preset slot. */
     private String presetSlotId(int index) {
         return "#FilterPresetSlot" + index;
     }
 
+    /** Finds the cable reference in loaded chunks and caches its world position. */
     private Vector3i resolveBlockPosition(World world) {
         if (world == null) {
             return null;
@@ -1479,6 +1557,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return null;
     }
 
+    /** Resolves a multiblock part to its base position when available. */
     @SuppressWarnings("removal")
     private Vector3i resolveBasePosition(World world, Vector3i pos) {
         if (world == null || pos == null) {
@@ -1491,6 +1570,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return pos;
     }
 
+    /** Finds the chunk-local index matching this page's block reference. */
     private int findBlockIndex(BlockComponentChunk blockComponents) {
         int targetIndex = blockRef.getIndex();
         if (targetIndex == Integer.MIN_VALUE) {
@@ -1506,11 +1586,13 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return Integer.MIN_VALUE;
     }
 
+    /** Retrieves the world associated with the player's entity store. */
     private World getWorld(Store<EntityStore> store) {
         EntityStore entityStore = store.getExternalData();
         return entityStore == null ? null : entityStore.getWorld();
     }
 
+    /** Opens the connected storage-priority page for this cable. */
     private void openNetworkPage(Ref<EntityStore> playerEntityRef, Store<EntityStore> store) {
         if (playerEntityRef == null || store == null) {
             return;
@@ -1529,6 +1611,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         pageManager.openCustomPage(playerEntityRef, store, page);
     }
 
+    /** Holds a discovered container state and its owning position. */
     private static final class ContainerLookup {
         private final Object state;
         private final Vector3i position;
@@ -1539,7 +1622,9 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Applies one edit to storage configuration. */
     private interface ConfigUpdate {
+        /** Mutates the supplied storage configuration. */
         void apply(ItemStorageConfigComponent config);
     }
 }

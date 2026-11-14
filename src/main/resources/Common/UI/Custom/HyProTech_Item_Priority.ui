@@ -4,6 +4,7 @@ $C = "Common.ui";
 @PriorityWidth = 120;
 @RenameWidth = 90;
 
+// Network distribution and paged storage priority controls.
 $C.@PageOverlay {
   $C.@DecoratedContainer {
     Anchor: (Width: 620, Height: 640);
@@ -32,6 +33,7 @@ $C.@PageOverlay {
           Text: "Priority Network";
         }
 
+        // Page logic cycles the network distribution mode through this action.
         $C.@SmallSecondaryTextButton #NetworkDistribution {
           Padding: (Top: 6);
           Text: "Distribution: Round Robin";
@@ -47,6 +49,7 @@ $C.@PageOverlay {
           Text: "Storages";
         }
 
+        // Rows are initially hidden and populated with storage names, priorities, and rename actions.
         Group #StorageList {
           LayoutMode: Top;
           Padding: (Top: 6);
@@ -310,6 +313,7 @@ $C.@PageOverlay {
           }
         }
 
+        // Navigation controls and the current storage page indicator.
         Group #StoragePaging {
           LayoutMode: Left;
           Padding: (Top: 8);
@@ -345,6 +349,7 @@ $C.@PageOverlay {
   }
 }
 
+// Initially hidden overlay for editing a storage name.
 Group #RenamePanel {
   Anchor: (Full: 0);
   Background: #000000(0.55);

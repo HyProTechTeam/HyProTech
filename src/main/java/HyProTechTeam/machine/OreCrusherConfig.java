@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+/** Tier, processing, upgrade, and bonus-drop configuration for the ore crusher. */
 public final class OreCrusherConfig {
     public static final int MIN_TIER = 0;
     public static final int MAX_TIER = 5;
@@ -74,6 +75,7 @@ public final class OreCrusherConfig {
             1.0
     };
 
+    /** One item and quantity required for an upgrade. */
     public static final class Requirement {
         private String itemId;
         private int quantity;
@@ -88,24 +90,29 @@ public final class OreCrusherConfig {
                                 requirement -> requirement.quantity)
                         .build();
 
+        /** Creates an empty requirement for decoding. */
         public Requirement() {
             this("", 0);
         }
 
+        /** Normalizes the item ID and quantity. */
         public Requirement(String itemId, int quantity) {
             this.itemId = normalizeItemId(itemId);
             this.quantity = normalizeQuantity(quantity);
         }
 
+        /** Returns the required item ID. */
         public String getItemId() {
             return itemId;
         }
 
+        /** Returns the required item count. */
         public int getQuantity() {
             return quantity;
         }
     }
 
+    /** Configures an extra item drop and its chance by tier. */
     public static final class BonusDrop {
         private String itemId;
         private int quantity;
@@ -128,10 +135,12 @@ public final class OreCrusherConfig {
                                 drop -> drop.perTierChance)
                         .build();
 
+        /** Creates an empty drop for decoding. */
         public BonusDrop() {
             this("", 0, 0.0, 0.0);
         }
 
+        /** Normalizes the item, quantity, and chance values. */
         public BonusDrop(String itemId, int quantity, double baseChance, double perTierChance) {
             this.itemId = normalizeItemId(itemId);
             this.quantity = normalizeQuantity(quantity);
@@ -139,14 +148,17 @@ public final class OreCrusherConfig {
             this.perTierChance = normalizeChance(perTierChance);
         }
 
+        /** Returns the configured bonus item ID. */
         public String getItemId() {
             return itemId;
         }
 
+        /** Returns the configured bonus item count. */
         public int getQuantity() {
             return quantity;
         }
 
+        /** Adds the per-tier chance and clamps the resulting probability to zero through one. */
         public double getChance(int tier) {
             int safeTier = clampTier(tier);
             double value = baseChance + perTierChance * safeTier;
@@ -156,10 +168,12 @@ public final class OreCrusherConfig {
             return Math.min(1.0, value);
         }
 
+        /** Returns the configured base chance. */
         public double getBaseChance() {
             return baseChance;
         }
 
+        /** Returns the configured chance increment per tier. */
         public double getPerTierChance() {
             return perTierChance;
         }
@@ -227,6 +241,7 @@ public final class OreCrusherConfig {
     private static BonusDrop powderBonusDrop = DEFAULT_POWDER_DROP;
     private static List<BonusDrop> bonusDropList = toBonusDropList(bonusDrops);
 
+    /** Codec-backed settings initialized with copies of the defaults. */
     public static final class ConfigData {
         public static final BuilderCodec<ConfigData> CODEC =
                 BuilderCodec.builder(ConfigData.class, ConfigData::new)
@@ -304,6 +319,7 @@ public final class OreCrusherConfig {
     private OreCrusherConfig() {
     }
 
+    /** Merges supplied tier values, processing settings, upgrade costs, and bonus drops. */
     public static void applyConfig(ConfigData data) {
         if (data == null) {
             return;
@@ -331,6 +347,7 @@ public final class OreCrusherConfig {
         bonusDropList = toBonusDropList(bonusDrops);
     }
 
+    /** Restricts a tier to the supported range. */
     public static int clampTier(int tier) {
         if (tier < MIN_TIER) {
             return MIN_TIER;
@@ -341,39 +358,48 @@ public final class OreCrusherConfig {
         return tier;
     }
 
+    /** Reports whether the clamped tier has an upgrade. */
     public static boolean hasNextTier(int tier) {
         return clampTier(tier) < MAX_TIER;
     }
 
+    /** Returns the configured name for a tier. */
     public static String getTierName(int tier) {
         return tierNames[clampTier(tier)];
     }
 
+    /** Returns the configured energy capacity. */
     public static int getCapacityForTier(int tier) {
         return capacity[clampTier(tier)];
     }
 
+    /** Returns the configured energy consumption per second. */
     public static int getConsumptionPerSecond(int tier) {
         return consumptionPerSecond[clampTier(tier)];
     }
 
+    /** Uses at least one unit or the configured consumption as the transfer limit. */
     public static int getMaxTransferForTier(int tier) {
         return Math.max(1, getConsumptionPerSecond(tier));
     }
 
+    /** Returns the configured output multiplier. */
     public static int getOutputMultiplierForTier(int tier) {
         return outputMultiplier[clampTier(tier)];
     }
 
+    /** Returns the configured processing duration in seconds. */
     public static double getProcessingSecondsForTier(int tier) {
         return processingSeconds[clampTier(tier)];
     }
 
+    /** Converts processing seconds to at least one game tick. */
     public static int getProcessingDelayTicks(int tier) {
         double seconds = getProcessingSecondsForTier(tier);
         return Math.max(1, (int) Math.round(seconds * TICKS_PER_SECOND));
     }
 
+    /** Returns the next upgrade cost, or an empty array at the highest tier. */
     public static Requirement[] getUpgradeRequirements(int currentTier) {
         int safeTier = clampTier(currentTier);
         if (safeTier >= MAX_TIER) {
@@ -386,10 +412,12 @@ public final class OreCrusherConfig {
         return requirements;
     }
 
+    /** Looks up bonus drops without a recipe output override. */
     public static List<BonusDrop> getBonusDropsForOre(String oreId) {
         return getBonusDropsForOre(oreId, null);
     }
 
+    /** Returns ore bonus drops and includes the configured powder bonus when a powder ID is resolved. */
     public static List<BonusDrop> getBonusDropsForOre(String oreId, String recipeOutputId) {
         if (oreId == null || oreId.isEmpty()) {
             return Collections.emptyList();
@@ -407,14 +435,17 @@ public final class OreCrusherConfig {
         return combined;
     }
 
+    /** Returns the configured general bonus-drop list. */
     public static List<BonusDrop> getBonusDropConfig() {
         return bonusDropList;
     }
 
+    /** Returns the configured powder bonus, which may be null. */
     public static BonusDrop getPowderBonusDropConfig() {
         return powderBonusDrop;
     }
 
+    /** Uses a powder recipe output when present, then ore-specific overrides and naming conventions. */
     public static String resolvePowderId(String oreId, String recipeOutputId) {
         if (recipeOutputId != null && recipeOutputId.contains("Powder")) {
             return recipeOutputId;
@@ -447,6 +478,7 @@ public final class OreCrusherConfig {
         return null;
     }
 
+    /** Maps selected ore names to their specific powder item IDs. */
     private static String resolvePowderOverride(String oreId) {
         if (oreId == null) {
             return null;
@@ -485,6 +517,7 @@ public final class OreCrusherConfig {
         }
     }
 
+    /** Recognizes the Ore_ prefix or the HyProTech_..._Ore naming form. */
     private static boolean isOreId(String oreId) {
         if (oreId == null || oreId.isEmpty()) {
             return false;
@@ -495,6 +528,7 @@ public final class OreCrusherConfig {
         return oreId.startsWith("HyProTech_") && oreId.endsWith("_Ore");
     }
 
+    /** Starts with sanitized defaults and replaces each supplied tier row. */
     private static Requirement[][] mergeRequirements(Requirement[][] value, Requirement[][] defaults) {
         Requirement[][] result = new Requirement[TIER_COUNT][];
         for (int i = 0; i < TIER_COUNT; i++) {
@@ -513,10 +547,12 @@ public final class OreCrusherConfig {
         return result;
     }
 
+    /** Creates a sanitized copy of the requirement table and its entries. */
     private static Requirement[][] copyRequirements(Requirement[][] source) {
         return mergeRequirements(source, source);
     }
 
+    /** Drops null entries, blank IDs, and non-positive counts. */
     private static Requirement[] sanitizeRequirements(Requirement[] requirements) {
         if (requirements == null || requirements.length == 0) {
             return new Requirement[0];
@@ -539,6 +575,7 @@ public final class OreCrusherConfig {
         return cleaned.toArray(new Requirement[0]);
     }
 
+    /** Uses sanitized supplied drops, or copies the defaults when the value is null. */
     private static BonusDrop[] mergeBonusDrops(BonusDrop[] value, BonusDrop[] defaults) {
         if (value == null) {
             return copyBonusDrops(defaults);
@@ -546,6 +583,7 @@ public final class OreCrusherConfig {
         return sanitizeBonusDrops(value);
     }
 
+    /** Returns a sanitized copy of the bonus drops. */
     private static BonusDrop[] copyBonusDrops(BonusDrop[] source) {
         if (source == null || source.length == 0) {
             return new BonusDrop[0];
@@ -553,6 +591,7 @@ public final class OreCrusherConfig {
         return sanitizeBonusDrops(source);
     }
 
+    /** Copies valid drops and normalizes their item IDs, counts, and chance values. */
     private static BonusDrop[] sanitizeBonusDrops(BonusDrop[] drops) {
         if (drops == null || drops.length == 0) {
             return new BonusDrop[0];
@@ -577,6 +616,7 @@ public final class OreCrusherConfig {
         return cleaned.toArray(new BonusDrop[0]);
     }
 
+    /** Sanitizes the supplied powder drop, falling back only when it is null. */
     private static BonusDrop mergePowderDrop(BonusDrop value, BonusDrop fallback) {
         if (value == null) {
             return sanitizeSingleDrop(fallback);
@@ -584,6 +624,7 @@ public final class OreCrusherConfig {
         return sanitizeSingleDrop(value);
     }
 
+    /** Returns a normalized drop or null when its item or quantity is invalid. */
     private static BonusDrop sanitizeSingleDrop(BonusDrop drop) {
         if (drop == null) {
             return null;
@@ -598,6 +639,7 @@ public final class OreCrusherConfig {
         return new BonusDrop(itemId, quantity, baseChance, perTierChance);
     }
 
+    /** Exposes the array as an unmodifiable list, or an empty list when absent. */
     private static List<BonusDrop> toBonusDropList(BonusDrop[] drops) {
         if (drops == null || drops.length == 0) {
             return Collections.emptyList();
@@ -605,6 +647,7 @@ public final class OreCrusherConfig {
         return Collections.unmodifiableList(Arrays.asList(drops));
     }
 
+    /** Trims IDs and converts null or whitespace-only values to an empty string. */
     private static String normalizeItemId(String value) {
         if (value == null) {
             return "";
@@ -613,6 +656,7 @@ public final class OreCrusherConfig {
         return trimmed.isEmpty() ? "" : trimmed;
     }
 
+    /** Treats a missing decoded quantity as zero. */
     private static int normalizeQuantity(Integer value) {
         if (value == null) {
             return 0;
@@ -620,10 +664,12 @@ public final class OreCrusherConfig {
         return normalizeQuantity(value.intValue());
     }
 
+    /** Clamps quantities to zero or above. */
     private static int normalizeQuantity(int value) {
         return Math.max(0, value);
     }
 
+    /** Treats a missing decoded chance as zero. */
     private static double normalizeChance(Double value) {
         if (value == null) {
             return 0.0;
@@ -631,6 +677,7 @@ public final class OreCrusherConfig {
         return normalizeChance(value.doubleValue());
     }
 
+    /** Replaces non-finite chance values with zero. */
     private static double normalizeChance(double value) {
         if (!Double.isFinite(value)) {
             return 0.0;

@@ -30,21 +30,26 @@ import com.doctorreborn.hytale.api.energy.v2.Energy;
 import com.shailist.hytale.api.transfer.v1.storage.base.InsertionOnlyStorage;
 import com.shailist.hytale.api.transfer.v1.transaction.TransactionContext;
 
+/** Insertion-only sink that reports accepting the requested amount without retaining it. */
 public class VoidEnergyStorage implements InsertionOnlyStorage<Energy> {
 
+    /** Returns the requested amount without storing it. */
     @Override
     public long insert(Energy resource, long maxAmount, @NonNull TransactionContext transaction) {
         return maxAmount;
     }
 
+    /** Invokes insertion for the singleton energy resource. */
     public long insert(long maxAmount, @NonNull TransactionContext transaction) {
         return insert(Energy.INSTANCE, maxAmount, transaction);
     }
 
+    /** The sink never retains energy. */
     public long getAmount() {
         return 0;
     }
 
+    /** Returns a diagnostic name for this sink. */
     @Override
     public String toString() {
         return "VoidEnergyStorage[]";

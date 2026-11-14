@@ -4,7 +4,9 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.simple.StringCodec;
 
+/** Carries an item-network priority UI action, index, and value. */
 public class ItemNetworkPriorityEvent {
+    // Decode the UI event fields from their named string values.
     public static final BuilderCodec<ItemNetworkPriorityEvent> CODEC =
             BuilderCodec.<ItemNetworkPriorityEvent>builder(
                             ItemNetworkPriorityEvent.class,
@@ -24,14 +26,17 @@ public class ItemNetworkPriorityEvent {
     private String index;
     private String value;
 
+    /** Returns the decoded action. */
     public String getAction() {
         return action;
     }
 
+    /** Returns the decoded index. */
     public String getIndex() {
         return index;
     }
 
+    /** Returns the decoded value. */
     public String getValue() {
         return value;
     }

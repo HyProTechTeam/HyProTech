@@ -1,5 +1,6 @@
 $C = "Common.ui";
 
+// Minimal root used when an empty HUD is required.
 Group #EmptyHudRoot {
   Anchor: (Top: 0, Left: 0, Width: 1, Height: 1);
 }

@@ -19,6 +19,7 @@
 
 package com.doctorreborn.hytale.api.energy.v1;
 
+/** Contract for a producer that reports its configured and most recent production. */
 public interface EnergyProducer {
     /**
      * @return The maximum amount of energy this producer can produce.

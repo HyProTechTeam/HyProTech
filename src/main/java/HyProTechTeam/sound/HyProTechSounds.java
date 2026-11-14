@@ -14,7 +14,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+/** Resolves machine sound assets and schedules repeated positional playback. */
 public final class HyProTechSounds {
+    // The master switch currently disables registration and playback for every sound.
     private static final boolean DISABLED = true;
     private static final boolean ONLY_WIND = false;
     public static final String EVENT_WIND_TURBINE = "HyProTech_Wind_Turbine";
@@ -27,6 +29,7 @@ public final class HyProTechSounds {
 
     public static final long DEFAULT_LOOP_MS = 10000L;
 
+    // Asset indexes, durations and registration warnings can be accessed by multiple callers.
     private static final Map<String, Integer> SOUND_INDEX_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, Long> LOOP_MS_CACHE = new ConcurrentHashMap<>();
     private static final Set<String> REGISTERED_EVENTS = ConcurrentHashMap.newKeySet();
@@ -36,6 +39,7 @@ public final class HyProTechSounds {
     private HyProTechSounds() {
     }
 
+    /** Resolves the enabled default events once the server's sound assets are available. */
     public static void registerDefaultsIfMissing() {
         if (DISABLED) {
             return;
@@ -54,6 +58,7 @@ public final class HyProTechSounds {
         }
     }
 
+    /** Requests an interruption by playing the event at zero volume. */
     public static void stopSound(World world, int x, int y, int z, String eventId, String soundFile) {
         if (DISABLED) {
             return;
@@ -64,6 +69,7 @@ public final class HyProTechSounds {
         playSound(world, x, y, z, eventId, soundFile, 0f, 1f);
     }
 
+    /** Updates the next playback deadline stored on a machine component. */
     public static void tickLoop(
             World world,
             int x,
@@ -84,6 +90,7 @@ public final class HyProTechSounds {
         }
     }
 
+    /** Updates the next playback deadline stored on an energy node. */
     public static void tickLoop(
             World world,
             int x,
@@ -104,6 +111,7 @@ public final class HyProTechSounds {
         }
     }
 
+    /** Plays when work starts or the previous loop expires; resets the deadline when idle. */
     private static long tickLoopInternal(
             World world,
             int x,
@@ -127,6 +135,7 @@ public final class HyProTechSounds {
             }
             return 0L;
         }
+        // Keep the existing deadline while the current sound is still within its loop interval.
         long now = System.currentTimeMillis();
         if (nextSoundMs > 0L && now < nextSoundMs) {
             return nextSoundMs;
@@ -136,6 +145,7 @@ public final class HyProTechSounds {
         return now + loopMs;
     }
 
+    /** Resolves the event and schedules 3D playback at the block center on the world thread. */
     private static void playSound(
             World world,
             int x,
@@ -174,6 +184,7 @@ public final class HyProTechSounds {
         });
     }
 
+    /** Reuses valid indexes, attempting fallback registration when the event is missing. */
     private static int resolveSoundIndex(String eventId, String soundFile) {
         Integer cached = SOUND_INDEX_CACHE.get(eventId);
         if (cached != null && cached > 0) {
@@ -192,11 +203,13 @@ public final class HyProTechSounds {
         return index;
     }
 
+    /** Uses a known base-game event as a readiness check for the sound asset map. */
     private static boolean assetsReady() {
         int baseIndex = SoundEvent.getAssetMap().getIndex("SFX_Cactus_Large_Hit");
         return baseIndex > 0;
     }
 
+    /** Logs each missing event at most once. */
     private static void warnMissingEvent(String eventId, String soundFile, int index) {
         if (eventId == null || eventId.isEmpty()) {
             return;
@@ -209,6 +222,7 @@ public final class HyProTechSounds {
                 + ", assetsReady=" + assetsReady() + ")");
     }
 
+    /** Attempts to create a single-layer event from the supplied file if no asset exists. */
     private static void registerFallbackSoundEvent(String eventId, String soundFile) {
         if (!REGISTERED_EVENTS.add(eventId)) {
             return;
@@ -240,6 +254,7 @@ public final class HyProTechSounds {
         }
     }
 
+    /** Selects an explicit loop duration, cached Ogg duration, or caller-provided fallback. */
     private static long resolveLoopMs(String soundFile, long fallbackMs) {
         if (soundFile == null || soundFile.isEmpty()) {
             return fallbackMs;
@@ -258,6 +273,7 @@ public final class HyProTechSounds {
         });
     }
 
+    /** Defines explicit loop intervals for the bundled machine sounds. */
     private static Map<String, Long> buildLoopOverrides() {
         Map<String, Long> overrides = new HashMap<>();
         overrides.put(FILE_ELECTRIC_FURNACE, 49500L);
@@ -266,6 +282,7 @@ public final class HyProTechSounds {
         return overrides;
     }
 
+    /** Applies the optional wind-only filter after rejecting an empty event ID. */
     private static boolean isEnabledEvent(String eventId) {
         if (eventId == null || eventId.isEmpty()) {
             return false;

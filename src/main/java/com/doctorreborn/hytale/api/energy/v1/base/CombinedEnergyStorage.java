@@ -63,6 +63,7 @@ public class CombinedEnergyStorage<S extends EnergyStorage> implements EnergySto
         this.parts = parts;
     }
 
+    /** Reports insertion support when at least one wrapped part supports it. */
     @Override
     public boolean supportsInsertion() {
         for (S part : parts) {
@@ -74,6 +75,7 @@ public class CombinedEnergyStorage<S extends EnergyStorage> implements EnergySto
         return false;
     }
 
+    /** Offers each part the remaining amount until the request is satisfied. */
     @Override
     public long insert(long maxAmount, @NonNull TransactionContext transaction) {
         StoragePreconditions.notNegative(maxAmount);
@@ -88,6 +90,7 @@ public class CombinedEnergyStorage<S extends EnergyStorage> implements EnergySto
         return amount;
     }
 
+    /** Reports extraction support when at least one wrapped part supports it. */
     @Override
     public boolean supportsExtraction() {
         for (S part : parts) {
@@ -99,6 +102,7 @@ public class CombinedEnergyStorage<S extends EnergyStorage> implements EnergySto
         return false;
     }
 
+    /** Requests the remaining amount from each part in order. */
     @Override
     public long extract(long maxAmount, @NonNull TransactionContext transaction) {
         StoragePreconditions.notNegative(maxAmount);
@@ -113,11 +117,13 @@ public class CombinedEnergyStorage<S extends EnergyStorage> implements EnergySto
         return amount;
     }
 
+    /** Iterates over the views of each part in order. */
     @Override
     public @NonNull Iterator<EnergyStorageView> iterator() {
         return new CombinedIterator();
     }
 
+    /** Displays the wrapped parts for diagnostics. */
     @Override
     public String toString() {
         StringJoiner partNames = new StringJoiner(", ");
@@ -142,11 +148,13 @@ public class CombinedEnergyStorage<S extends EnergyStorage> implements EnergySto
             advanceCurrentPartIterator();
         }
 
+        /** Reports whether the current backing iterator has another view. */
         @Override
         public boolean hasNext() {
             return currentPartIterator != null && currentPartIterator.hasNext();
         }
 
+        /** Returns the next view and advances to the next nonempty part when necessary. */
         @Override
         public EnergyStorageView next() {
             if (!hasNext()) {
@@ -163,6 +171,7 @@ public class CombinedEnergyStorage<S extends EnergyStorage> implements EnergySto
             return returned;
         }
 
+        /** Skips empty part iterators until a view is found or the parts are exhausted. */
         private void advanceCurrentPartIterator() {
             while (partIterator.hasNext()) {
                 this.currentPartIterator = partIterator.next().iterator();

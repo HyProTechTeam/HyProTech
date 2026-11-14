@@ -17,17 +17,20 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import java.lang.reflect.Method;
 
+/** Displays changelog text and records when the player dismisses the page. */
 public final class ChangelogPage extends InteractiveCustomUIPage<ChangelogEvent> {
     private static final String PAGE_LAYOUT = "HyProTech_Changelog.ui";
     private static final String ACTION_CLOSE = "Close";
 
     private final ChangelogManager changelogManager;
 
+    /** Creates a dismissible page using the changelog event codec. */
     public ChangelogPage(PlayerRef playerRef, ChangelogManager changelogManager) {
         super(playerRef, CustomPageLifetime.CanDismiss, ChangelogEvent.CODEC);
         this.changelogManager = changelogManager;
     }
 
+    /** Loads the layout, fills its text, and binds the close button. */
     @Override
     public void build(
             Ref<EntityStore> playerRef,
@@ -42,6 +45,7 @@ public final class ChangelogPage extends InteractiveCustomUIPage<ChangelogEvent>
                 EventData.of("Action", ACTION_CLOSE));
     }
 
+    /** Marks the changelog seen on the close action and attempts to dismiss the page. */
     @Override
     public void handleDataEvent(Ref<EntityStore> playerRef, Store<EntityStore> store, ChangelogEvent data) {
         if (data == null || data.getAction() == null) {
@@ -61,6 +65,7 @@ public final class ChangelogPage extends InteractiveCustomUIPage<ChangelogEvent>
         dismiss(playerRef, store);
     }
 
+    /** Marks the changelog seen when the page is dismissed by another route. */
     @Override
     public void onDismiss(Ref<EntityStore> playerRef, Store<EntityStore> store) {
         if (changelogManager != null) {
@@ -69,6 +74,7 @@ public final class ChangelogPage extends InteractiveCustomUIPage<ChangelogEvent>
         super.onDismiss(playerRef, store);
     }
 
+    /** Tries compatible page-manager close methods, then sends a dismiss event as a fallback. */
     private void dismiss(Ref<EntityStore> playerRef, Store<EntityStore> store) {
         if (playerRef == null || store == null) {
             return;
@@ -95,10 +101,12 @@ public final class ChangelogPage extends InteractiveCustomUIPage<ChangelogEvent>
         }
     }
 
+    /** Returns the page player's UUID, or null when no player reference is available. */
     private java.util.UUID getPlayerUuid() {
         return playerRef == null ? null : playerRef.getUuid();
     }
 
+    /** Tries known close method names and argument combinations for API compatibility. */
     private boolean tryClosePage(PageManager pageManager, Ref<EntityStore> playerRef, Store<EntityStore> store) {
         if (pageManager == null) {
             return false;
@@ -125,6 +133,7 @@ public final class ChangelogPage extends InteractiveCustomUIPage<ChangelogEvent>
         return false;
     }
 
+    /** Invokes the first compatible named overload that succeeds, returning whether one worked. */
     private boolean invokePageMethod(PageManager pageManager, String name, Object... args) {
         if (pageManager == null || name == null) {
             return false;

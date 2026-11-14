@@ -22,15 +22,18 @@ package com.doctorreborn.hytale.api.energy.v2.base;
 import com.doctorreborn.hytale.api.energy.v2.EnergyTransferer;
 import com.doctorreborn.hytale.api.energy.v2.EnergyPreconditions;
 
+/** Stores the configured transfer rate. */
 public class BaseEnergyTransferer implements EnergyTransferer {
     private long transferRate;
 
+    /** Validates and stores the transfer rate. */
     public BaseEnergyTransferer(long transferRate) {
         EnergyPreconditions.notNegative(transferRate);
 
         this.transferRate = transferRate;
     }
 
+    /** Returns the configured transfer rate. */
     @Override
     public long getTransferRate() {
         return transferRate;

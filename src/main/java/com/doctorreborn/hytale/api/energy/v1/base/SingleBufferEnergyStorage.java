@@ -38,24 +38,29 @@ public class SingleBufferEnergyStorage extends SnapshotParticipant<Long> impleme
     protected long amount = 0;
     protected long capacity;
 
+    /** Creates an initially empty buffer with the supplied capacity. */
     public SingleBufferEnergyStorage(long capacity) {
         this.capacity = capacity;
     }
 
+    /** Returns the current buffer contents. */
     @Override
     public long getAmount() {
         return amount;
     }
 
+    /** Returns the buffer capacity. */
     @Override
     public long getCapacity() {
         return capacity;
     }
 
+    /** Inserts up to the available capacity and records a rollback snapshot before mutation. */
     @Override
     public long insert(long maxAmount, TransactionContext transaction) {
         StoragePreconditions.notNegative(maxAmount);
 
+        // Never insert more than the requested amount or the remaining capacity.
         long inserted = Math.min(maxAmount, getCapacity() - amount);
 
         if (inserted > 0) {
@@ -67,6 +72,7 @@ public class SingleBufferEnergyStorage extends SnapshotParticipant<Long> impleme
         return 0;
     }
 
+    /** Extracts up to the stored amount and records a rollback snapshot before mutation. */
     @Override
     public long extract(long maxAmount, TransactionContext transaction) {
         StoragePreconditions.notNegative(maxAmount);
@@ -82,16 +88,19 @@ public class SingleBufferEnergyStorage extends SnapshotParticipant<Long> impleme
         return 0;
     }
 
+    /** Captures the current amount for a transaction. */
     @Override
     protected Long createSnapshot() {
         return amount;
     }
 
+    /** Restores the amount when a transaction rolls back. */
     @Override
     protected void readSnapshot(Long snapshot) {
         amount = snapshot;
     }
 
+    /** Displays the current amount and capacity for diagnostics. */
     @Override
     public String toString() {
         return "SingleBufferEnergyStorage[" + amount + "/" + capacity + "]";

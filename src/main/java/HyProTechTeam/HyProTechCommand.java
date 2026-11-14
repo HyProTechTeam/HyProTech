@@ -22,6 +22,7 @@ import org.bson.BsonString;
 import java.util.Arrays;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 
+/** Handles player commands for giving mod items and opening the changelog. */
 public class HyProTechCommand extends AbstractPlayerCommand {
     private final RequiredArg<String> actionArg =
             withRequiredArg("action", "Akce: give/changelog", ArgTypes.STRING);
@@ -35,6 +36,7 @@ public class HyProTechCommand extends AbstractPlayerCommand {
             withOptionalArg("count", "Mnozstvi (default 1)", ArgTypes.INTEGER);
     private final ChangelogManager changelogManager;
 
+    /** Registers the command name, alias, and changelog manager. */
     public HyProTechCommand(ChangelogManager changelogManager) {
         super("hyprotech", "HyProTech prikazy", false);
         addAliases("hpt");
@@ -42,6 +44,7 @@ public class HyProTechCommand extends AbstractPlayerCommand {
         this.changelogManager = changelogManager;
     }
 
+    /** Dispatches changelog and give actions using parsed or positional arguments. */
     @Override
     protected void execute(
             @NonNullDecl CommandContext commandContext,
@@ -54,6 +57,7 @@ public class HyProTechCommand extends AbstractPlayerCommand {
             return;
         }
 
+        // Changelog is handled separately; unsupported actions show command usage.
         String action = actionArg.get(commandContext);
         if ("changelog".equalsIgnoreCase(action)) {
             if (changelogManager == null) {
@@ -72,6 +76,7 @@ public class HyProTechCommand extends AbstractPlayerCommand {
             return;
         }
 
+        // Default to one item and reject counts below one.
         int count = 1;
         if (countArg.provided(commandContext)) {
             count = Math.max(1, countArg.get(commandContext));
@@ -80,6 +85,7 @@ public class HyProTechCommand extends AbstractPlayerCommand {
         Inventory inventory = player.getInventory();
         ItemContainer container = inventory.getStorage();
 
+        // Prefer the typed argument; otherwise fall back to tokens from the raw command.
         String itemId = null;
         if (itemArg.provided(commandContext)) {
             itemId = resolveItemId(itemArg.get(commandContext));
@@ -100,6 +106,7 @@ public class HyProTechCommand extends AbstractPlayerCommand {
             return;
         }
 
+        // With no resolved item ID, give the built-in set of common mod blocks.
         giveItem(container, HyProTechIds.BLOCK_SOLAR_PANEL, count, player);
         giveItem(container, HyProTechIds.BLOCK_ENERGY_CABLE, count, player);
         giveItem(container, HyProTechIds.BLOCK_ITEM_CABLE, count, player);
@@ -111,6 +118,7 @@ public class HyProTechCommand extends AbstractPlayerCommand {
         player.sendMessage(Message.raw("Pridany HyProTech bloky do inventare."));
     }
 
+    /** Expands common aliases to block IDs and passes unrecognized values through unchanged. */
     private String resolveItemId(String itemId) {
         if (itemId == null) {
             return null;
@@ -151,6 +159,7 @@ public class HyProTechCommand extends AbstractPlayerCommand {
         }
     }
 
+    /** Removes the command name and action from raw whitespace-separated input tokens. */
     private String[] getPositionalArgs(CommandContext commandContext, String action) {
         String input = commandContext.getInputString();
         if (input == null) {
@@ -180,6 +189,7 @@ public class HyProTechCommand extends AbstractPlayerCommand {
         return Arrays.copyOfRange(tokens, index, tokens.length);
     }
 
+    /** Parses a positive count or returns the supplied fallback for invalid input. */
     private int parseCount(String value, int fallback) {
         if (value == null) {
             return fallback;
@@ -191,6 +201,7 @@ public class HyProTechCommand extends AbstractPlayerCommand {
         }
     }
 
+    /** Adds a known item and initializes block-state metadata for supported machines. */
     private boolean giveItem(ItemContainer container, String itemId, int count, Player player) {
         Item item = Item.getAssetMap().getAsset(itemId);
         if (item == null || item == Item.UNKNOWN) {
@@ -198,6 +209,7 @@ public class HyProTechCommand extends AbstractPlayerCommand {
             return false;
         }
 
+        // Furnace items require a processing bench state; crusher and smelter use container state.
         ItemStack stack = new ItemStack(itemId, count);
         if (TieredIdUtil.isTieredId(itemId, HyProTechIds.BLOCK_ELECTRIC_FURNACE)) {
             BsonDocument blockState = new BsonDocument("Type", new BsonString("processingBench"));

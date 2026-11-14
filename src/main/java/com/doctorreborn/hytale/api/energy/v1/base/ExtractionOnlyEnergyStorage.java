@@ -33,11 +33,13 @@ import com.shailist.hytale.api.transfer.v1.transaction.TransactionContext;
  * A {@link EnergyStorage} that supports extraction, and not insertion.
  */
 public interface ExtractionOnlyEnergyStorage extends EnergyStorage {
+    /** Reports that insertion is unsupported. */
     @Override
     default boolean supportsInsertion() {
         return false;
     }
 
+    /** Rejects insertion by returning zero. */
     @Override
     default long insert(long maxAmount, @NonNull TransactionContext transaction) {
         return 0;

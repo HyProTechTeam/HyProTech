@@ -33,23 +33,28 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import java.util.ArrayList;
 import java.util.List;
 
+/** Mines blocks in a configured area, collecting drops and optionally replacing non-ore blocks. */
 public final class QuarryMachine extends MasterMachine {
     public static final String ID = "HyProTech:quarry";
     private static final int MINING_OFFSET_Z = -2;
+    // Keep replacement progress separately for each world and quarry origin.
     private static final java.util.Map<World, java.util.Map<String, BackfillState>> BACKFILL_STATE =
             new java.util.HashMap<>();
 
+    /** Returns the registry ID for the quarry definition. */
     @Override
     public String id() {
         return ID;
     }
 
+    /** Matches the quarry base ID and its tiered or state variants. */
     @Override
     public boolean matchesBlockId(String blockId) {
         return TieredIdUtil.isTieredId(blockId, HyProTechIds.BLOCK_QUARRY)
                 || isIdOrState(blockId, HyProTechIds.BLOCK_QUARRY);
     }
 
+    /** Applies base defaults and fills an absent machine ID or non-positive dimensions. */
     @Override
     public void configureDefaults(MachineComponent machine, EnergyNodeComponent energy) {
         super.configureDefaults(machine, energy);
@@ -66,16 +71,19 @@ public final class QuarryMachine extends MasterMachine {
         }
     }
 
+    /** Uses the minimum tier's configured energy capacity as the initial capacity. */
     @Override
     protected int defaultCapacity() {
         return QuarryConfig.getCapacityForTier(QuarryConfig.MIN_TIER);
     }
 
+    /** Uses the minimum tier's configured transfer limit initially. */
     @Override
     protected int defaultMaxTransfer() {
         return QuarryConfig.getMaxTransferForTier(QuarryConfig.MIN_TIER);
     }
 
+    /** Advances mining or a pending backfill operation for one quarry tick. */
     @Override
     public boolean tick(MachineContext context, float deltaSeconds) {
         if (context == null) {
@@ -98,6 +106,7 @@ public final class QuarryMachine extends MasterMachine {
             return false;
         }
 
+        // Torch bounds override the dimensions normally selected for the quarry.
         Vector3i originPos = new Vector3i(context.getX(), context.getY(), context.getZ());
         QuarryAreaManager.TorchBounds torchBounds =
                 QuarryAreaManager.getTorchBounds(world, originPos);
@@ -122,6 +131,7 @@ public final class QuarryMachine extends MasterMachine {
         Rotation yaw = getBlockYaw(world, originX, originY, originZ);
         Bounds bounds = computeMiningBounds(width, depth);
 
+        // Keep backfill progress only while replacement mode is active.
         boolean replaceMode = QuarryConfig.isForceReplaceBlocks() || machine.isReplaceMinedBlocks();
         BackfillState backfillState = replaceMode ? getBackfillState(world, originPos, true) : null;
         if (!replaceMode) {
@@ -131,6 +141,7 @@ public final class QuarryMachine extends MasterMachine {
         long tick = world.getTick();
         int backfillPlaceDelay = QuarryConfig.getBackfillPlaceDelayTicks();
         int backfillPostDelay = QuarryConfig.getBackfillPostDelayTicks();
+        // Finish a pending replacement before searching for another block.
         if (backfillState != null) {
             if (backfillState.pending != null) {
                 if (tick < backfillState.pending.placeAtTick) {
@@ -159,6 +170,7 @@ public final class QuarryMachine extends MasterMachine {
             }
         }
 
+        // Search torch-defined world bounds or the quarry's rotated local bounds.
         BlockTarget target;
         Vector3i startAfter = backfillState == null ? null : backfillState.lastPos;
         if (torchBounds != null) {
@@ -186,11 +198,13 @@ public final class QuarryMachine extends MasterMachine {
         int progressMax = Math.max(1, machine.getProgressMax());
         int currentProgress = machine.getProgress();
 
+        // Replacement mode backfills non-ore blocks using a suitable drop or block ID.
         boolean backfill = replaceMode && !isOreBlockId(target.blockType.getId());
         List<ItemStack> drops = resolveDrops(target.blockType);
         ItemStack replacement = backfill ? pickReplacementStack(drops, target.blockType) : null;
         boolean preConsumed = false;
 
+        // A full inventory stops normal mining; backfill can proceed if a replacement can be consumed.
         if (container != null && isContainerFull(container)) {
             if (!backfill) {
                 return changed;
@@ -206,6 +220,7 @@ public final class QuarryMachine extends MasterMachine {
             }
         }
 
+        // Convert per-second consumption to a cost for this tick and extract it transactionally.
         int consumptionPerSecond = Math.max(0, energy.getConsumption());
         int cost = 0;
         if (consumptionPerSecond > 0 && deltaSeconds > 0f) {
@@ -218,6 +233,7 @@ public final class QuarryMachine extends MasterMachine {
             return changed;
         }
 
+        // Advance one step and wait until the configured mining threshold is reached.
         int progress = currentProgress + 1;
         if (progress < progressMax) {
             machine.setProgress(progress);
@@ -226,6 +242,7 @@ public final class QuarryMachine extends MasterMachine {
         }
         machine.setProgress(0);
 
+        // Store drops where possible and spawn the remainder before scheduling the block break.
         if (drops != null && !drops.isEmpty()) {
             if (container != null) {
                 addDropsToContainerOrWorld(container, world, drops, target.pos);
@@ -236,6 +253,7 @@ public final class QuarryMachine extends MasterMachine {
 
         scheduleBlockBreak(world, target.pos);
 
+        // Record replacement state and delay placement until a later world tick.
         if (backfill && container != null && replacement != null && backfillState != null) {
             boolean consumed = preConsumed || consumeItemFromContainer(container, replacement);
             backfillState.lastPos = target.pos;
@@ -257,6 +275,7 @@ public final class QuarryMachine extends MasterMachine {
         return true;
     }
 
+    /** Applies tier bounds, dimensions, capacity, consumption, transfer, and mining delay. */
     private boolean applyTierSettings(
             MachineComponent machine,
             EnergyNodeComponent energy,
@@ -271,6 +290,7 @@ public final class QuarryMachine extends MasterMachine {
             changed = true;
         }
 
+        // Torch-defined dimensions are bounded by the minimum but not the tier maximum.
         int width = allowLargeArea
                 ? Math.max(QuarryConfig.MIN_AREA, machine.getAreaWidth())
                 : QuarryConfig.clampAreaForTier(tier, machine.getAreaWidth());
@@ -319,6 +339,7 @@ public final class QuarryMachine extends MasterMachine {
         return changed;
     }
 
+    /** Searches explicit world bounds after the previous position, then wraps if necessary. */
     private BlockTarget findNextTargetInBounds(
             World world,
             int minX,
@@ -337,6 +358,7 @@ public final class QuarryMachine extends MasterMachine {
                 world, minX, maxX, minZ, maxZ, originY, startAfter, replaceMode, false);
     }
 
+    /** Scans loaded blocks downward through the explicit world-coordinate bounds. */
     private BlockTarget findNextTargetInBoundsInternal(
             World world,
             int minX,
@@ -382,6 +404,7 @@ public final class QuarryMachine extends MasterMachine {
         return null;
     }
 
+    /** Searches rotated local bounds after the previous position, then wraps if necessary. */
     private BlockTarget findNextTarget(
             World world,
             int originX,
@@ -400,6 +423,7 @@ public final class QuarryMachine extends MasterMachine {
                 world, originX, originY, originZ, bounds, yaw, startAfter, replaceMode, false);
     }
 
+    /** Scans loaded blocks downward, rotating local offsets into world coordinates. */
     private BlockTarget findNextTargetInternal(
             World world,
             int originX,
@@ -452,10 +476,12 @@ public final class QuarryMachine extends MasterMachine {
         return null;
     }
 
+    /** Uses the shared transaction helper to consume the full requested energy amount. */
     private boolean consumeEnergy(EnergyStorage storage, int amount) {
         return MachineCommonUtil.consumeEnergy(storage, amount);
     }
 
+    /** Returns true only when the container has positive capacity and no empty slots. */
     private boolean isContainerFull(ItemContainer container) {
         if (container == null) {
             return false;
@@ -473,6 +499,7 @@ public final class QuarryMachine extends MasterMachine {
         return true;
     }
 
+    /** Resolves drops using the block's first applicable gathering rule, or a generic fallback. */
     private List<ItemStack> resolveDrops(BlockType blockType) {
         if (blockType == null) {
             return List.of();
@@ -503,6 +530,7 @@ public final class QuarryMachine extends MasterMachine {
         return BlockHarvestUtils.getDrops(blockType, 1, null, null);
     }
 
+    /** Passes normalized quantity and optional item/drop-list IDs to the harvesting API. */
     private List<ItemStack> resolveDropType(
             BlockType blockType,
             int quantity,
@@ -514,6 +542,7 @@ public final class QuarryMachine extends MasterMachine {
         return BlockHarvestUtils.getDrops(blockType, safeQuantity, resolvedItemId, resolvedDropListId);
     }
 
+    /** Converts a missing or empty string to null for optional API parameters. */
     private String emptyToNull(String value) {
         if (value == null || value.isEmpty()) {
             return null;
@@ -521,6 +550,7 @@ public final class QuarryMachine extends MasterMachine {
         return value;
     }
 
+    /** Adds each drop to the inventory when it fits; otherwise spawns that drop in the world. */
     private void addDropsToContainerOrWorld(
             ItemContainer container,
             World world,
@@ -541,6 +571,7 @@ public final class QuarryMachine extends MasterMachine {
         }
     }
 
+    /** Spawns nonempty item stacks at the block center with a small upward velocity. */
     private void spawnDrops(World world, List<ItemStack> stacks, Vector3i pos) {
         if (world == null || stacks == null || stacks.isEmpty() || pos == null) {
             return;
@@ -566,6 +597,7 @@ public final class QuarryMachine extends MasterMachine {
         store.addEntities(holders, AddReason.SPAWN);
     }
 
+    /** Rejects empty blocks, bedrock, quarry border blocks, and quarry blocks. */
     private boolean isMineable(BlockType blockType, boolean replaceMode) {
         if (blockType == null || blockType == BlockType.EMPTY) {
             return false;
@@ -583,6 +615,7 @@ public final class QuarryMachine extends MasterMachine {
         return true;
     }
 
+    /** Recognizes ore IDs after stripping any namespace and path prefix. */
     private boolean isOreBlockId(String id) {
         if (id == null || id.isEmpty()) {
             return false;
@@ -605,6 +638,7 @@ public final class QuarryMachine extends MasterMachine {
         return false;
     }
 
+    /** Matches quarry border IDs and variants without regard to case. */
     private boolean isBorderId(String id) {
         if (id == null) {
             return false;
@@ -615,6 +649,7 @@ public final class QuarryMachine extends MasterMachine {
                 || containsIgnoreCase(id, baseId);
     }
 
+    /** Searches for a nonempty substring without regard to case. */
     private boolean containsIgnoreCase(String value, String needle) {
         if (value == null || needle == null || needle.isEmpty()) {
             return false;
@@ -628,6 +663,7 @@ public final class QuarryMachine extends MasterMachine {
         return false;
     }
 
+    /** Reads a loaded block's yaw, defaulting to no rotation when unavailable. */
     private Rotation getBlockYaw(World world, int x, int y, int z) {
         long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
         if (world.getChunkIfLoaded(chunkIndex) == null) {
@@ -640,6 +676,7 @@ public final class QuarryMachine extends MasterMachine {
         return rotation.yaw();
     }
 
+    /** Rotates a horizontal local offset by the block's quarter-turn yaw. */
     private Vector3i rotateLocalOffset(int localX, int localZ, Rotation yaw) {
         if (yaw == Rotation.Ninety) {
             return new Vector3i(localZ, 0, -localX);
@@ -653,6 +690,7 @@ public final class QuarryMachine extends MasterMachine {
         return new Vector3i(localX, 0, localZ);
     }
 
+    /** Builds centered local bounds for a width and depth. */
     private Bounds computeBounds(int width, int depth) {
         int halfWidth = width / 2;
         int halfDepth = depth / 2;
@@ -663,6 +701,7 @@ public final class QuarryMachine extends MasterMachine {
         return new Bounds(minX, maxX, minZ, maxZ);
     }
 
+    /** Builds local mining bounds behind the machine using the configured offset. */
     private Bounds computeMiningBounds(int width, int depth) {
         int halfWidth = width / 2;
         int minX = -halfWidth;
@@ -672,6 +711,7 @@ public final class QuarryMachine extends MasterMachine {
         return new Bounds(minX, maxX, minZ, maxZ);
     }
 
+    /** Schedules removal of block components and the block itself on the world executor. */
     private void scheduleBlockBreak(World world, Vector3i pos) {
         if (world == null || pos == null) {
             return;
@@ -689,6 +729,7 @@ public final class QuarryMachine extends MasterMachine {
         });
     }
 
+    /** Schedules replacement, using the old block type as a fallback if lookup fails. */
     private void scheduleBlockReplace(
             World world,
             Vector3i pos,
@@ -737,6 +778,7 @@ public final class QuarryMachine extends MasterMachine {
         });
     }
 
+    /** Chooses one item from the first valid drop, or falls back to the block ID. */
     private ItemStack pickReplacementStack(List<ItemStack> drops, BlockType blockType) {
         if (drops != null) {
             for (ItemStack drop : drops) {
@@ -756,6 +798,7 @@ public final class QuarryMachine extends MasterMachine {
         return null;
     }
 
+    /** Removes any block entity reference or holder and marks the chunk for saving. */
     private void clearBlockComponents(World world, int x, int y, int z) {
         if (world == null) {
             return;
@@ -786,6 +829,7 @@ public final class QuarryMachine extends MasterMachine {
         }
     }
 
+    /** Removes one matching item with matching metadata from the inventory. */
     private boolean consumeItemFromContainer(ItemContainer container, ItemStack stack) {
         if (container == null || stack == null || ItemStack.isEmpty(stack)) {
             return false;
@@ -810,6 +854,7 @@ public final class QuarryMachine extends MasterMachine {
         return false;
     }
 
+    /** Stores the replacement, location, original rotation, and scheduled placement tick. */
     private static final class PendingBackfill {
         private final Vector3i pos;
         private final ItemStack replacement;
@@ -834,12 +879,14 @@ public final class QuarryMachine extends MasterMachine {
         }
     }
 
+    /** Tracks the last target and pending or delayed backfill for a quarry. */
     private static final class BackfillState {
         private Vector3i lastPos;
         private PendingBackfill pending;
         private long resumeAtTick;
     }
 
+    /** Looks up per-world backfill state and optionally creates missing map entries. */
     private BackfillState getBackfillState(World world, Vector3i origin, boolean create) {
         if (world == null || origin == null) {
             return null;
@@ -861,6 +908,7 @@ public final class QuarryMachine extends MasterMachine {
         return state;
     }
 
+    /** Removes the quarry's backfill state and prunes an empty world map. */
     private void clearBackfillState(World world, Vector3i origin) {
         if (world == null || origin == null) {
             return;
@@ -875,10 +923,12 @@ public final class QuarryMachine extends MasterMachine {
         }
     }
 
+    /** Encodes the quarry's block coordinates as the per-world lookup key. */
     private static String originKey(Vector3i origin) {
         return origin.getX() + ":" + origin.getY() + ":" + origin.getZ();
     }
 
+    /** Carries a selected block position, type, and rotation for mining and backfill. */
     private static final class BlockTarget {
         private final Vector3i pos;
         private final BlockType blockType;
@@ -891,6 +941,7 @@ public final class QuarryMachine extends MasterMachine {
         }
     }
 
+    /** Inclusive horizontal bounds used for local mining scans. */
     private static final class Bounds {
         private final int minX;
         private final int maxX;
@@ -905,6 +956,7 @@ public final class QuarryMachine extends MasterMachine {
         }
     }
 
+    /** Delegates block base and state matching to the shared ID helper. */
     private static boolean isIdOrState(String blockId, String baseId) {
         return BlockIdUtil.isIdOrState(blockId, baseId);
     }

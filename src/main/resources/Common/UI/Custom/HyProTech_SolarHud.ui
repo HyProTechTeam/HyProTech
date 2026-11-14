@@ -1,11 +1,13 @@
 $C = "Common.ui";
 
+// Panel for the solar output text updated by SolarHud.
 Group #SolarHudRoot {
   Anchor: (Top: 20, Left: 20, Width: 240, Height: 40);
   LayoutMode: Top;
   Background: $C.@InputBoxBackground;
   Padding: (Top: 6, Bottom: 6, Left: 10, Right: 10);
 
+  // The server replaces this initial text when output changes.
   Label #SolarOutput {
     Style: (
       FontSize: 16,

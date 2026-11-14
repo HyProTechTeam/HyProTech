@@ -7,12 +7,15 @@ import com.hypixel.hytale.codec.codecs.simple.StringCodec;
 import java.util.Arrays;
 import java.util.UUID;
 
+/** Stores the last changelog version seen by each player. */
 public final class ChangelogConfig {
     private static final StringCodec STRING_CODEC = new StringCodec();
     private static final ArrayCodec<Entry> ENTRY_ARRAY_CODEC =
             ArrayCodec.ofBuilderCodec(Entry.CODEC, Entry[]::new);
 
+    /** Persisted player UUID string and last-seen version. */
     public static final class Entry {
+        // Normalize decoded strings before storing them.
         public static final BuilderCodec<Entry> CODEC =
                 BuilderCodec.<Entry>builder(Entry.class, Entry::new)
                         .addField(new KeyedCodec<>("PlayerId", STRING_CODEC),
@@ -26,28 +29,34 @@ public final class ChangelogConfig {
         private String playerId;
         private String lastSeen;
 
+        /** Initializes empty values for decoding. */
         public Entry() {
             this("", "");
         }
 
+        /** Creates an entry with normalized player ID and version strings. */
         public Entry(String playerId, String lastSeen) {
             this.playerId = normalize(playerId);
             this.lastSeen = normalize(lastSeen);
         }
 
+        /** Returns the player UUID string. */
         public String getPlayerId() {
             return playerId;
         }
 
+        /** Returns the last-seen version. */
         public String getLastSeen() {
             return lastSeen;
         }
 
+        /** Updates the last-seen version after normalizing it. */
         public void setLastSeen(String lastSeen) {
             this.lastSeen = normalize(lastSeen);
         }
     }
 
+    // Decode the player array, retaining the empty default when the field is null.
     public static final BuilderCodec<ChangelogConfig> CODEC =
             BuilderCodec.<ChangelogConfig>builder(ChangelogConfig.class, ChangelogConfig::new)
                     .addField(new KeyedCodec<>("Players", ENTRY_ARRAY_CODEC),
@@ -61,6 +70,7 @@ public final class ChangelogConfig {
 
     private Entry[] players = new Entry[0];
 
+    /** Finds the stored version for a player or returns an empty string when unavailable. */
     public String getLastSeen(UUID uuid) {
         if (uuid == null || players == null || players.length == 0) {
             return "";
@@ -74,6 +84,7 @@ public final class ChangelogConfig {
         return "";
     }
 
+    /** Updates an existing player entry or appends one when the player is not present. */
     public void markSeen(UUID uuid, String version) {
         if (uuid == null) {
             return;
@@ -93,6 +104,7 @@ public final class ChangelogConfig {
         players = expanded;
     }
 
+    /** Trims strings and converts null or whitespace-only values to empty strings. */
     private static String normalize(String value) {
         if (value == null) {
             return "";

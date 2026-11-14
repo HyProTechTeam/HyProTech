@@ -23,6 +23,7 @@ import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+/** Opens the upgrade page for a targeted energy or item cable. */
 public class CableNetworkUpgradeInteraction extends SimpleBlockInteraction {
     public static final BuilderCodec<CableNetworkUpgradeInteraction> CODEC =
             BuilderCodec.builder(
@@ -32,10 +33,12 @@ public class CableNetworkUpgradeInteraction extends SimpleBlockInteraction {
                     .documentation("Opens the cable network upgrade UI.")
                     .build();
 
+    /** Creates the block interaction. */
     public CableNetworkUpgradeInteraction() {
         super();
     }
 
+    /** Validates the player and target before opening the cable upgrade page. */
     @Override
     protected void interactWithBlock(
             World world,
@@ -80,6 +83,7 @@ public class CableNetworkUpgradeInteraction extends SimpleBlockInteraction {
         pageManager.openCustomPage(playerEntityRef, commandBuffer.getStore(), page);
     }
 
+    /** Client simulation intentionally performs no state changes. */
     @Override
     protected void simulateInteractWithBlock(
             InteractionType interactionType,
@@ -90,6 +94,7 @@ public class CableNetworkUpgradeInteraction extends SimpleBlockInteraction {
         // Server-side only.
     }
 
+    /** Resolves the target's base block so multiblock parts address the same cable position. */
     @SuppressWarnings("removal")
     private Vector3i resolveTargetBlockPosition(InteractionContext context, World world) {
         BlockPosition target = context.getTargetBlock();
@@ -105,6 +110,7 @@ public class CableNetworkUpgradeInteraction extends SimpleBlockInteraction {
         return new Vector3i(baseBlock.x, baseBlock.y, baseBlock.z);
     }
 
+    /** Reads the chunk component to identify an energy cable or item cable. */
     private CableUpgradePage.CableType resolveCableType(World world, Vector3i pos) {
         if (HyProTechComponents.ENERGY == null || HyProTechComponents.ITEM == null) {
             return null;

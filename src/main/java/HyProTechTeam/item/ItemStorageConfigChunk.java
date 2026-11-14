@@ -8,10 +8,12 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 
+/** Stores item endpoint configurations by block index within a chunk. */
 public class ItemStorageConfigChunk implements Component<ChunkStore> {
     private static final Int2ObjectMapCodec<ItemStorageConfigComponent> CONFIG_CODEC =
             new Int2ObjectMapCodec<>(ItemStorageConfigComponent.CODEC, Int2ObjectOpenHashMap::new);
 
+    // Decode the map into a mutable map while retaining its component values.
     public static final BuilderCodec<ItemStorageConfigChunk> CODEC =
             BuilderCodec.<ItemStorageConfigChunk>builder(ItemStorageConfigChunk.class, ItemStorageConfigChunk::new)
                     .addField(new KeyedCodec<>("Configs", CONFIG_CODEC),
@@ -21,10 +23,12 @@ public class ItemStorageConfigChunk implements Component<ChunkStore> {
 
     private Int2ObjectMap<ItemStorageConfigComponent> configs = new Int2ObjectOpenHashMap<>();
 
+    /** Looks up a configuration by chunk-local block index. */
     public ItemStorageConfigComponent getConfig(int blockIndex) {
         return configs.get(blockIndex);
     }
 
+    /** Replaces a block's configuration or removes it when the supplied value is null. */
     public void setConfig(int blockIndex, ItemStorageConfigComponent config) {
         ensureMutable();
         if (config == null) {
@@ -34,6 +38,7 @@ public class ItemStorageConfigChunk implements Component<ChunkStore> {
         }
     }
 
+    /** Copies the map and clones each non-null configuration component. */
     @Override
     public Component<ChunkStore> clone() {
         ItemStorageConfigChunk copy = new ItemStorageConfigChunk();
@@ -46,11 +51,13 @@ public class ItemStorageConfigChunk implements Component<ChunkStore> {
         return copy;
     }
 
+    /** Uses the same cloned map for serialization. */
     @Override
     public Component<ChunkStore> cloneSerializable() {
         return clone();
     }
 
+    /** Copies the map when its current implementation is not the expected mutable map. */
     private void ensureMutable() {
         if (configs instanceof Int2ObjectOpenHashMap) {
             return;
@@ -58,6 +65,7 @@ public class ItemStorageConfigChunk implements Component<ChunkStore> {
         configs = copyConfigs(configs);
     }
 
+    /** Copies map entries into a new mutable map without cloning their values. */
     private static Int2ObjectMap<ItemStorageConfigComponent> copyConfigs(
             Int2ObjectMap<ItemStorageConfigComponent> source) {
         Int2ObjectOpenHashMap<ItemStorageConfigComponent> copy = new Int2ObjectOpenHashMap<>();

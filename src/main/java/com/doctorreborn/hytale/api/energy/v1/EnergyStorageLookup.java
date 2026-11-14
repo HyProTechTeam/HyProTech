@@ -35,6 +35,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
  * requiring direct dependencies.
  */
 public final class EnergyStorageLookup {
+    /** Provider for a storage at a world position, returning null when none is available. */
     @FunctionalInterface
     public interface Provider {
         @Nullable EnergyStorage find(@Nullable World world, int x, int y, int z);
@@ -45,18 +46,21 @@ public final class EnergyStorageLookup {
     private EnergyStorageLookup() {
     }
 
+    /** Registers a non-null provider at the end of the lookup order. */
     public static void register(Provider provider) {
         if (provider != null) {
             PROVIDERS.add(provider);
         }
     }
 
+    /** Removes a non-null provider from the registry. */
     public static void unregister(Provider provider) {
         if (provider != null) {
             PROVIDERS.remove(provider);
         }
     }
 
+    /** Returns the first storage supplied by a provider, or null if none matches. */
     public static @Nullable EnergyStorage find(@Nullable World world, int x, int y, int z) {
         if (world == null) {
             return null;

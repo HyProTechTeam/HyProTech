@@ -1,11 +1,13 @@
 $C = "Common.ui";
 
+// Panel containing the furnace energy and processing progress readouts.
 Group #FurnaceHudRoot {
   Anchor: (Top: 20, Left: 20, Width: 280, Height: 60);
   LayoutMode: Top;
   Background: $C.@InputBoxBackground;
   Padding: (Top: 6, Bottom: 6, Left: 10, Right: 10);
 
+  // FurnaceHud fills this label from the node's energy and capacity.
   Label #FurnaceEnergy {
     Style: (
       FontSize: 16,
@@ -15,6 +17,7 @@ Group #FurnaceHudRoot {
     Text: "Energy: 0 / 0 J";
   }
 
+  // FurnaceHud converts the node's progress into a percentage for this label.
   Label #FurnaceProgress {
     Style: (
       FontSize: 14,

@@ -1,5 +1,6 @@
 package HyProTechTeam;
 
+/** Central identifiers for registered components, interactions, pages, blocks, and items. */
 public final class HyProTechIds {
     public static final String ENERGY_COMPONENT_ID = "HyProTech:energy_node";
     public static final String ITEM_COMPONENT_ID = "HyProTech:item_node";
@@ -21,6 +22,7 @@ public final class HyProTechIds {
     public static final String ITEM_CABLE_PAGE_ID = "HyProTech_item_cable_page";
     public static final String QUARRY_PAGE_ID = "HyProTech_quarry_page";
 
+    // Block base IDs are also used when matching tiered and state variants.
     public static final String BLOCK_SOLAR_PANEL = "HyProTech_Solar_Panel";
     public static final String BLOCK_WIND_TURBINE = "HyProTech_Wind_Turbine";
     public static final String BLOCK_ENERGY_CABLE = "HyProTech_Cable_Copper";
@@ -34,6 +36,7 @@ public final class HyProTechIds {
     public static final String BLOCK_QUARRY_BORDER = "HyProTech_Quarry_Border";
     public static final String BLOCK_BORDER_TORCH = "HyProTech_Border_Torch";
 
+    // Item IDs used by processing and recipe logic.
     public static final String ITEM_COPPER_POWDER = "HyProTech_Powder_Copper";
     public static final String ITEM_IRON_POWDER = "HyProTech_Powder_Iron";
     public static final String ITEM_COBALT_POWDER = "HyProTech_Powder_Cobalt";

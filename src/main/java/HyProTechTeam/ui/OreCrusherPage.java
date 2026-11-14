@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+/** Displays crusher status, recipes, inventory interactions and tier upgrades. */
 public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> implements WindowlessPage {
     private static final String ACTION_UPGRADE = "Upgrade";
     private static final String ACTION_TOGGLE = "ToggleEnabled";
@@ -178,14 +179,17 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         this.machineType = machineType;
     }
 
+    /** Returns the currently tracked crusher component reference. */
     public Ref<ChunkStore> getBlockRef() {
         return blockRef;
     }
 
+    /** Records the base position supplied by the opening interaction. */
     public void setBlockPosition(Vector3i blockPosition) {
         this.blockPosition = blockPosition;
     }
 
+    /** Loads the layout, binds controls and grids, and populates the initial state. */
     @Override
     public void build(
             Ref<EntityStore> playerRef,
@@ -202,6 +206,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         updateForWorld(uiCommandBuilder, world, inventory, store);
     }
 
+    /** Routes inventory gestures, recipe actions, machine controls and upgrades. */
     @Override
     public void handleDataEvent(Ref<EntityStore> playerRef, Store<EntityStore> store, OreCrusherUiEvent data) {
         if (data == null || data.getAction() == null) {
@@ -209,6 +214,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         }
 
         String action = data.getAction();
+        // Capture drag and click source data before handling machine-level actions.
         if (ACTION_DRAG_START.equalsIgnoreCase(action)) {
             captureDragSource(data);
             return;
@@ -240,6 +246,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
             sendUpdate(new UICommandBuilder());
             return;
         }
+        // Recipe selection and drag actions are handled without modifying machine settings here.
         if (ACTION_RECIPE_SELECT.equalsIgnoreCase(action)) {
             handleRecipeSelect(store, data);
             return;
@@ -249,6 +256,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
             return;
         }
 
+        // Remaining actions need the machine state from the player's current world.
         World world = getWorld(store);
         if (world == null) {
             return;
@@ -260,6 +268,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         }
         EnergyNodeComponent node = resolveNode(world);
 
+        // Upgrade, power, inventory retrieval and recipe-loading actions use the resolved machine.
         if (ACTION_UPGRADE.equalsIgnoreCase(action)) {
             if (!handleUpgrade(playerRef, store, world, machine, node)) {
                 sendUpdate(new UICommandBuilder());
@@ -304,10 +313,12 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
 
 
 
+    /** Requests a throttled refresh from the current energy and machine components. */
     public void update(EnergyNodeComponent node, MachineComponent machine) {
         update(node, machine, false);
     }
 
+    /** Updates changed status, recipes, slots, bonus drops and upgrade information. */
     private void update(EnergyNodeComponent node, MachineComponent machine, boolean force) {
         if (node == null) {
             return;
@@ -346,6 +357,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         lastUpdateMs = now;
     }
 
+    /** Initializes labels and empty grids before live machine state is available. */
     private void initStaticUi(UICommandBuilder update) {
         update.set("#CrusherTier.Text", "Tier: " + OreCrusherConfig.getTierName(OreCrusherConfig.MIN_TIER));
         update.set("#CrusherEnergy.Text", "Energy: 0 / 0");
@@ -364,6 +376,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         updateBonusPanel(update, null, null);
     }
 
+    /** Resolves machine state, reconciles its tier with the block ID and populates the page. */
     private boolean updateForWorld(
             UICommandBuilder update,
             World world,
@@ -413,6 +426,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return changed;
     }
 
+    /** Updates displayed stored energy and consumption when they change. */
     private boolean updateEnergy(UICommandBuilder update, EnergyNodeComponent node) {
         boolean changed = false;
         int energy = node.getEnergy();
@@ -436,6 +450,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return changed;
     }
 
+    /** Updates the displayed crusher processing progress. */
     private boolean updateProgress(UICommandBuilder update, MachineComponent machine) {
         if (machine == null) {
             return false;
@@ -452,6 +467,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return false;
     }
 
+    /** Updates the tier-dependent output multiplier shown on the page. */
     private boolean updateYield(UICommandBuilder update, MachineComponent machine) {
         int tier = machine == null ? OreCrusherConfig.MIN_TIER : OreCrusherConfig.clampTier(machine.getTier());
         int yield = OreCrusherConfig.getOutputMultiplierForTier(tier);
@@ -463,6 +479,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return false;
     }
 
+    /** Displays the machine's enabled state and toggle label. */
     private boolean updateControls(UICommandBuilder update, MachineComponent machine) {
         boolean enabled = machine == null || machine.isEnabled();
         if (lastEnabled == null || enabled != lastEnabled) {
@@ -474,6 +491,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return false;
     }
 
+    /** Refreshes machine grids and invokes the currently disabled player-grid update. */
     private boolean updateSlots(UICommandBuilder update) {
         Ref<EntityStore> playerEntityRef = playerRef.getReference();
         if (playerEntityRef == null) {
@@ -491,6 +509,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return changed;
     }
 
+    /** Updates input and output grids when their stacks change. */
     private boolean updateMachineSlots(UICommandBuilder update, ItemContainer container) {
         if (container == null) {
             return updateEmptyMachineSlots(update);
@@ -518,11 +537,13 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return changed;
     }
 
+    /** Retains a no-op hook after the player inventory grid was removed from this UI. */
     private boolean updatePlayerInventorySlots(UICommandBuilder update, Store<EntityStore> store) {
         // Player inventory grid removed from this UI.
         return false;
     }
 
+    /** Clears machine grids when their container is unavailable. */
     private boolean updateEmptyMachineSlots(UICommandBuilder update) {
         boolean changed = false;
         if (!"empty".equals(lastInputKey)) {
@@ -538,6 +559,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return changed;
     }
 
+    /** Displays next-tier statistics and counts owned upgrade materials. */
     private String updateUpgradePanel(UICommandBuilder update, MachineComponent machine, ItemContainer inventory) {
         int tier = machine == null ? OreCrusherConfig.MIN_TIER : OreCrusherConfig.clampTier(machine.getTier());
         if (tier != lastTier) {
@@ -611,6 +633,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return reqKey.toString();
     }
 
+    /** Displays bonus drops and tier-dependent chances for the ore currently in the input. */
     private boolean updateBonusPanel(UICommandBuilder update, MachineComponent machine, ItemContainer container) {
         int tier = machine == null ? OreCrusherConfig.MIN_TIER : OreCrusherConfig.clampTier(machine.getTier());
         ItemStack input = container == null || container.getCapacity() <= INPUT_SLOT
@@ -675,6 +698,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return true;
     }
 
+    /** Rebuilds recipe icons when the available crusher recipe inputs change. */
     private boolean updateRecipeGrid(UICommandBuilder update) {
         List<OreCrusherRecipes.RecipeEntry> recipes = OreCrusherRecipes.getRecipes();
         StringBuilder keyBuilder = new StringBuilder();
@@ -702,6 +726,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return true;
     }
 
+    /** Displays the selected recipe, requested quantity and available ingredients. */
     private boolean updateRecipeDetails(UICommandBuilder update, MachineComponent machine, ItemContainer inventory) {
         OreCrusherRecipes.RecipeEntry entry = getSelectedRecipeEntry();
         if (entry == null) {
@@ -760,6 +785,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return true;
     }
 
+    /** Clears recipe icons and labels when no recipe is selected. */
     private void clearRecipeDetails(UICommandBuilder update) {
         update.set("#RecipeOutputSlot.ItemId", "");
         update.set("#RecipeOutputName.Text", "");
@@ -773,6 +799,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         update.set("#RecipeCostText.Text", "");
     }
 
+    /** Selects a valid recipe grid entry and resets the requested quantity. */
     private void handleRecipeSelect(Store<EntityStore> store, OreCrusherUiEvent data) {
         List<OreCrusherRecipes.RecipeEntry> recipes = OreCrusherRecipes.getRecipes();
         if (recipes.isEmpty()) {
@@ -798,6 +825,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         sendUpdate(update);
     }
 
+    /** Adjusts requested recipe quantity within the inventory-based limit. */
     private void handleRecipeQuantity(String action, Store<EntityStore> store) {
         OreCrusherRecipes.RecipeEntry entry = getSelectedRecipeEntry();
         if (entry == null) {
@@ -823,6 +851,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         }
     }
 
+    /** Moves the selected recipe's ore from player inventory into the crusher input. */
     private boolean handleLoadRecipe(Store<EntityStore> store) {
         if (store == null) {
             return false;
@@ -886,6 +915,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
             return false;
         }
 
+        // Refund the removed ore if insertion into the machine fails.
         ItemStackSlotTransaction add = forceInsert
                 ? machineContainer.setItemStackForSlot(INPUT_SLOT, requiredStack, true)
                 : machineContainer.addItemStackToSlot(INPUT_SLOT, requiredStack);
@@ -911,6 +941,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return true;
     }
 
+    /** Computes a selectable recipe count from available ore, with a minimum of one. */
     private int resolveMaxRecipeQuantity(OreCrusherRecipes.RecipeEntry entry, Store<EntityStore> store) {
         if (entry == null || store == null) {
             return 1;
@@ -925,6 +956,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return Math.max(1, max);
     }
 
+    /** Returns the selected recipe only while its index remains valid. */
     private OreCrusherRecipes.RecipeEntry getSelectedRecipeEntry() {
         List<OreCrusherRecipes.RecipeEntry> recipes = OreCrusherRecipes.getRecipes();
         if (selectedRecipeIndex < 0 || selectedRecipeIndex >= recipes.size()) {
@@ -933,6 +965,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return recipes.get(selectedRecipeIndex);
     }
 
+    /** Turns a namespaced item ID into a readable recipe label. */
     private static String formatItemName(String itemId) {
         if (itemId == null || itemId.isEmpty()) {
             return "";
@@ -956,6 +989,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return title;
     }
 
+    /** Formats words in a generated item label using the root locale. */
     private static String toTitleCase(String input) {
         if (input == null || input.isEmpty()) {
             return "";
@@ -982,6 +1016,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
     }
 
 
+    /** Consumes displayed requirements and swaps the crusher while retaining storage. */
     private boolean handleUpgrade(
             Ref<EntityStore> playerRef,
             Store<EntityStore> store,
@@ -1048,6 +1083,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return true;
     }
 
+    /** Moves the input stack into the player's hotbar or storage when it fits. */
     private boolean handleTakeInput(Store<EntityStore> store) {
         if (store == null) {
             return false;
@@ -1095,6 +1131,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return false;
     }
 
+    /** Moves output stacks into the player's hotbar or storage when they fit. */
     private boolean handleTakeOutput(Store<EntityStore> store) {
         if (store == null) {
             return false;
@@ -1152,6 +1189,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return false;
     }
 
+    /** Applies crusher tier energy, speed and progress limits to its components. */
     private void applyTier(MachineComponent machine, EnergyNodeComponent node, int tier) {
         int capacity = OreCrusherConfig.getCapacityForTier(tier);
         node.setCapacity(capacity);
@@ -1168,6 +1206,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         }
     }
 
+    /** Retrieves the player's storage inventory for upgrade checks. */
     private ItemContainer getPlayerInventory(Store<EntityStore> store) {
         if (store == null) {
             return null;
@@ -1184,6 +1223,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return inventory == null ? null : inventory.getStorage();
     }
 
+    /** Retrieves the full inventory for hotbar and storage operations. */
     private Inventory getPlayerInventoryFull(Store<EntityStore> store) {
         if (store == null) {
             return null;
@@ -1199,6 +1239,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return player.getInventory();
     }
 
+    /** Retrieves a combined hotbar and storage view for recipe-material checks. */
     private ItemContainer getCombinedInventory(Store<EntityStore> store) {
         Inventory inventory = getPlayerInventoryFull(store);
         if (inventory == null) {
@@ -1211,6 +1252,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return combined;
     }
 
+    /** Totals matching item quantities across the container. */
     private int countItem(ItemContainer container, String itemId) {
         if (container == null || itemId == null) {
             return 0;
@@ -1229,6 +1271,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return total;
     }
 
+    /** Formats common ingredient IDs as readable upgrade-requirement labels. */
     private String formatRequirementName(String itemId) {
         if (itemId == null) {
             return "";
@@ -1253,6 +1296,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return name.replace('_', ' ');
     }
 
+    /** Formats bonus-drop item IDs and recognizes the random-crystal placeholder. */
     private String formatBonusName(String itemId) {
         if (itemId == null) {
             return "";
@@ -1272,6 +1316,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return name.replace('_', ' ');
     }
 
+    /** Builds a change-detection key from an item's ID, quantity and metadata. */
     private String buildSlotKey(ItemStack stack) {
         if (stack == null || ItemStack.isEmpty(stack)) {
             return "";
@@ -1283,6 +1328,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return key;
     }
 
+    /** Builds a change-detection key from all visible output slots. */
     private String buildOutputKey(ItemContainer container) {
         StringBuilder key = new StringBuilder();
         for (int i = 0; i < OUTPUT_SLOT_COUNT; i++) {
@@ -1292,6 +1338,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return key.toString();
     }
 
+    /** Creates the requested number of empty interactive grid slots. */
     private List<ItemGridSlot> buildEmptySlots(int count, boolean skipQualityBackground) {
         List<ItemGridSlot> slots = new ArrayList<>(Math.max(0, count));
         for (int i = 0; i < count; i++) {
@@ -1300,12 +1347,14 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return slots;
     }
 
+    /** Wraps one stack in the list expected by the input grid. */
     private List<ItemGridSlot> buildSingleSlotList(ItemStack stack) {
         List<ItemGridSlot> slots = new ArrayList<>(1);
         slots.add(createSlot(stack, true));
         return slots;
     }
 
+    /** Builds the fixed set of crusher output-grid slots. */
     private List<ItemGridSlot> buildOutputSlots(ItemContainer container) {
         List<ItemGridSlot> slots = new ArrayList<>(OUTPUT_SLOT_COUNT);
         for (int i = 0; i < OUTPUT_SLOT_COUNT; i++) {
@@ -1314,6 +1363,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return slots;
     }
 
+    /** Builds player-grid slots in hotbar-first order. */
     private List<ItemGridSlot> buildPlayerSlots(
             Inventory inventory,
             int hotbarCapacity,
@@ -1326,6 +1376,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return slots;
     }
 
+    /** Appends grid representations of the requested container slots. */
     private void appendSlotsFromContainer(
             List<ItemGridSlot> slots,
             ItemContainer container,
@@ -1339,6 +1390,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         }
     }
 
+    /** Maps an output-grid index to the corresponding machine-container slot. */
     private ItemStack getOutputStack(ItemContainer container, int outputIndex) {
         if (container == null || outputIndex < 0 || outputIndex >= OUTPUT_SLOT_COUNT) {
             return null;
@@ -1350,6 +1402,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return container.getItemStack(slot);
     }
 
+    /** Creates an interactive grid slot and copies its stack for display. */
     private ItemGridSlot createSlot(ItemStack stack, boolean skipQualityBackground) {
         ItemGridSlot slot = new ItemGridSlot();
         boolean hasItem = stack != null && !ItemStack.isEmpty(stack);
@@ -1362,6 +1415,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return slot;
     }
 
+    /** Copies an item stack and metadata without reusing the container's stack instance. */
     private ItemStack copyStack(ItemStack stack) {
         if (stack == null || ItemStack.isEmpty(stack)) {
             return null;
@@ -1369,16 +1423,19 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return new ItemStack(stack.getItemId(), stack.getQuantity(), stack.getMetadata());
     }
 
+    /** Returns the hotbar capacity or the default when no hotbar is available. */
     private int getHotbarCapacity(Inventory inventory) {
         ItemContainer hotbar = inventory == null ? null : inventory.getHotbar();
         return hotbar == null ? Inventory.DEFAULT_HOTBAR_CAPACITY : hotbar.getCapacity();
     }
 
+    /** Returns the storage capacity or the default when no storage is available. */
     private int getStorageCapacity(Inventory inventory) {
         ItemContainer storage = inventory == null ? null : inventory.getStorage();
         return storage == null ? Inventory.DEFAULT_STORAGE_CAPACITY : storage.getCapacity();
     }
 
+    /** Builds a change-detection key for the hotbar and storage stacks. */
     private String buildInventoryKey(Inventory inventory, int hotbarCapacity, int storageCapacity) {
         StringBuilder key = new StringBuilder();
         ItemContainer hotbar = inventory == null ? null : inventory.getHotbar();
@@ -1388,6 +1445,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return key.toString();
     }
 
+    /** Adds each container slot to an inventory change-detection key. */
     private void appendInventoryKey(StringBuilder key, ItemContainer container, int capacity) {
         for (int i = 0; i < capacity; i++) {
             ItemStack stack = null;
@@ -1398,6 +1456,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         }
     }
 
+    /** Appends item identity, quantity and metadata hash, or an empty-slot marker. */
     private void appendStackKey(StringBuilder key, ItemStack stack) {
         if (stack == null || ItemStack.isEmpty(stack)) {
             key.append("|");
@@ -1412,6 +1471,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         key.append('|');
     }
 
+    /** Refreshes the tracked component reference after a block replacement. */
     Ref<ChunkStore> resolveBlockRef(World world) {
         if (world == null) {
             return blockRef;
@@ -1436,6 +1496,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return blockRef;
     }
 
+    /** Resolves the energy node by position, falling back to the current reference. */
     private EnergyNodeComponent resolveNode(World world) {
         if (world == null) {
             return null;
@@ -1464,6 +1525,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         }
     }
 
+    /** Resolves the machine component by position, falling back to the current reference. */
     private MachineComponent resolveMachine(World world) {
         if (world == null) {
             return null;
@@ -1492,6 +1554,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         }
     }
 
+    /** Persists the energy component through a live reference or chunk holder. */
     private void storeNode(World world, EnergyNodeComponent node) {
         if (world == null || node == null) {
             return;
@@ -1538,6 +1601,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         }
     }
 
+    /** Persists the machine component through a live reference or chunk holder. */
     private void storeMachine(World world, MachineComponent machine) {
         if (world == null || machine == null) {
             return;
@@ -1584,6 +1648,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         }
     }
 
+    /** Reports a recipe or upgrade result to the player when available. */
     private void sendPlayerMessage(Ref<EntityStore> playerRef, Store<EntityStore> store, String text) {
         if (store == null || playerRef == null) {
             return;
@@ -1595,6 +1660,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         player.sendMessage(Message.raw(text));
     }
 
+    /** Finds the reference in loaded chunks and caches its world position. */
     Vector3i resolveBlockPosition(World world) {
         if (world == null) {
             return null;
@@ -1631,6 +1697,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return null;
     }
 
+    /** Finds the chunk-local index corresponding to this page's reference. */
     private int findBlockIndex(BlockComponentChunk blockComponents) {
         int targetIndex = blockRef.getIndex();
         if (targetIndex == Integer.MIN_VALUE) {
@@ -1646,11 +1713,13 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return Integer.MIN_VALUE;
     }
 
+    /** Retrieves the world associated with the player's entity store. */
     private World getWorld(Store<EntityStore> store) {
         EntityStore entityStore = store == null ? null : store.getExternalData();
         return entityStore == null ? null : entityStore.getWorld();
     }
 
+    /** Resolves the crusher's item container from the player's world. */
     private ItemContainer resolveMachineContainer(Store<EntityStore> store) {
         World world = getWorld(store);
         if (world == null) {
@@ -1663,6 +1732,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return MachineItemAccess.getContainer(world, pos.getX(), pos.getY(), pos.getZ());
     }
 
+    /** Binds recipe selection and machine-grid click and drag events. */
     private void bindItemGrids(UIEventBuilder uiEventBuilder) {
         uiEventBuilder.addEventBinding(
                 CustomUIEventBindingType.SlotClicking,
@@ -1674,6 +1744,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         bindClick(uiEventBuilder, "#OutputGrid", ACTION_OUTPUT_CLICK);
     }
 
+    /** Binds drag start and drop variants for a grid selector. */
     private void bindDrag(UIEventBuilder uiEventBuilder, String selector, String action) {
         uiEventBuilder.addEventBinding(
                 CustomUIEventBindingType.SlotClickPressWhileDragging,
@@ -1693,6 +1764,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
                 EventData.of("Action", action));
     }
 
+    /** Binds click and drag-completion variants for a grid selector. */
     private void bindClick(UIEventBuilder uiEventBuilder, String selector, String action) {
         uiEventBuilder.addEventBinding(
                 CustomUIEventBindingType.SlotClicking,
@@ -1712,6 +1784,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
                 EventData.of("Action", action));
     }
 
+    /** Recognizes drop actions targeting a machine or player inventory grid. */
     private boolean isDragAction(String action) {
         if (action == null) {
             return false;
@@ -1721,6 +1794,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
                 || ACTION_INVENTORY_DROP.equalsIgnoreCase(action);
     }
 
+    /** Converts click-based transfers into drag events, retaining a short-lived cursor snapshot. */
     private boolean handleClickDrop(Store<EntityStore> store, OreCrusherUiEvent data, GridType targetGrid) {
         if (store == null || data == null || targetGrid == null) {
             return false;
@@ -1737,6 +1811,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
                 data.getSourceSlotId() != null
                         || data.getSourceInventorySectionId() != null
                         || data.getSourceItemGridIndex() != null;
+        // When the client supplies source details, pass them straight to the drag handler.
         if (hasExplicitSource) {
             OreCrusherUiEvent dropEvent = new OreCrusherUiEvent();
             dropEvent.setAction(action);
@@ -1758,6 +1833,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
             return true;
         }
 
+        // Otherwise a previous click supplies the source for a second-click transfer.
         DragSnapshot cursor = getActiveClickCursor();
         if (cursor != null) {
             if (cursor.grid == targetGrid && cursor.slotId == targetSlot) {
@@ -1792,6 +1868,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
             return true;
         }
 
+        // Fall back to a recent drag source, or remember the clicked stack for the next click.
         DragSnapshot snapshot = getRecentDragSource();
         if (snapshot == null) {
             Inventory inventory = getPlayerInventoryFull(store);
@@ -1843,6 +1920,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return true;
     }
 
+    /** Maps a target grid to its corresponding drop action. */
     private String actionForTarget(GridType gridType) {
         if (gridType == GridType.INPUT) {
             return ACTION_INPUT_DROP;
@@ -1856,6 +1934,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return null;
     }
 
+    /** Maps an internal grid type to the client section selector. */
     private String gridSectionId(GridType gridType) {
         if (gridType == GridType.INPUT) {
             return "#InputGrid";
@@ -1869,6 +1948,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return null;
     }
 
+    /** Maps an internal grid type to the client grid index. */
     private Integer gridIndexFor(GridType gridType) {
         if (gridType == GridType.INPUT) {
             return GRID_INDEX_INPUT;
@@ -1883,6 +1963,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
     }
 
 
+    /** Resolves source and target slots, performs a transfer or permitted swap, and refreshes UI. */
     private void handleDrag(Store<EntityStore> store, OreCrusherUiEvent data) {
         boolean updateSent = false;
         try {
@@ -1910,6 +1991,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
                     : MachineItemAccess.getContainer(world, pos.getX(), pos.getY(), pos.getZ());
             Inventory inventory = getPlayerInventoryFull(store);
 
+            // Client payloads may omit or disagree about the source; reconcile available fields.
             String sourceSectionId = firstNonEmpty(
                     data.getSourceInventorySectionId(),
                     data.getDragSourceInventorySectionId());
@@ -1995,6 +2077,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
                 }
             }
 
+            // Reject unsupported grid pairs before resolving concrete inventory slots.
             if (!canMoveBetween(sourceGrid, targetGrid)) {
                 return;
             }
@@ -2083,6 +2166,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
                 return;
             }
 
+            // Try the server's slot-to-slot transaction first; fallback paths handle failed moves.
             MoveTransaction<?> move = sourceRef.container.moveItemStackFromSlotToSlot(
                     sourceRef.slot,
                     quantity,
@@ -2136,6 +2220,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
                 }
             }
 
+            // An occupied destination can be swapped only for the explicitly allowed grid pairs.
             ItemStack targetStack = targetRef.container.getItemStack(targetRef.slot);
             if (targetStack != null && !ItemStack.isEmpty(targetStack)
                     && canSwapBetween(sourceGrid, targetGrid)) {
@@ -2159,6 +2244,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         }
     }
 
+    /** Logs drag payload fields used to diagnose client slot and index mismatches. */
     private void debugDragEvent(Store<EntityStore> store, OreCrusherUiEvent data) {
         String msg = "DBG Drag action=" + data.getAction()
                 + " target=" + data.getTarget()
@@ -2175,6 +2261,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         System.out.println("[HyProTech] v2 " + msg);
     }
 
+    /** Logs click payload fields used to diagnose client slot and index mismatches. */
     private void debugClickEvent(String label, OreCrusherUiEvent data) {
         if (data == null) {
             return;
@@ -2195,6 +2282,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         System.out.println("[HyProTech] v2 " + msg);
     }
 
+    /** Refreshes and sends machine slot changes after an inventory operation. */
     private boolean refreshSlots(Store<EntityStore> store) {
         UICommandBuilder update = new UICommandBuilder();
         if (updateSlots(update)) {
@@ -2204,6 +2292,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return false;
     }
 
+    /** Adds to the destination then removes from the source, attempting rollback on failure. */
     private boolean tryManualTransfer(
             SlotRef sourceRef,
             SlotRef targetRef,
@@ -2236,6 +2325,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return true;
     }
 
+    /** Attempts a manual input transfer when the normal slot move fails. */
     private boolean tryManualInputTransfer(
             SlotRef sourceRef,
             SlotRef targetRef,
@@ -2268,6 +2358,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return true;
     }
 
+    /** Suppresses a repeated transfer with the same source, target, item and quantity. */
     private boolean isDuplicateDrag(
             GridType sourceGrid,
             int sourceSlot,
@@ -2295,6 +2386,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return false;
     }
 
+    /** Restricts moves into output and from output directly into input. */
     private boolean canMoveBetween(GridType source, GridType target) {
         if (target == GridType.OUTPUT && source != GridType.OUTPUT) {
             return false;
@@ -2305,6 +2397,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return true;
     }
 
+    /** Prevents swaps between the output grid and another grid. */
     private boolean canSwapBetween(GridType source, GridType target) {
         if (source == GridType.OUTPUT && target != GridType.OUTPUT) {
             return false;
@@ -2315,6 +2408,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return true;
     }
 
+    /** Maps a drop action to its destination grid. */
     private GridType resolveTargetGrid(String action) {
         if (action == null) {
             return null;
@@ -2331,6 +2425,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return null;
     }
 
+    /** Resolves the source grid from a section identifier and optional client grid index. */
     private GridType resolveSourceGrid(String sectionId, Integer gridIndex) {
         if (sectionId == null) {
             return null;
@@ -2352,6 +2447,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return null;
     }
 
+    /** Corrects a reported machine source when its actual stack indicates a different grid. */
     private GridType reconcileSourceGrid(
             GridType sourceGrid,
             OreCrusherUiEvent data,
@@ -2396,6 +2492,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return sourceGrid;
     }
 
+    /** Checks whether any crusher output slot contains the given item ID. */
     private boolean matchesAnyOutput(ItemContainer container, String itemId) {
         if (container == null || itemId == null) {
             return false;
@@ -2412,6 +2509,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return false;
     }
 
+    /** Checks whether a nonempty stack has the specified item ID. */
     private boolean stackMatches(ItemStack stack, String itemId) {
         if (stack == null || ItemStack.isEmpty(stack) || itemId == null) {
             return false;
@@ -2419,6 +2517,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return itemId.equals(stack.getItemId());
     }
 
+    /** Infers a grid type from the target's UI selector. */
     private GridType resolveGridFromTarget(String target) {
         if (target == null) {
             return null;
@@ -2436,6 +2535,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return null;
     }
 
+    /** Records the available source grid, slot and item from a drag-start event. */
     private void captureDragSource(OreCrusherUiEvent data) {
         if (data == null) {
             return;
@@ -2466,6 +2566,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
                 System.currentTimeMillis());
     }
 
+    /** Records a clicked grid slot as a potential source for a subsequent event. */
     private void captureClickSource(GridType grid, OreCrusherUiEvent data) {
         if (data == null || grid == null) {
             return;
@@ -2484,6 +2585,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
                 System.currentTimeMillis());
     }
 
+    /** Returns the last drag source only while it is within the accepted time window. */
     private DragSnapshot getRecentDragSource() {
         if (lastDragSource == null) {
             return null;
@@ -2495,6 +2597,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return lastDragSource;
     }
 
+    /** Returns a click-transfer cursor until it times out, clearing expired state. */
     private DragSnapshot getActiveClickCursor() {
         if (clickCursor == null) {
             return null;
@@ -2507,6 +2610,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return clickCursor;
     }
 
+    /** Compares event and snapshot item IDs when both are available. */
     private boolean dragMatchesSnapshot(OreCrusherUiEvent data, DragSnapshot snapshot) {
         if (snapshot == null) {
             return false;
@@ -2518,6 +2622,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return itemId.equals(snapshot.itemId);
     }
 
+    /** Returns the first available integer from three alternate payload fields. */
     private static Integer firstNonNull(Integer first, Integer second, Integer third) {
         if (first != null) {
             return first;
@@ -2528,10 +2633,12 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return third;
     }
 
+    /** Returns the first available integer from two alternate payload fields. */
     private static Integer firstNonNull(Integer first, Integer second) {
         return first != null ? first : second;
     }
 
+    /** Returns the first nonblank string from two alternate payload fields. */
     private static String firstNonEmpty(String first, String second) {
         if (first != null && !first.isBlank()) {
             return first;
@@ -2542,6 +2649,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return null;
     }
 
+    /** Resolves the dragged item ID from event fields or the last captured source. */
     private String resolveEventItemId(OreCrusherUiEvent data) {
         if (data == null) {
             return null;
@@ -2553,6 +2661,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return itemId;
     }
 
+    /** Resolves a player source slot using the reported index, recent source and item matching. */
     private SlotRef resolvePlayerSourceRef(
             Inventory inventory,
             Integer sourceSlotId,
@@ -2612,6 +2721,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return null;
     }
 
+    /** Searches hotbar then storage for an item stack meeting the requested quantity. */
     private SlotRef findMatchingPlayerSlot(Inventory inventory, String itemId, Integer desiredQty) {
         if (inventory == null || itemId == null) {
             return null;
@@ -2631,6 +2741,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return null;
     }
 
+    /** Finds the first matching stack with at least the requested quantity in a container. */
     private SlotRef findMatchingSlotInContainer(ItemContainer container, String itemId, int minQty) {
         if (container == null || itemId == null) {
             return null;
@@ -2648,6 +2759,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return null;
     }
 
+    /** Infers a missing source grid from the target, source slot and matching item stacks. */
     private GridType inferSourceGrid(
             OreCrusherUiEvent data,
             GridType targetGrid,
@@ -2690,6 +2802,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return GridType.PLAYER;
     }
 
+    /** Maps a client grid index to a transferable grid, excluding the recipe grid. */
     private GridType resolveGridIndex(int gridIndex) {
         if (gridIndex == GRID_INDEX_RECIPE) {
             return null;
@@ -2706,6 +2819,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return null;
     }
 
+    /** Maps a UI grid and index to the corresponding machine or player container slot. */
     private SlotRef resolveSlotRef(
             GridType gridType,
             int slotIndex,
@@ -2734,6 +2848,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return null;
     }
 
+    /** Interprets a combined player index with hotbar slots before storage slots. */
     private SlotRef resolvePlayerSlot(Inventory inventory, int gridIndex) {
         if (gridIndex < 0) {
             return null;
@@ -2754,6 +2869,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return null;
     }
 
+    /** Interprets an index relative to the hotbar alone. */
     private SlotRef resolvePlayerSlotHotbarOnly(Inventory inventory, int gridIndex) {
         if (gridIndex < 0 || inventory == null) {
             return null;
@@ -2765,6 +2881,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return null;
     }
 
+    /** Interprets an index relative to storage alone. */
     private SlotRef resolvePlayerSlotStorageOnly(Inventory inventory, int gridIndex) {
         if (gridIndex < 0 || inventory == null) {
             return null;
@@ -2776,6 +2893,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return null;
     }
 
+    /** Resolves the player slot using the chosen index interpretation and fallbacks. */
     private SlotRef resolvePlayerSlotByMode(
             Inventory inventory,
             int gridIndex,
@@ -2796,6 +2914,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return ref;
     }
 
+    /** Selects the index interpretation whose slot matches the reported item ID. */
     private PlayerIndexMode resolvePlayerIndexMode(
             Inventory inventory,
             Integer slotIndex,
@@ -2818,6 +2937,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return PlayerIndexMode.COMBINED;
     }
 
+    /** Reads the stack referenced by a resolved slot, if present. */
     private ItemStack slotRefStack(SlotRef ref) {
         if (ref == null || ref.container == null) {
             return null;
@@ -2825,6 +2945,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return ref.container.getItemStack(ref.slot);
     }
 
+    /** Converts a hotbar or storage slot reference back to a combined grid index. */
     private Integer resolvePlayerGridIndex(Inventory inventory, SlotRef slotRef) {
         if (inventory == null || slotRef == null || slotRef.container == null) {
             return null;
@@ -2841,6 +2962,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         return null;
     }
 
+    /** Binds the crusher's machine, recipe and upgrade buttons to action events. */
     private void bindButtons(UIEventBuilder uiEventBuilder) {
         uiEventBuilder.addEventBinding(
                 CustomUIEventBindingType.Activating,
@@ -2880,18 +3002,21 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
                 EventData.of("Action", ACTION_RECIPE_QTY_ALL));
     }
 
+    /** Distinguishes machine input, machine output and player inventory grids. */
     private enum GridType {
         INPUT,
         OUTPUT,
         PLAYER
     }
 
+    /** Describes how a client-provided player slot index should be interpreted. */
     private enum PlayerIndexMode {
         COMBINED,
         STORAGE_ONLY,
         HOTBAR_ONLY
     }
 
+    /** Captures source grid, slot, item and timestamp for click or drag reconciliation. */
     private static final class DragSnapshot {
         private final GridType grid;
         private final int slotId;
@@ -2908,6 +3033,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         }
     }
 
+    /** Identifies a concrete slot in an item container. */
     private static final class SlotRef {
         private final ItemContainer container;
         private final short slot;

@@ -27,6 +27,7 @@ import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+/** Switches the targeted face of an item or energy cable between its two directional modes. */
 public class CableSideToolInteraction extends SimpleBlockInteraction {
     public static final BuilderCodec<CableSideToolInteraction> CODEC =
             BuilderCodec.builder(
@@ -37,10 +38,12 @@ public class CableSideToolInteraction extends SimpleBlockInteraction {
                     .build();
     private static final boolean DEBUG = true;
 
+    /** Creates the block interaction. */
     public CableSideToolInteraction() {
         super();
     }
 
+    /** Resolves the clicked face and cable component, toggles it, and marks the chunk dirty. */
     @Override
     protected void interactWithBlock(
             World world,
@@ -55,6 +58,7 @@ public class CableSideToolInteraction extends SimpleBlockInteraction {
             return;
         }
 
+        // Prefer the interaction's block face, falling back to the raycast normal.
         EnergySide side = resolveSide(context);
         if (side == null) {
             debug(commandBuffer, context, "CableTool: missing side (no face/normal).");
@@ -94,6 +98,7 @@ public class CableSideToolInteraction extends SimpleBlockInteraction {
         int localZ = ChunkUtil.localCoordinate((long) blockPos.getZ());
         int blockIndex = ChunkUtil.indexBlockInColumn(localX, y, localZ);
 
+        // Item cable components take precedence; otherwise check for an energy cable.
         boolean updated = false;
         ItemNodeComponent itemNode = blockComponents.getComponent(blockIndex, HyProTechComponents.ITEM);
         if (itemNode != null) {
@@ -115,6 +120,7 @@ public class CableSideToolInteraction extends SimpleBlockInteraction {
         }
     }
 
+    /** Client simulation intentionally performs no state changes. */
     @Override
     protected void simulateInteractWithBlock(
             InteractionType interactionType,
@@ -125,6 +131,7 @@ public class CableSideToolInteraction extends SimpleBlockInteraction {
         // Server-side only.
     }
 
+    /** Tries the server interaction state first, then the client state. */
     private EnergySide resolveSide(InteractionContext context) {
         EnergySide side = resolveSideFromState(context.getState());
         if (side != null) {
@@ -133,6 +140,7 @@ public class CableSideToolInteraction extends SimpleBlockInteraction {
         return resolveSideFromState(context.getClientState());
     }
 
+    /** Uses an explicit block face when available, otherwise the raycast normal. */
     private EnergySide resolveSideFromState(InteractionSyncData state) {
         if (state == null) {
             return null;
@@ -145,6 +153,7 @@ public class CableSideToolInteraction extends SimpleBlockInteraction {
         return resolveSideFromNormal(state.raycastNormal);
     }
 
+    /** Maps protocol block faces to the corresponding energy sides. */
     private EnergySide resolveSideFromFace(BlockFace face) {
         if (face == null || face == BlockFace.None) {
             return null;
@@ -168,6 +177,7 @@ public class CableSideToolInteraction extends SimpleBlockInteraction {
         }
     }
 
+    /** Chooses the axis with the largest absolute normal component and uses its sign. */
     private EnergySide resolveSideFromNormal(Vector3f normal) {
         if (normal == null) {
             return null;
@@ -186,6 +196,7 @@ public class CableSideToolInteraction extends SimpleBlockInteraction {
         return normal.z >= 0f ? EnergySide.SOUTH : EnergySide.NORTH;
     }
 
+    /** Sends a debug message when debugging and the player context are available. */
     private void debug(CommandBuffer<EntityStore> commandBuffer, InteractionContext context, String message) {
         if (!DEBUG || commandBuffer == null || context == null) {
             return;
@@ -200,6 +211,7 @@ public class CableSideToolInteraction extends SimpleBlockInteraction {
         player.sendMessage(Message.raw(message));
     }
 
+    /** Switches OUTPUT to INPUT; all other modes become OUTPUT. */
     private void toggleEnergySide(EnergyNodeComponent node, EnergySide side) {
         EnergySideMode mode = node.getSideMode(side);
         if (mode == EnergySideMode.OUTPUT) {
@@ -209,6 +221,7 @@ public class CableSideToolInteraction extends SimpleBlockInteraction {
         }
     }
 
+    /** Switches PUT to TAKE; all other modes become PUT. */
     private void toggleItemSide(ItemNodeComponent node, EnergySide side) {
         ItemMode mode = node.getSideMode(side);
         if (mode == ItemMode.PUT) {

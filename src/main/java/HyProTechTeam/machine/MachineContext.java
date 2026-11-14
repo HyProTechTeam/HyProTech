@@ -7,6 +7,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 
+/** Supplies a machine tick with its world position, components, and dirty flag. */
 public final class MachineContext {
     private final World world;
     private final ChunkStore chunkStore;
@@ -37,34 +38,42 @@ public final class MachineContext {
         this.energy = energy;
     }
 
+    /** Returns the world containing the machine. */
     public World getWorld() {
         return world;
     }
 
+    /** Returns the associated chunk store. */
     public ChunkStore getChunkStore() {
         return chunkStore;
     }
 
+    /** Returns the machine's world X coordinate. */
     public int getX() {
         return x;
     }
 
+    /** Returns the machine's world Y coordinate. */
     public int getY() {
         return y;
     }
 
+    /** Returns the machine's world Z coordinate. */
     public int getZ() {
         return z;
     }
 
+    /** Returns the machine state component. */
     public MachineComponent getMachine() {
         return machine;
     }
 
+    /** Returns the machine's energy node component. */
     public EnergyNodeComponent getEnergyNode() {
         return energy;
     }
 
+    /** Returns transactional storage, or an empty storage when the block has no energy node. */
     public EnergyStorage getEnergyStorage() {
         if (energy == null) {
             return EnergyStorage.empty();
@@ -72,14 +81,17 @@ public final class MachineContext {
         return energy.getStorage(components::markNeedsSaving);
     }
 
+    /** Looks up the inventory associated with this machine's block position. */
     public ItemContainer getItemContainer() {
         return MachineItemAccess.getContainer(world, x, y, z);
     }
 
+    /** Requests that the machine system persist changes made during this tick. */
     public void markDirty() {
         dirty = true;
     }
 
+    /** Reports whether the context has been marked for persistence. */
     public boolean isDirty() {
         return dirty;
     }

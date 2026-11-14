@@ -2,6 +2,7 @@ $C = "Common.ui";
 @ReqSlotSize = 32;
 @ItemSlotSize = 40;
 
+// Ore-crusher page with input/output slots, status, and upgrade controls.
 $C.@PageOverlay {
   $C.@DecoratedContainer {
     Anchor: (Width: 1000, Height: 480);
@@ -38,6 +39,7 @@ $C.@PageOverlay {
           Group {
             Anchor: (Width: @ItemSlotSize, Height: @ItemSlotSize);
             LayoutMode: Full;
+            // Input icon and its overlaid quantity.
             ItemSlot #InputSlot {
               Anchor: (Full: 0);
               ShowQualityBackground: false;
@@ -72,6 +74,7 @@ $C.@PageOverlay {
           Group {
             Anchor: (Width: @ItemSlotSize, Height: @ItemSlotSize);
             LayoutMode: Full;
+            // Output icon and its overlaid quantity.
             ItemSlot #OutputSlot {
               Anchor: (Full: 0);
               ShowQualityBackground: false;
@@ -100,6 +103,7 @@ $C.@PageOverlay {
         LayoutMode: Top;
         Padding: (Top: 10, Left: 4, Right: 4);
 
+        // Machine tier and energy/status details are populated by the page.
         Label #CrusherTier {
           Style: (
             FontSize: 16,

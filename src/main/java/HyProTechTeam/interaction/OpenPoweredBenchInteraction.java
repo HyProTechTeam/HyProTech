@@ -28,6 +28,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import java.util.Map;
 import java.util.UUID;
 
+/** Opens the server processing-bench window for the targeted block. */
 public class OpenPoweredBenchInteraction extends SimpleInstantInteraction {
     public static final BuilderCodec<OpenPoweredBenchInteraction> CODEC =
             BuilderCodec.builder(
@@ -37,10 +38,12 @@ public class OpenPoweredBenchInteraction extends SimpleInstantInteraction {
                     .documentation("Opens the processing bench.")
                     .build();
 
+    /** Creates the instant interaction. */
     public OpenPoweredBenchInteraction() {
         super();
     }
 
+    /** Resolves the player and target, then opens the appropriate page with bench windows. */
     @Override
     protected void firstRun(
             InteractionType interactionType,
@@ -93,6 +96,7 @@ public class OpenPoweredBenchInteraction extends SimpleInstantInteraction {
                 windows);
     }
 
+    /** Resolves a targeted block part to its base position. */
     @SuppressWarnings("removal")
     private Vector3i resolveTargetBlockPosition(InteractionContext context, World world) {
         BlockPosition target = context.getTargetBlock();
@@ -108,6 +112,7 @@ public class OpenPoweredBenchInteraction extends SimpleInstantInteraction {
         return new Vector3i(baseBlock.x, baseBlock.y, baseBlock.z);
     }
 
+    /** Initializes the bench and reuses or creates a window for this player. */
     private Window[] createBenchWindows(
             World world,
             Vector3i pos,
@@ -150,6 +155,7 @@ public class OpenPoweredBenchInteraction extends SimpleInstantInteraction {
             return null;
         }
 
+        // Reuse an existing per-player window when one is already registered.
         UUID playerId = uuidComponent.getUuid();
         Map<UUID, BenchWindow> windows = benchBlock != null ? benchBlock.getWindows() : null;
         if (windows != null) {
@@ -172,12 +178,14 @@ public class OpenPoweredBenchInteraction extends SimpleInstantInteraction {
         if (benchBlock != null) {
             bench.updateFuelValues(benchBlock.getWindows());
         }
+        // Register cleanup so closing the new window removes only this exact mapping.
         if (windows != null) {
             window.registerCloseEvent(event -> windows.remove(playerId, window));
         }
         return new Window[] { window };
     }
 
+    /** Initializes bench configuration when the block exposes a bench definition. */
     private boolean ensureBenchInitialized(ProcessingBenchBlock bench, BlockType blockType) {
         if (bench == null || blockType == null || blockType.getBench() == null) {
             return false;
@@ -186,6 +194,7 @@ public class OpenPoweredBenchInteraction extends SimpleInstantInteraction {
         return true;
     }
 
+    /** Selects the bench page when a processing window exists, otherwise the inventory page. */
     private Page resolveBasePage(Window[] windows) {
         if (windows == null) {
             return Page.Inventory;

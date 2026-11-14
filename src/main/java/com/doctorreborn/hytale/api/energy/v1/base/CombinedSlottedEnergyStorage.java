@@ -48,6 +48,7 @@ public class CombinedSlottedEnergyStorage<S extends SlottedEnergyStorage> extend
         super(parts);
     }
 
+    /** Sums the slot counts of all wrapped storages. */
     @Override
     public int getSlotCount() {
         int count = 0;
@@ -59,6 +60,7 @@ public class CombinedSlottedEnergyStorage<S extends SlottedEnergyStorage> extend
         return count;
     }
 
+    /** Maps a combined slot index into the corresponding wrapped storage. */
     @Override
     public SingleSlotEnergyStorage getSlot(int slot) {
         int updatedSlot = slot;
@@ -75,6 +77,7 @@ public class CombinedSlottedEnergyStorage<S extends SlottedEnergyStorage> extend
                 "Slot " + slot + " is out of bounds. This storage has size " + getSlotCount());
     }
 
+    /** Displays the wrapped parts for diagnostics. */
     @Override
     public String toString() {
         StringJoiner partNames = new StringJoiner(", ");

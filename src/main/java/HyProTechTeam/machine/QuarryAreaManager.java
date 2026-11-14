@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
 
+/** Determines quarry boundaries and manages the visual border and its cleanup. */
 public final class QuarryAreaManager {
     private static final String BORDER_STATE_LINE = "Border_Line";
     private static final String BORDER_STATE_LINE_BACK = "Border_Line_Back";
@@ -47,6 +48,7 @@ public final class QuarryAreaManager {
     private static final String BORDER_PARTICLE_ID = "Server/Particles/Weapon/LaserRifle/Laser_Impact";
     private static final int TORCH_SCAN_RADIUS = 64;
     private static final long TORCH_CACHE_MS = 1000L;
+    // Weak world keys allow these caches to be reclaimed after a world is no longer referenced.
     private static final Map<World, Map<String, BlockSnapshot>> STORED_BLOCKS = new WeakHashMap<>();
     private static final Map<World, Map<String, BorderRecord>> BORDER_RECORDS = new WeakHashMap<>();
     private static final Map<World, Map<String, BorderRecord>> BORDER_RECORDS_BY_XZ = new WeakHashMap<>();
@@ -55,14 +57,17 @@ public final class QuarryAreaManager {
     private QuarryAreaManager() {
     }
 
+    /** Border-block placement is currently disabled because of chunk unload/load issues. */
     public static void showArea(World world, Vector3i origin, int width, int depth) {
         // Disabled: border placement causes unload/load issues.
     }
 
+    /** Removes leftover visual border blocks for this quarry. */
     public static void hideArea(World world, Vector3i origin, int width, int depth) {
         clearGhostArea(world, origin, width, depth);
     }
 
+    /** Resizing placed border blocks is disabled along with border placement. */
     public static void updateArea(
             World world,
             Vector3i origin,
@@ -73,6 +78,7 @@ public final class QuarryAreaManager {
         // Disabled: border placement causes unload/load issues.
     }
 
+    /** Displays a particle outline, preferring torch-defined bounds when available. */
     public static void spawnBorderParticles(World world, Vector3i origin, int width, int depth) {
         if (world == null || origin == null) {
             return;
@@ -87,6 +93,7 @@ public final class QuarryAreaManager {
         });
     }
 
+    /** Returns the cached or newly discovered torch-defined bounds around a quarry. */
     public static TorchBounds getTorchBounds(World world, Vector3i origin) {
         if (world == null || origin == null) {
             return null;
@@ -94,6 +101,7 @@ public final class QuarryAreaManager {
         return getTorchBoundsInternal(world, origin);
     }
 
+    /** Schedules removal of stale border blocks on the world thread. */
     private static void clearGhostArea(World world, Vector3i origin, int width, int depth) {
         if (world == null || origin == null) {
             return;
@@ -101,6 +109,7 @@ public final class QuarryAreaManager {
         world.execute(() -> clearGhostAreaInternal(world, origin, width, depth));
     }
 
+    /** Clamps dimensions and vertical bounds before clearing the border footprint. */
     private static void clearGhostAreaInternal(World world, Vector3i origin, int width, int depth) {
         int w = Math.max(1, width);
         int d = Math.max(1, depth);
@@ -116,6 +125,7 @@ public final class QuarryAreaManager {
         clearBorderAreaSimple(world, origin, w, d, baseY, topY);
     }
 
+    /** Reuses a scan for one second to avoid repeatedly traversing nearby blocks. */
     private static TorchBounds getTorchBoundsInternal(World world, Vector3i origin) {
         Map<String, TorchBoundsCache> cache = getTorchBoundsCache(world);
         String key = originKeyXZ(origin);
@@ -129,6 +139,7 @@ public final class QuarryAreaManager {
         return bounds;
     }
 
+    /** Starts a torch scan centered on the quarry position. */
     private static TorchBounds computeTorchBounds(World world, Vector3i origin) {
         int originX = origin.getX();
         int originY = origin.getY();
@@ -136,6 +147,7 @@ public final class QuarryAreaManager {
         return computeTorchBoundsAnyHeight(world, originX, originY, originZ);
     }
 
+    /** Finds a torch rectangle enclosing the origin, independent of torch height. */
     private static TorchBounds computeTorchBoundsAnyHeight(
             World world,
             int originX,
@@ -148,6 +160,7 @@ public final class QuarryAreaManager {
         int startZ = originZ - TORCH_SCAN_RADIUS;
         int endZ = originZ + TORCH_SCAN_RADIUS;
 
+        // Search loaded columns only and keep the first border torch found in each column.
         for (int x = startX; x <= endX; x++) {
             for (int z = startZ; z <= endZ; z++) {
                 long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
@@ -174,6 +187,7 @@ public final class QuarryAreaManager {
             return null;
         }
 
+        // Opposite torch pairs define candidate rectangles; prefer more corners, then less area.
         TorchBounds best = null;
         int bestCornerCount = -1;
         long bestArea = Long.MAX_VALUE;
@@ -189,6 +203,7 @@ public final class QuarryAreaManager {
                 int maxX = Math.max(a.getX(), b.getX());
                 int minZ = Math.min(a.getZ(), b.getZ());
                 int maxZ = Math.max(a.getZ(), b.getZ());
+                // Only consider rectangles containing the quarry's horizontal position.
                 if (originX < minX || originX > maxX || originZ < minZ || originZ > maxZ) {
                     continue;
                 }
@@ -209,6 +224,7 @@ public final class QuarryAreaManager {
                 if (hasMaxMax) {
                     cornerCount++;
                 }
+                // Require opposite corners and count any additional corners as stronger evidence.
                 boolean hasOppositeCorners = (hasMinMin && hasMaxMax) || (hasMinMax && hasMaxMin);
                 if (!hasOppositeCorners && cornerCount < 4) {
                     continue;
@@ -225,6 +241,7 @@ public final class QuarryAreaManager {
         return best;
     }
 
+    /** Lazily creates the per-world cache of torch scans. */
     private static Map<String, TorchBoundsCache> getTorchBoundsCache(World world) {
         Map<String, TorchBoundsCache> cache = TORCH_BOUNDS_CACHE.get(world);
         if (cache == null) {
@@ -234,6 +251,7 @@ public final class QuarryAreaManager {
         return cache;
     }
 
+    /** Checks a corner's horizontal position without requiring a particular height. */
     private static boolean hasTorchAtXZ(Map<String, Vector3i> torches, int x, int z) {
         for (Vector3i pos : torches.values()) {
             if (pos.getX() == x && pos.getZ() == z) {
@@ -243,6 +261,7 @@ public final class QuarryAreaManager {
         return false;
     }
 
+    /** Tests whether any discovered torch shares an X coordinate. */
     private static boolean hasTorchAtX(Map<String, Vector3i> torches, int x) {
         for (Vector3i pos : torches.values()) {
             if (pos.getX() == x) {
@@ -252,6 +271,7 @@ public final class QuarryAreaManager {
         return false;
     }
 
+    /** Tests whether any discovered torch shares a Z coordinate. */
     private static boolean hasTorchAtZ(Map<String, Vector3i> torches, int z) {
         for (Vector3i pos : torches.values()) {
             if (pos.getZ() == z) {
@@ -261,6 +281,7 @@ public final class QuarryAreaManager {
         return false;
     }
 
+    /** Samples the rotated rectangular perimeter at two-block intervals. */
     private static void spawnBorderParticlesInternal(World world, Vector3i origin, int width, int depth) {
         int w = Math.max(1, width);
         int d = Math.max(1, depth);
@@ -299,6 +320,7 @@ public final class QuarryAreaManager {
         }
     }
 
+    /** Samples the world-aligned torch perimeter at two-block intervals. */
     private static void spawnBorderParticlesInternal(World world, TorchBounds bounds) {
         Store<EntityStore> store = world.getEntityStore().getStore();
         if (store == null) {
@@ -323,11 +345,13 @@ public final class QuarryAreaManager {
         }
     }
 
+    /** Places one border effect near the center of a block. */
     private static void spawnParticleAt(int x, int y, int z, Store<EntityStore> store) {
         Vector3d pos = new Vector3d(x + 0.5, y + 0.6, z + 0.5);
         ParticleUtil.spawnParticleEffect(BORDER_PARTICLE_ID, pos, store);
     }
 
+    /** Rotates a local edge coordinate into the world before spawning its particle. */
     private static void spawnAtEdge(
             World world,
             Vector3i origin,
@@ -343,6 +367,7 @@ public final class QuarryAreaManager {
         spawnParticleAt(worldX, y, worldZ, store);
     }
 
+    /** Places or updates a border only where it will not replace a quarry or occupied block. */
     private static boolean placeBorderBlock(
             World world,
             BlockAccessor accessor,
@@ -377,6 +402,7 @@ public final class QuarryAreaManager {
         return false;
     }
 
+    /** Selects the line model for the edge, degenerate dimensions and vertical level. */
     private static String lineState(
             Bounds bounds,
             int x,
@@ -405,6 +431,7 @@ public final class QuarryAreaManager {
         return isTop ? BORDER_STATE_LINE_BACK_FRONT : BORDER_STATE_LINE;
     }
 
+    /** Selects the lower corner model from its position within the bounds. */
     private static String cornerState(Bounds bounds, int x, int z) {
         if (x == bounds.minX && z == bounds.minZ) {
             return BORDER_STATE_CORNER_LEFT_FRONT;
@@ -418,6 +445,7 @@ public final class QuarryAreaManager {
         return BORDER_STATE_CORNER_LEFT_BACK;
     }
 
+    /** Selects the upper corner model from its position within the bounds. */
     private static String cornerUpState(Bounds bounds, int x, int z) {
         if (x == bounds.minX && z == bounds.minZ) {
             return BORDER_STATE_CORNER_UP_LEFT_FRONT;
@@ -431,6 +459,7 @@ public final class QuarryAreaManager {
         return BORDER_STATE_CORNER_UP_LEFT_BACK;
     }
 
+    /** Selects the middle corner model from its position within the bounds. */
     private static String cornerMiddleState(Bounds bounds, int x, int z) {
         if (x == bounds.minX && z == bounds.minZ) {
             return BORDER_STATE_CORNER_MIDDLE_LEFT_FRONT;
@@ -444,6 +473,7 @@ public final class QuarryAreaManager {
         return BORDER_STATE_CORNER_MIDDLE_LEFT_BACK;
     }
 
+    /** Recognizes absent blocks and the server's empty-block representations. */
     private static boolean isEmpty(BlockType blockType) {
         if (blockType == null || blockType == BlockType.EMPTY) {
             return true;
@@ -452,6 +482,7 @@ public final class QuarryAreaManager {
         return id == null || id.isEmpty() || BlockType.EMPTY_KEY.equals(id);
     }
 
+    /** Recognizes the border asset and IDs containing its base ID. */
     private static boolean isBorder(BlockType blockType) {
         if (blockType == null) {
             return false;
@@ -466,6 +497,7 @@ public final class QuarryAreaManager {
                 || containsIgnoreCase(id, baseId);
     }
 
+    /** Recognizes border-torch IDs and their variants. */
     private static boolean isBorderTorch(BlockType blockType) {
         if (blockType == null) {
             return false;
@@ -480,6 +512,7 @@ public final class QuarryAreaManager {
                 || containsIgnoreCase(id, baseId);
     }
 
+    /** Recognizes all tiered quarry IDs. */
     private static boolean isQuarry(BlockType blockType) {
         if (blockType == null) {
             return false;
@@ -488,6 +521,7 @@ public final class QuarryAreaManager {
         return id != null && TieredIdUtil.isTieredId(id, HyProTechIds.BLOCK_QUARRY);
     }
 
+    /** Reads the quarry's horizontal rotation, defaulting to no rotation if unavailable. */
     private static Rotation getBlockYaw(World world, Vector3i origin) {
         long chunkIndex = ChunkUtil.indexChunkFromBlock(origin.getX(), origin.getZ());
         if (world.getChunkIfLoaded(chunkIndex) == null) {
@@ -503,6 +537,7 @@ public final class QuarryAreaManager {
         return rotation.yaw();
     }
 
+    /** Rotates a local X/Z offset by the quarry's quarter-turn yaw. */
     private static Vector3i rotateLocalOffset(int localX, int localZ, Rotation yaw) {
         if (yaw == Rotation.Ninety) {
             return new Vector3i(localZ, 0, -localX);
@@ -516,6 +551,7 @@ public final class QuarryAreaManager {
         return new Vector3i(localX, 0, localZ);
     }
 
+    /** Converts local rectangular bounds to their rotated axis-aligned bounds. */
     private static Bounds rotateBounds(Bounds bounds, Rotation yaw) {
         if (yaw == Rotation.Ninety) {
             return new Bounds(
@@ -541,6 +577,7 @@ public final class QuarryAreaManager {
         return bounds;
     }
 
+    /** Scans the surrounding loaded area and restores snapshots where borders still exist. */
     private static void clearBorderArea(World world, Vector3i origin, int width, int depth, int baseY, int topY) {
         Bounds bounds = computeBounds(width, depth);
         if (BORDER_OFFSET_Z != 0) {
@@ -575,6 +612,7 @@ public final class QuarryAreaManager {
         }
     }
 
+    /** Removes a recorded border and restores its saved blocks where chunks are loaded. */
     private static boolean clearBorderFromRecord(World world, Vector3i origin) {
         BorderRecord record = consumeBorderRecord(world, origin);
         if (record == null) {
@@ -597,6 +635,7 @@ public final class QuarryAreaManager {
         return true;
     }
 
+    /** Remembers an existing nonempty block and rotation before a border replaces it. */
     private static void storeSnapshot(World world, int x, int y, int z, BlockType current) {
         if (isEmpty(current)) {
             return;
@@ -610,6 +649,7 @@ public final class QuarryAreaManager {
         snapshots.put(key, new BlockSnapshot(current.getId(), rotationIndex));
     }
 
+    /** Restores the saved block, or clears the border when no original block was saved. */
     private static void restoreOrClear(World world, BlockAccessor accessor, int x, int y, int z) {
         Map<String, BlockSnapshot> snapshots = getSnapshotMap(world);
         String key = blockKey(x, y, z);
@@ -621,6 +661,7 @@ public final class QuarryAreaManager {
         }
     }
 
+    /** Clears nearby border blocks without holders, leaving other blocks untouched. */
     private static void clearBorderAreaSimple(
             World world,
             Vector3i origin,
@@ -657,6 +698,7 @@ public final class QuarryAreaManager {
         }
     }
 
+    /** Checks for a stored component holder at a block's chunk-local index. */
     private static boolean hasBlockComponents(World world, int x, int y, int z) {
         if (world == null) {
             return false;
@@ -673,6 +715,7 @@ public final class QuarryAreaManager {
         return components.getEntityHolder(blockIndex) != null;
     }
 
+    /** Lazily creates the saved-block map for a world. */
     private static Map<String, BlockSnapshot> getSnapshotMap(World world) {
         Map<String, BlockSnapshot> snapshots = STORED_BLOCKS.get(world);
         if (snapshots == null) {
@@ -682,6 +725,7 @@ public final class QuarryAreaManager {
         return snapshots;
     }
 
+    /** Resolves a saved asset ID and restores it with its original rotation. */
     private static void setBlockWithRotation(
             BlockAccessor accessor,
             int x,
@@ -703,6 +747,7 @@ public final class QuarryAreaManager {
         accessor.setBlock(x, y, z, blockIndex, blockType, rotationIndex, 0, 0);
     }
 
+    /** Creates a record indexed by both the full origin and its horizontal position. */
     private static void startBorderRecord(World world, Vector3i origin) {
         Map<String, BorderRecord> records = getBorderRecordMap(world);
         BorderRecord record = new BorderRecord();
@@ -711,6 +756,7 @@ public final class QuarryAreaManager {
         getBorderRecordMapByXZ(world).put(originKeyXZ(origin), record);
     }
 
+    /** Adds a placed border position to the quarry's current record. */
     private static void recordBorderPosition(World world, Vector3i origin, int x, int y, int z) {
         BorderRecord record = getBorderRecord(world, origin);
         if (record == null) {
@@ -719,6 +765,7 @@ public final class QuarryAreaManager {
         record.positions.put(blockKey(x, y, z), new Vector3i(x, y, z));
     }
 
+    /** Removes the exact record, falling back to a horizontal-coordinate lookup. */
     private static BorderRecord consumeBorderRecord(World world, Vector3i origin) {
         Map<String, BorderRecord> records = getBorderRecordMap(world);
         BorderRecord record = records.remove(originKey(origin));
@@ -729,6 +776,7 @@ public final class QuarryAreaManager {
         return consumeBorderRecordByXZ(world, origin);
     }
 
+    /** Removes the record indexed by the quarry's X/Z position. */
     private static BorderRecord consumeBorderRecordByXZ(World world, Vector3i origin) {
         Map<String, BorderRecord> records = getBorderRecordMapByXZ(world);
         BorderRecord record = records.remove(originKeyXZ(origin));
@@ -738,11 +786,13 @@ public final class QuarryAreaManager {
         return record;
     }
 
+    /** Looks up the record using all three origin coordinates. */
     private static BorderRecord getBorderRecord(World world, Vector3i origin) {
         Map<String, BorderRecord> records = getBorderRecordMap(world);
         return records.get(originKey(origin));
     }
 
+    /** Lazily creates the per-world full-coordinate record map. */
     private static Map<String, BorderRecord> getBorderRecordMap(World world) {
         Map<String, BorderRecord> records = BORDER_RECORDS.get(world);
         if (records == null) {
@@ -752,6 +802,7 @@ public final class QuarryAreaManager {
         return records;
     }
 
+    /** Lazily creates the per-world horizontal-coordinate record map. */
     private static Map<String, BorderRecord> getBorderRecordMapByXZ(World world) {
         Map<String, BorderRecord> records = BORDER_RECORDS_BY_XZ.get(world);
         if (records == null) {
@@ -761,18 +812,22 @@ public final class QuarryAreaManager {
         return records;
     }
 
+    /** Produces a coordinate key for a saved block or border position. */
     private static String blockKey(int x, int y, int z) {
         return x + ":" + y + ":" + z;
     }
 
+    /** Produces a full-coordinate key for a quarry. */
     private static String originKey(Vector3i origin) {
         return origin.getX() + ":" + origin.getY() + ":" + origin.getZ();
     }
 
+    /** Produces a horizontal-coordinate key, independent of quarry height. */
     private static String originKeyXZ(Vector3i origin) {
         return origin.getX() + ":" + origin.getZ();
     }
 
+    /** Searches IDs case-insensitively without allocating lowercase copies. */
     private static boolean containsIgnoreCase(String value, String needle) {
         if (value == null || needle == null || needle.isEmpty()) {
             return false;
@@ -786,6 +841,7 @@ public final class QuarryAreaManager {
         return false;
     }
 
+    /** Centers width on the local X axis and extends depth in the negative Z direction. */
     private static Bounds computeBounds(int width, int depth) {
         int halfWidth = width / 2;
         int minX = -halfWidth;
@@ -795,6 +851,7 @@ public final class QuarryAreaManager {
         return new Bounds(minX, maxX, minZ, maxZ);
     }
 
+    /** Inclusive local or rotated horizontal bounds. */
     private static final class Bounds {
         private final int minX;
         private final int maxX;
@@ -809,6 +866,7 @@ public final class QuarryAreaManager {
         }
     }
 
+    /** Block identity and rotation saved before a temporary border is placed. */
     private static final class BlockSnapshot {
         private final String blockId;
         private final int rotationIndex;
@@ -819,10 +877,12 @@ public final class QuarryAreaManager {
         }
     }
 
+    /** Positions belonging to a single quarry border. */
     private static final class BorderRecord {
         private final Map<String, Vector3i> positions = new HashMap<>();
     }
 
+    /** Inclusive world-space torch rectangle, displayed at the quarry's Y coordinate. */
     public static final class TorchBounds {
         public final int minX;
         public final int maxX;
@@ -838,15 +898,18 @@ public final class QuarryAreaManager {
             this.y = y;
         }
 
+        /** Returns the inclusive X extent, with a minimum of one block. */
         public int getWidth() {
             return Math.max(1, maxX - minX + 1);
         }
 
+        /** Returns the inclusive Z extent, with a minimum of one block. */
         public int getDepth() {
             return Math.max(1, maxZ - minZ + 1);
         }
     }
 
+    /** Stores a scan result, including an absent result, and the time it was computed. */
     private static final class TorchBoundsCache {
         private final TorchBounds bounds;
         private final long lastUpdatedMs;

@@ -15,11 +15,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/** Discovers and caches alloy-smelter recipes, including generated and fallback recipes. */
 public final class AlloySmelterRecipes {
     private static volatile List<RecipeEntry> RECIPE_CACHE;
     private static volatile Field itemRecipeField;
     private static HashSet<String> allowed_alloy = new HashSet<>();
 
+    // Additional recognized alloy output IDs supplement the naming rules below.
     static {
         allowed_alloy.add("HyProTech_Ingot_High_Tier_Alloy");
         allowed_alloy.add("HyProTech_Ingot_TiV");
@@ -33,6 +35,7 @@ public final class AlloySmelterRecipes {
     private AlloySmelterRecipes() {
     }
 
+    /** Reuses a nonempty cache and rebuilds it when no recipes were found. */
     public static List<RecipeEntry> getRecipes() {
         if (RECIPE_CACHE != null && !RECIPE_CACHE.isEmpty()) {
             return RECIPE_CACHE;
@@ -41,6 +44,7 @@ public final class AlloySmelterRecipes {
         return RECIPE_CACHE;
     }
 
+    /** Finds the first recipe with a matching primary input ID, ignoring case. */
     public static RecipeEntry findByInput(String inputItemId) {
         if (inputItemId == null || inputItemId.isEmpty()) {
             return null;
@@ -53,6 +57,7 @@ public final class AlloySmelterRecipes {
         return null;
     }
 
+    /** Collects asset, item-generated, and fallback recipes, then sorts by output ID. */
     private static List<RecipeEntry> buildRecipeEntries() {
         Map<String, RecipeEntry> byOutput = new LinkedHashMap<>();
         Map<String, CraftingRecipe> map = CraftingRecipe.getAssetMap().getAssetMap();
@@ -69,6 +74,7 @@ public final class AlloySmelterRecipes {
         return entries;
     }
 
+    /** Scans item assets for direct and generated recipes and adds matching entries. */
     private static void addItemGeneratedRecipes(Map<String, RecipeEntry> byOutput) {
         Map<String, Item> items = Item.getAssetMap().getAssetMap();
         if (items == null || items.isEmpty()) {
@@ -95,6 +101,7 @@ public final class AlloySmelterRecipes {
         }
     }
 
+    /** Reads the optional direct generated recipe through a cached reflective field lookup. */
     private static CraftingRecipe getRecipeToGenerate(Item item) {
         if (item == null) {
             return null;
@@ -116,6 +123,7 @@ public final class AlloySmelterRecipes {
         }
     }
 
+    /** Adds the first valid recipe for an alloy output when its referenced item assets exist. */
     private static void addRecipeIfMatch(Map<String, RecipeEntry> byOutput, CraftingRecipe recipe) {
         if (recipe == null || !isAlloySmelterRecipe(recipe)) {
             return;
@@ -153,10 +161,12 @@ public final class AlloySmelterRecipes {
         }
     }
 
+    /** Adds built-in fallback recipes that were not discovered from assets. */
     private static void addFallbackEntries(Map<String, RecipeEntry> byOutput) {
         addBronzeFallback(byOutput);
     }
 
+    /** Adds a copper-and-tin bronze recipe when the output and required item assets exist. */
     private static void addBronzeFallback(Map<String, RecipeEntry> byOutput) {
         String outputId = "Ingredient_Bar_Bronze";
         if (byOutput.containsKey(outputId)) {
@@ -185,6 +195,7 @@ public final class AlloySmelterRecipes {
         byOutput.put(outputId, entry);
     }
 
+    /** Accepts the alloy-smelter processing bench or a recipe with an alloy-like primary output. */
     private static boolean isAlloySmelterRecipe(CraftingRecipe recipe) {
         BenchRequirement[] requirements = recipe.getBenchRequirement();
         if (requirements != null) {
@@ -197,11 +208,12 @@ public final class AlloySmelterRecipes {
                 }
             }
         }
-        // Fallback: allow any processing recipe that outputs an alloy.
+        // Fall back to the output check when no matching bench requirement was found.
         MaterialQuantity output = resolvePrimaryOutput(recipe);
         return output != null && isAlloyOutput(output.getItemId());
     }
 
+    /** Returns the first input with a nonempty item ID. */
     private static MaterialQuantity resolvePrimaryInput(CraftingRecipe recipe) {
         MaterialQuantity[] inputs = recipe.getInput();
         if (inputs == null || inputs.length == 0) {
@@ -215,6 +227,7 @@ public final class AlloySmelterRecipes {
         return null;
     }
 
+    /** Prefers the declared primary output, then the first valid output array entry. */
     private static MaterialQuantity resolvePrimaryOutput(CraftingRecipe recipe) {
         MaterialQuantity primary = recipe.getPrimaryOutput();
         if (primary != null && primary.getItemId() != null && !primary.getItemId().isEmpty()) {
@@ -232,6 +245,7 @@ public final class AlloySmelterRecipes {
         return null;
     }
 
+    /** Recognizes supported alloy and ingot IDs while excluding powders and smelter items. */
     private static boolean isAlloyOutput(String itemId) {
         if (itemId == null || itemId.isEmpty()) {
             return false;
@@ -268,10 +282,12 @@ public final class AlloySmelterRecipes {
         // return itemId.endsWith("_Alloy");
     }
 
+    /** Detects powder naming patterns used to exclude powder outputs. */
     private static boolean isPowder(String itemId) {
         return itemId.endsWith("_Powder") || itemId.contains("_Powder_") || itemId.contains("_Powder") || itemId.contains("Powder_");
     }
 
+    /** Accepts an existing item asset that is neither UNKNOWN nor a state asset. */
     private static boolean isKnownItemId(String itemId) {
         if (itemId == null || itemId.isEmpty()) {
             return false;
@@ -280,6 +296,7 @@ public final class AlloySmelterRecipes {
         return item != null && item != Item.UNKNOWN && !item.isState();
     }
 
+    /** Rejects any nonempty material item ID that is not a known item asset. */
     private static boolean areMaterialsKnown(MaterialQuantity[] materials) {
         if (materials == null || materials.length == 0) {
             return true;
@@ -299,6 +316,7 @@ public final class AlloySmelterRecipes {
         return true;
     }
 
+    /** Snapshot of recipe IDs, primary quantities, and full input/output arrays. */
     public static final class RecipeEntry {
         public final String recipeId;
         public final String inputItemId;

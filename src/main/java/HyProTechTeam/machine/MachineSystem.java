@@ -23,6 +23,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 
+/** Ticks machine blocks in loaded chunks and persists component changes. */
 public class MachineSystem extends EntityTickingSystem<ChunkStore> {
     private final ComponentType<ChunkStore, MachineComponent> machineType;
     private final ComponentType<ChunkStore, EnergyNodeComponent> energyType;
@@ -34,16 +35,20 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
         this.energyType = energyType;
     }
 
+    /** Processes chunks with both world and block-component data. */
     @Override
     public Query<ChunkStore> getQuery() {
         return Archetype.of(WorldChunk.getComponentType(), BlockComponentChunk.getComponentType());
     }
 
+    /** Serializes ticks that may mutate shared world and chunk state. */
     @Override
     public boolean isParallel(int total, int chunkSize) {
+        // Machine ticks can update shared world and chunk state.
         return false;
     }
 
+    /** Ticks machine holders and references and removes stale or duplicate chunk entries. */
     @Override
     public void tick(
             float delta,
@@ -66,6 +71,8 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
         int chunkX = worldChunk.getX();
         int chunkZ = worldChunk.getZ();
 
+        // A block may temporarily have both a saved holder and a live reference.
+        // Collect entries for removal after iteration to avoid mutating the maps mid-loop.
         IntArrayList duplicateHolders = null;
         IntArrayList invalidReferences = null;
         boolean referencesChanged = false;
@@ -78,6 +85,7 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
                     blockComponents.removeEntityReference(blockIndex, existingRef);
                     referencesChanged = true;
                 } else {
+                    // Preserve the holder's saved components before discarding the duplicate.
                     if (store != null && holder != null) {
                         MachineComponent holderMachine = holder.getComponent(machineType);
                         if (holderMachine != null) {
@@ -98,6 +106,7 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
             processBlock(blockComponents, commandBuffer, chunkStore, world, chunkX, chunkZ, blockIndex, holder, null, delta);
         }
 
+        // Live references are ticked separately from unloaded component holders.
         for (it.unimi.dsi.fastutil.ints.Int2ReferenceMap.Entry<Ref<ChunkStore>> entry : blockComponents.getEntityReferences().int2ReferenceEntrySet()) {
             int blockIndex = entry.getIntKey();
             Ref<ChunkStore> ref = entry.getValue();
@@ -111,6 +120,7 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
             processBlock(blockComponents, commandBuffer, chunkStore, world, chunkX, chunkZ, blockIndex, null, ref, delta);
         }
 
+        // Remove stale references and stop their blocks from continuing to tick.
         if (invalidReferences != null && !invalidReferences.isEmpty()) {
             for (int i = 0; i < invalidReferences.size(); i++) {
                 int blockIndex = invalidReferences.getInt(i);
@@ -135,6 +145,7 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Stops ticks for a stale reference when its chunk is still loaded. */
     private void disableTickingAt(World world, int chunkX, int chunkZ, int blockIndex) {
         if (world == null) {
             return;
@@ -156,6 +167,7 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Resolves a block's machine definition, updates its components, and runs one tick. */
     private void processBlock(
             BlockComponentChunk blockComponents,
             CommandBuffer<ChunkStore> commandBuffer,
@@ -174,6 +186,7 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
         BlockType blockType = getBlockTypeAt(world, chunkX, chunkZ, blockIndex);
         String blockId = blockType == null ? null : blockType.getId();
 
+        // Prefer the saved machine ID; fall back to identifying the current block.
         MachineComponent machine = blockComponents.getComponent(blockIndex, machineType);
         MachineDefinition definition = machine == null ? null : MachineRegistry.getById(machine.getMachineId());
         if (definition == null) {
@@ -183,6 +196,7 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
             return;
         }
 
+        // Older or newly placed blocks may need one or both components created.
         boolean changed = false;
         if (machine == null) {
             machine = definition.createMachineComponent();
@@ -203,6 +217,7 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
             changed = true;
         }
 
+        // Recover the machine tier from the placed block ID when it has a tier suffix.
         if (definition instanceof QuarryMachine) {
             int parsedTier = TieredIdUtil.parseTierSuffix(blockId, HyProTechIds.BLOCK_QUARRY);
             if (parsedTier > 0 && machine.getTier() != parsedTier) {
@@ -223,6 +238,7 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
             }
         }
 
+        // Compare configuration before and after applying defaults so changes are saved.
         EnergyNodeComponent.NodeType beforeNodeType = energy == null ? null : energy.getNodeType();
         int beforeCapacity = energy == null ? 0 : energy.getCapacity();
         int beforeMaxTransfer = energy == null ? 0 : energy.getMaxTransfer();
@@ -255,6 +271,7 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
         if (!definition.matchesBlockId(blockId)) {
             return;
         }
+        // The definition performs the machine-specific work and may mark its context dirty.
         MachineContext context = new MachineContext(
                 world,
                 chunkStore,
@@ -269,6 +286,7 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
             changed = true;
         }
 
+        // Write through the command buffer for live entities, or directly to saved holders.
         if (changed) {
             if (ref != null && commandBuffer != null) {
                 if (machine != null) {
@@ -289,6 +307,7 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Converts a column-local index into world coordinates without loading a chunk. */
     private BlockType getBlockTypeAt(World world, int chunkX, int chunkZ, int blockIndex) {
         int localX = ChunkUtil.xFromBlockInColumn(blockIndex);
         int localY = ChunkUtil.yFromBlockInColumn(blockIndex);
@@ -307,6 +326,7 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
         return accessor.getBlockType(worldX, worldY, worldZ);
     }
 
+    /** Adds a component to either representation of a block entity. */
     private <T extends Component<ChunkStore>> void putComponent(
             BlockComponentChunk blockComponents,
             CommandBuffer<ChunkStore> commandBuffer,

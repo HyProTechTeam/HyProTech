@@ -5,21 +5,25 @@ import com.hypixel.hytale.server.core.entity.entities.player.hud.CustomUIHud;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 
+/** Displays a furnace's energy and progress, sending updates only when values change. */
 public class FurnaceHud extends CustomUIHud {
     private int lastEnergy = Integer.MIN_VALUE;
     private int lastCapacity = Integer.MIN_VALUE;
     private int lastProgress = Integer.MIN_VALUE;
     private int lastProgressMax = Integer.MIN_VALUE;
 
+    /** Associates the HUD with a player. */
     public FurnaceHud(PlayerRef playerRef) {
         super(playerRef);
     }
 
+    /** Loads the furnace HUD layout. */
     @Override
     protected void build(UICommandBuilder uiCommandBuilder) {
         uiCommandBuilder.append("HyProTech_FurnaceHud.ui");
     }
 
+    /** Updates energy and clamped progress text when the corresponding cached values differ. */
     public void update(EnergyNodeComponent node) {
         if (node == null) {
             return;
@@ -52,11 +56,13 @@ public class FurnaceHud extends CustomUIHud {
             changed = true;
         }
 
+        // Avoid sending an empty UI update when no displayed value changed.
         if (changed) {
             update(false, update);
         }
     }
 
+    /** Invalidates all cached values so the next update refreshes the text. */
     public void resetCache() {
         lastEnergy = Integer.MIN_VALUE;
         lastCapacity = Integer.MIN_VALUE;

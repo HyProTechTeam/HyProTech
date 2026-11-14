@@ -38,16 +38,19 @@ import com.shailist.hytale.api.transfer.v1.transaction.TransactionContext;
  * default, it doesn't have any storage view either.
  */
 public interface InsertionOnlyEnergyStorage extends EnergyStorage {
+    /** Reports that extraction is unsupported. */
     @Override
     default boolean supportsExtraction() {
         return false;
     }
 
+    /** Rejects extraction by returning zero. */
     @Override
     default long extract(long maxAmount, @NonNull TransactionContext transaction) {
         return 0;
     }
 
+    /** Exposes no storage views by default. */
     @Override
     default @NonNull Iterator<EnergyStorageView> iterator() {
         return Collections.emptyIterator();
