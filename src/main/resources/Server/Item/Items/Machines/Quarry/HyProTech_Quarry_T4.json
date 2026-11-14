@@ -37,11 +37,6 @@
     },
     "PlayerAnimationsId": "Block",
     "Set": "Rock_Stone",
-    "Metadata": {
-        "BlockState": {
-            "Type": "container"
-        }
-    },
     "BlockType": {
         "Material": "Solid",
         "DrawType": "Model",
@@ -66,6 +61,9 @@
         "BlockBreakingDecalId": "Breaking_Decals_Rock",
         "BlockEntity": {
             "Components": {
+                "ItemContainerBlock": {
+                "Capacity": 10
+                },
                 "HyProTech:energy_node": {
                     "NodeType": "Machine",
                     "Energy": 0,

@@ -42,12 +42,7 @@
     ],
     "Output": [
       {
-        "ItemId": "HyProTech_Electric_Furnace_T3",
-        "Metadata": {
-          "BlockState": {
-            "Type": "processingBench"
-          }
-        }
+        "ItemId": "HyProTech_Electric_Furnace_T3"
       }
     ],
     "BenchRequirement": [
@@ -66,11 +61,6 @@
   },
   "PlayerAnimationsId": "Block",
   "Set": "Rock_Stone",
-  "Metadata": {
-    "BlockState": {
-      "Type": "processingBench"
-    }
-  },
   "BlockType": {
     "Material": "Solid",
     "DrawType": "Model",
@@ -382,6 +372,8 @@
     },
     "BlockEntity": {
       "Components": {
+        "BenchBlock": {},
+        "ProcessingBenchBlock": {},
         "HyProTech:energy_node": {
           "NodeType": "Furnace",
           "Energy": 0,

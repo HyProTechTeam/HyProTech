@@ -85,6 +85,11 @@
         }
       ]
     },
+    "BlockEntity": {
+      "Components": {
+        "BenchBlock": {}
+      }
+    },
     "State": {
       "Id": "crafting",
       "Definitions": {
