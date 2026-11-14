@@ -214,6 +214,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         }
 
         String action = data.getAction();
+        // Capture drag and click source data before handling machine-level actions.
         if (ACTION_DRAG_START.equalsIgnoreCase(action)) {
             captureDragSource(data);
             return;
@@ -245,6 +246,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
             sendUpdate(new UICommandBuilder());
             return;
         }
+        // Recipe selection and drag actions are handled without modifying machine settings here.
         if (ACTION_RECIPE_SELECT.equalsIgnoreCase(action)) {
             handleRecipeSelect(store, data);
             return;
@@ -254,6 +256,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
             return;
         }
 
+        // Remaining actions need the machine state from the player's current world.
         World world = getWorld(store);
         if (world == null) {
             return;
@@ -265,6 +268,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         }
         EnergyNodeComponent node = resolveNode(world);
 
+        // Upgrade, power, inventory retrieval and recipe-loading actions use the resolved machine.
         if (ACTION_UPGRADE.equalsIgnoreCase(action)) {
             if (!handleUpgrade(playerRef, store, world, machine, node)) {
                 sendUpdate(new UICommandBuilder());

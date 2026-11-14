@@ -101,6 +101,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         storageEntries.addAll(snapshot.storages);
 
         String action = data.getAction();
+        // Apply a single distribution mode to the network's discovered cables.
         if ("Distribution".equalsIgnoreCase(action)) {
             ItemDistributionMode next = snapshot.distributionMode == null
                     ? ItemDistributionMode.ROUND_ROBIN
@@ -110,6 +111,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
             return;
         }
 
+        // Navigation is limited to pages present in the current storage snapshot.
         if ("Prev".equalsIgnoreCase(action)) {
             if (pageIndex > 0) {
                 pageIndex--;
@@ -126,6 +128,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
             return;
         }
 
+        // A row action refers to the visible page and is resolved back to a storage position.
         if ("Priority".equalsIgnoreCase(action)) {
             StorageEntry entry = getEntryByRow(data.getIndex());
             if (entry == null) {

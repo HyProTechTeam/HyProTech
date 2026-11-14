@@ -333,6 +333,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             type = EnergyNodeComponent.NodeType.MACHINE;
         }
         if (type == EnergyNodeComponent.NodeType.CABLE) {
+            // Synchronize cable capacity and transfer with the configured tier.
             int tier = CableUpgradeConfig.clampTier(node.getCableTier());
             if (node.getCableTier() != tier) {
                 node.setCableTier(tier);
@@ -357,6 +358,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 changed = true;
             }
         } else if (type == EnergyNodeComponent.NodeType.SOLAR) {
+            // Apply the solar tier's storage, generation and transfer settings.
             int tier = SolarUpgradeConfig.clampTier(node.getSolarTier());
             if (node.getSolarTier() != tier) {
                 node.setSolarTier(tier);
@@ -381,6 +383,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 changed = true;
             }
         } else if (type == EnergyNodeComponent.NodeType.WIND) {
+            // Apply the wind tier's storage, generation and transfer settings.
             int tier = WindUpgradeConfig.clampTier(node.getWindTier());
             if (node.getWindTier() != tier) {
                 node.setWindTier(tier);
@@ -405,6 +408,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 changed = true;
             }
         } else if (type == EnergyNodeComponent.NodeType.BATTERY) {
+            // Supply basic battery limits only when the component has no positive values.
             if (node.getCapacity() <= 0) {
                 node.setCapacity(BASIC_MACHINE_CAPACITY);
                 changed = true;
@@ -414,6 +418,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 changed = true;
             }
         } else if (EnergyNodeComponent.isMachineLike(type)) {
+            // Supply missing machine limits and enable all faces when both masks are empty.
             if (node.getCapacity() <= 0) {
                 node.setCapacity(BASIC_MACHINE_CAPACITY);
                 changed = true;
@@ -428,6 +433,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 changed = true;
             }
         } else if (type == EnergyNodeComponent.NodeType.FURNACE) {
+            // Initialize furnace capacity, base consumption, progress and enabled state.
             if (node.getCapacity() < FURNACE_CAPACITY) {
                 node.setCapacity(FURNACE_CAPACITY);
                 changed = true;

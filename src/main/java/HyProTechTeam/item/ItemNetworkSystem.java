@@ -496,6 +496,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
             boolean allowTake = mode.allowsTake();
             boolean allowPut = mode.allowsPut();
 
+            // A face participates only when both the global mode and its side mask permit it.
             for (EnergySide side : EnergySide.VALUES) {
                 boolean sideAllowsTake = allowTake && cable.node.allowsTake(side);
                 boolean sideAllowsPut = allowPut && cable.node.allowsPut(side);
@@ -510,6 +511,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
                     continue;
                 }
 
+                // Cable-to-cable links belong to traversal, not inventory endpoints.
                 if (isItemCable(chunkStore, neighborX, neighborY, neighborZ)) {
                     continue;
                 }
@@ -528,6 +530,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
                     sourceRange = lookup.machineSlots.outputRange;
                     sinkRange = lookup.machineSlots.inputRange;
                 }
+                // A bidirectional face can register the same neighboring inventory in both roles.
                 if (sideAllowsTake) {
                     ItemContainer sourceContainer = resolveContainer(world, pos, lookup, target, true);
                     addSource(
@@ -839,6 +842,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         short capacity = sourceContainer.getCapacity();
         int moved = 0;
 
+        // Inspect only the source's allowed slots and filter; each move transfers one item.
         for (short slot = 0; slot < capacity && moved < budget; slot++) {
             if (shouldAbortTick(cableState)) {
                 break;
@@ -863,6 +867,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
                     break;
                 }
                 boolean movedItem;
+                // Choose round-robin routing or distance-based routing within priority groups.
                 if (mode == ItemDistributionMode.ROUND_ROBIN) {
                     movedItem = transferRoundRobin(
                             world,

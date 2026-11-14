@@ -203,6 +203,7 @@ public final class QuarryAreaManager {
                 int maxX = Math.max(a.getX(), b.getX());
                 int minZ = Math.min(a.getZ(), b.getZ());
                 int maxZ = Math.max(a.getZ(), b.getZ());
+                // Only consider rectangles containing the quarry's horizontal position.
                 if (originX < minX || originX > maxX || originZ < minZ || originZ > maxZ) {
                     continue;
                 }
@@ -223,6 +224,7 @@ public final class QuarryAreaManager {
                 if (hasMaxMax) {
                     cornerCount++;
                 }
+                // Require opposite corners and count any additional corners as stronger evidence.
                 boolean hasOppositeCorners = (hasMinMin && hasMaxMax) || (hasMinMax && hasMaxMin);
                 if (!hasOppositeCorners && cornerCount < 4) {
                     continue;

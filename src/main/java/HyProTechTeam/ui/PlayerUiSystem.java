@@ -298,6 +298,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
 
         Store<ChunkStore> chunkStore = world.getChunkStore().getStore();
         try {
+            // Resolve by world position first for pages whose block can be replaced during upgrades.
             if (page instanceof BatteryPage) {
                 BatteryPage batteryPage = (BatteryPage) page;
                 Vector3i pos = batteryPage.resolveBlockPosition(world);
@@ -338,6 +339,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
                     windPage.update(node);
                 }
             } else if (page instanceof CablePage) {
+                // Cable pages read their component directly from the tracked block reference.
                 CablePage cablePage = (CablePage) page;
                 EnergyNodeComponent node = chunkStore.getComponent(cablePage.getBlockRef(), energyType);
                 if (node != null && node.getNodeType() == EnergyNodeComponent.NodeType.CABLE) {
@@ -353,12 +355,14 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
                 ItemNetworkPriorityPage priorityPage = (ItemNetworkPriorityPage) page;
                 priorityPage.update();
             } else if (page instanceof FurnacePage) {
+                // The furnace page owns its node lookup because it uses a processing bench.
                 FurnacePage furnacePage = (FurnacePage) page;
                 EnergyNodeComponent node = furnacePage.ensureNode(world);
                 if (node != null && node.getNodeType() == EnergyNodeComponent.NodeType.FURNACE) {
                     furnacePage.update(node);
                 }
             } else if (page instanceof OreCrusherPage) {
+                // Processing machines display both energy and machine progress components.
                 OreCrusherPage oreCrusherPage = (OreCrusherPage) page;
                 Vector3i pos = oreCrusherPage.resolveBlockPosition(world);
                 EnergyNodeComponent node = pos == null

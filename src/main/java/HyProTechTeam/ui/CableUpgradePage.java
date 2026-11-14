@@ -661,6 +661,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         }
         queue.add(targetPos);
 
+        // Traverse each discovered cable once, collecting its tier and transfer statistics.
         while (!queue.isEmpty()) {
             Vector3i pos = queue.removeFirst();
             long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
@@ -678,6 +679,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
                 continue;
             }
 
+            // The first cable establishes the color shared by the energy network.
             if (snapshot.cableCount == 0) {
                 snapshot.cableColor = node.getCableColor();
             } else if (node.getCableColor() != snapshot.cableColor) {
@@ -711,6 +713,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
                 int neighborIndex = ChunkUtil.indexBlockInColumn(nLocalX, ny, nLocalZ);
                 EnergyNodeComponent neighbor =
                         neighborComponents.getComponent(neighborIndex, HyProTechComponents.ENERGY);
+                // A neighboring cable joins only if color and both facing sides are compatible.
                 EnergySide neighborSide = side.opposite();
                 if (neighbor != null
                         && neighbor.getNodeType() == EnergyNodeComponent.NodeType.CABLE

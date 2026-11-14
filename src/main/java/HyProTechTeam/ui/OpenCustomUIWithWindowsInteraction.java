@@ -173,6 +173,7 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
         int y = baseBlock.y;
         int z = baseBlock.z;
 
+        // Look up the processing component and its block definition at the base position.
         ProcessingBenchBlock bench = BlockModule.get().getComponent(
                 ProcessingBenchBlock.getComponentType(),
                 world,
@@ -215,6 +216,7 @@ public class OpenCustomUIWithWindowsInteraction extends SimpleInstantInteraction
             }
         }
 
+        // Register one window per player and reuse a concurrently registered window if present.
         ProcessingBenchWindow window = new ProcessingBenchWindow(
                 bench, benchBlock, null, x, y, z, 0, blockType);
         if (windows != null) {
