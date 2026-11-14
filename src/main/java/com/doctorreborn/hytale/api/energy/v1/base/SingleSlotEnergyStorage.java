@@ -38,16 +38,19 @@ import com.shailist.hytale.impl.transfer.TransferApiImpl;
  * or for slightly more convenient implementation.
  */
 public interface SingleSlotEnergyStorage extends SlottedEnergyStorage, EnergyStorageView {
+    /** Iterates over this storage as its sole view. */
     @Override
     default @NonNull Iterator<EnergyStorageView> iterator() {
         return TransferApiImpl.singletonIterator(this);
     }
 
+    /** A single-slot storage exposes exactly one slot. */
     @Override
     default int getSlotCount() {
         return 1;
     }
 
+    /** Returns this storage for slot zero and rejects all other indices. */
     @Override
     default SingleSlotEnergyStorage getSlot(int slot) {
         if (slot != 0) {

@@ -22,15 +22,18 @@ package com.doctorreborn.hytale.api.energy.v2.base;
 import com.doctorreborn.hytale.api.energy.v2.EnergyProducer;
 import com.doctorreborn.hytale.api.energy.v2.EnergyPreconditions;
 
+/** Stores the non-negative configured energy producer limit. */
 public abstract class BaseEnergyProducer implements EnergyProducer {
     private long energyProduction;
 
+    /** Validates and stores the configured limit. */
     protected BaseEnergyProducer(long energyProduction) {
         EnergyPreconditions.notNegative(energyProduction);
 
         this.energyProduction = energyProduction;
     }
 
+    /** Returns the configured limit. */
     @Override
     public long getEnergyProduction() {
         return energyProduction;

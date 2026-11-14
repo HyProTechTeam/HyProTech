@@ -35,17 +35,20 @@ public class MachineSystem extends EntityTickingSystem<ChunkStore> {
         this.energyType = energyType;
     }
 
+    /** Processes chunks with both world and block-component data. */
     @Override
     public Query<ChunkStore> getQuery() {
         return Archetype.of(WorldChunk.getComponentType(), BlockComponentChunk.getComponentType());
     }
 
+    /** Serializes ticks that may mutate shared world and chunk state. */
     @Override
     public boolean isParallel(int total, int chunkSize) {
         // Machine ticks can update shared world and chunk state.
         return false;
     }
 
+    /** Ticks machine holders and references and removes stale or duplicate chunk entries. */
     @Override
     public void tick(
             float delta,

@@ -52,6 +52,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+/** Refreshes player-facing block information, machine pages and the optional furnace HUD. */
 public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
     private static final double LOOK_DISTANCE = 6.0;
     private static final long SOLAR_UPDATE_INTERVAL_MS = 1000L;
@@ -77,16 +78,19 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         this.machineType = machineType;
     }
 
+    /** Runs only for entities carrying a player component. */
     @Override
     public Query<EntityStore> getQuery() {
         return Archetype.of(Player.getComponentType());
     }
 
+    /** Serializes updates because the system keeps mutable state per player. */
     @Override
     public boolean isParallel(int total, int chunkSize) {
         return false;
     }
 
+    /** Resolves the player and world before updating titles, HUD and any open page. */
     @Override
     public void tick(
             float delta,
@@ -116,6 +120,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         updateCustomPage(player, playerRef, store, world);
     }
 
+    /** Displays contextual status for the targeted energy node or item cable. */
     private void updateSolarHud(
             Ref<EntityStore> entityRef,
             PlayerRef playerRef,
@@ -143,6 +148,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         if (node == null) {
             itemNode = getItemNodeAt(world, target.getX(), target.getY(), target.getZ());
         }
+        // A targeted furnace part may have its energy component on the block below.
         if (node == null && itemNode == null && target.getY() > ChunkUtil.MIN_Y) {
             int belowY = target.getY() - 1;
             EnergyNodeComponent belowNode = getEnergyNodeAt(world, target.getX(), belowY, target.getZ());
@@ -259,6 +265,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         }
     }
 
+    /** Retrieves or creates the last-title state for a player. */
     private DisplayState getDisplayState(PlayerRef playerRef) {
         UUID playerId = playerRef.getUuid();
         DisplayState state = displayStates.get(playerId);
@@ -269,6 +276,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         return state;
     }
 
+    /** Hides the contextual title only if this system previously showed it. */
     private void hideTitleIfNeeded(PlayerRef playerRef, DisplayState state) {
         if (!state.visible) {
             return;
@@ -277,6 +285,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         state.visible = false;
     }
 
+    /** Dispatches updates to the open page using its current block and machine components. */
     private void updateCustomPage(Player player, PlayerRef playerRef, Store<EntityStore> store, World world) {
         CustomUIPage page = player.getPageManager().getCustomPage();
         if (page == null) {
@@ -407,10 +416,12 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
                 }
             }
         } catch (IllegalStateException e) {
+            // A stale block reference can become invalid while the page is open.
             dismissCustomPage(player, playerRef, store);
         }
     }
 
+    /** Requests dismissal when the page can no longer safely resolve its block. */
     private void dismissCustomPage(Player player, PlayerRef playerRef, Store<EntityStore> store) {
         if (player == null || playerRef == null) {
             return;
@@ -428,6 +439,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         }
     }
 
+    /** Manages the optional furnace HUD using window, node and display grace periods. */
     private void updateFurnaceHud(Player player, PlayerRef playerRef, World world) {
         FurnaceHudState state = getFurnaceHudState(playerRef);
         HudManager hudManager = player.getHudManager();
@@ -508,6 +520,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         }
         state.lastValidNodeSeenMs = now;
 
+        // Do not replace another system's custom HUD.
         if (!canUseFurnaceHud(activeHud, state)) {
             state.visible = false;
             state.hud.resetCache();
@@ -536,6 +549,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         state.hud.update(node);
     }
 
+    /** Retrieves or creates the furnace HUD state for one player. */
     private FurnaceHudState getFurnaceHudState(PlayerRef playerRef) {
         UUID playerId = playerRef.getUuid();
         FurnaceHudState state = furnaceHudStates.get(playerId);
@@ -546,6 +560,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         return state;
     }
 
+    /** Finds an open processing window belonging to a tiered electric furnace. */
     private ProcessingBenchWindow getOpenFurnaceWindow(Player player) {
         for (Window window : player.getWindowManager().getWindows()) {
             if (!(window instanceof ProcessingBenchWindow)) {
@@ -562,6 +577,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         return null;
     }
 
+    /** Uses the base position of a multiblock bench, falling back to its window coordinates. */
     @SuppressWarnings("removal")
     private Vector3i resolveBenchBasePosition(World world, ProcessingBenchWindow window) {
         int x = window.getX();
@@ -574,6 +590,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         return new Vector3i(x, y, z);
     }
 
+    /** Tracks the last contextual title and target to limit redundant UI updates. */
     private static final class DisplayState {
         private String lastTitle = "";
         private String lastSubtitle = "";
@@ -585,6 +602,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         private TargetKind lastTargetKind;
     }
 
+    /** Tracks HUD ownership and timestamps used by furnace display grace periods. */
     private static final class FurnaceHudState {
         private final FurnaceHud hud;
         private boolean visible;
@@ -599,10 +617,12 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         }
     }
 
+    /** Allows a furnace HUD only when the HUD slot is empty or already owned by this system. */
     private boolean canUseFurnaceHud(CustomUIHud activeHud, FurnaceHudState state) {
         return activeHud == null || activeHud == state.hud;
     }
 
+    /** Resets the HUD only if it is still the one installed by this system. */
     private void hideFurnaceHudIfOwned(
             FurnaceHudState state,
             PlayerRef playerRef,
@@ -618,6 +638,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         state.hud.resetCache();
     }
 
+    /** Aggregates connected same-color energy cables, honoring both ends' side settings. */
     private CableNetworkInfo getCableNetworkInfo(World world, Vector3i target) {
         if (world == null || target == null) {
             return null;
@@ -631,6 +652,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         }
         queue.add(target);
 
+        // Traverse the connected cable graph and aggregate capacity and the lowest transfer limit.
         while (!queue.isEmpty()) {
             Vector3i pos = queue.removeFirst();
             EnergyNodeComponent node = getEnergyNodeAt(world, pos.getX(), pos.getY(), pos.getZ());
@@ -679,10 +701,12 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         return info.cableCount > 0 ? info : null;
     }
 
+    /** A cable side connects when either input or output is enabled. */
     private boolean canCableConnect(EnergyNodeComponent node, EnergySide side) {
         return node.allowsInput(side) || node.allowsOutput(side);
     }
 
+    /** Tracks a visited position by chunk and block index to prevent traversal cycles. */
     private boolean markVisited(Long2ObjectMap<IntOpenHashSet> visited, int x, int y, int z) {
         long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
         int localX = ChunkUtil.localCoordinate((long) x);
@@ -697,18 +721,22 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         return set.add(blockIndex);
     }
 
+    /** Looks up an energy component at the given block. */
     private EnergyNodeComponent getEnergyNodeAt(World world, int x, int y, int z) {
         return getComponentAt(world, x, y, z, energyType);
     }
 
+    /** Looks up an item-network component at the given block. */
     private ItemNodeComponent getItemNodeAt(World world, int x, int y, int z) {
         return getComponentAt(world, x, y, z, itemType);
     }
 
+    /** Looks up a machine component at the given block. */
     private MachineComponent getMachineAt(World world, int x, int y, int z) {
         return getComponentAt(world, x, y, z, machineType);
     }
 
+    /** Reads a component from a loaded block holder or live reference, removing stale references. */
     private <T extends Component<ChunkStore>> T getComponentAt(
             World world,
             int x,
@@ -766,6 +794,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         }
     }
 
+    /** Aggregates adjacent item cables and their tier and transfer limits for the title. */
     private ItemCableNetworkInfo getItemCableNetworkInfo(World world, Vector3i target) {
         if (world == null || target == null) {
             return null;
@@ -809,6 +838,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         return info.cableCount > 0 ? info : null;
     }
 
+    /** Categories whose target changes require a contextual title refresh. */
     private enum TargetKind {
         SOLAR,
         WIND,
@@ -818,6 +848,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         ITEM_CABLE
     }
 
+    /** Aggregate energy-cable values displayed for the targeted network. */
     private static final class CableNetworkInfo {
         private int cableCount;
         private int totalEnergy;
@@ -828,12 +859,14 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
         private int maxTier = Integer.MIN_VALUE;
     }
 
+    /** Aggregate item-cable count, tier range and minimum transfer limit. */
     private static final class ItemCableNetworkInfo {
         private int cableCount;
         private int maxTransfer = Integer.MAX_VALUE;
         private int minTier = Integer.MAX_VALUE;
         private int maxTier = Integer.MIN_VALUE;
 
+        /** Includes one cable in the aggregate, retaining the network's lowest transfer limit. */
         private void addCable(ItemNodeComponent node) {
             cableCount++;
             maxTransfer = Math.min(maxTransfer, node.getMaxTransfer());

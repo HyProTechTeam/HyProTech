@@ -1,6 +1,7 @@
 $C = "Common.ui";
 // HyProTech master tokens for standard HyUI layouts.
 @ReqSlotSize = 32;
+// Sizes and colors shared by the standard item, inventory, and panel layouts.
 @ItemSlotSize = 48;
 @ItemSlotInner = 44;
 @SlotBorderColor = #000000(0);

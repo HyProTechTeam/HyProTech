@@ -39,6 +39,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import java.util.ArrayList;
 import java.util.List;
 
+/** Controls the quarry's operating mode, mining area, storage and upgrades. */
 public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
     private static final String ACTION_UPGRADE = "Upgrade";
     private static final String ACTION_TAKE_ITEMS = "TakeItems";
@@ -116,10 +117,12 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         this.machineType = machineType;
     }
 
+    /** Returns the currently tracked quarry component reference. */
     public Ref<ChunkStore> getBlockRef() {
         return blockRef;
     }
 
+    /** Loads the layout, binds controls and displays the current quarry state. */
     @Override
     public void build(
             Ref<EntityStore> playerRef,
@@ -135,6 +138,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         updateForWorld(uiCommandBuilder, world, inventory);
     }
 
+    /** Handles quarry controls, upgrades, item collection and border-torch requests. */
     @Override
     public void handleDataEvent(Ref<EntityStore> playerRef, Store<EntityStore> store, SideToggleEvent data) {
         if (data == null || data.getAction() == null) {
@@ -166,6 +170,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         boolean hasTorchBounds = torchBounds != null;
 
         String action = data.getAction();
+        // Torch-defined bounds take precedence over manual width and depth adjustments.
         if (hasTorchBounds) {
             if ("WidthMinus".equalsIgnoreCase(action)
                     || "WidthPlus".equalsIgnoreCase(action)
@@ -226,6 +231,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
             return;
         }
 
+        // Persist area and visibility changes before updating the display and border visuals.
         boolean changed = false;
         if (newWidth != width || newDepth != depth) {
             machine.setAreaWidth(newWidth);
@@ -264,14 +270,17 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Refreshes the page when only an energy node is supplied. */
     public void update(EnergyNodeComponent node) {
         update(node, null, false);
     }
 
+    /** Refreshes the page using both energy and machine state. */
     public void update(EnergyNodeComponent node, MachineComponent machine) {
         update(node, machine, false);
     }
 
+    /** Throttles routine refreshes and sends changed energy, area, controls and storage. */
     private void update(EnergyNodeComponent node, MachineComponent machine, boolean force) {
         if (node == null) {
             return;
@@ -305,6 +314,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         lastUpdateMs = now;
     }
 
+    /** Provides initial labels before live quarry state is available. */
     private void initStaticUi(UICommandBuilder update) {
         update.set("#QuarryTier.Text", "Tier: " + QuarryConfig.getTierName(QuarryConfig.MIN_TIER));
         update.set("#QuarryArea.Text", "Area: " + DEFAULT_AREA + " x " + DEFAULT_AREA);
@@ -316,6 +326,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         updateUpgradePanel(update, null, null);
     }
 
+    /** Resolves the quarry components and populates the initial display. */
     private boolean updateForWorld(UICommandBuilder update, World world, ItemContainer inventory) {
         if (world == null) {
             return false;
@@ -337,6 +348,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return changed;
     }
 
+    /** Updates the displayed energy and consumption when their values change. */
     private boolean updateEnergy(UICommandBuilder update, EnergyNodeComponent node) {
         boolean changed = false;
 
@@ -361,6 +373,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return changed;
     }
 
+    /** Displays the quarry container's occupied slots, using a key to detect changes. */
     private boolean updateStorage(UICommandBuilder update) {
         Ref<EntityStore> playerEntityRef = playerRef.getReference();
         if (playerEntityRef == null) {
@@ -429,6 +442,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return changed;
     }
 
+    /** Clears the storage preview when no container is available. */
     private boolean updateEmptyStorage(UICommandBuilder update) {
         boolean changed = false;
         String slotsText = "Slots: 0/0";
@@ -448,6 +462,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return changed;
     }
 
+    /** Displays manual or torch-defined bounds and periodically emits visible border particles. */
     private boolean updateArea(UICommandBuilder update, MachineComponent machine) {
         int tier = machine == null ? QuarryConfig.MIN_TIER : QuarryConfig.clampTier(machine.getTier());
         int maxArea = QuarryConfig.getMaxAreaForTier(tier);
@@ -496,6 +511,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return changed;
     }
 
+    /** Reflects power and backfill state, including a configuration-locked backfill mode. */
     private boolean updateControls(UICommandBuilder update, MachineComponent machine) {
         boolean changed = false;
         boolean enabled = machine == null || machine.isEnabled();
@@ -534,6 +550,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return changed;
     }
 
+    /** Shows next-tier statistics and compares upgrade requirements with player inventory. */
     private String updateUpgradePanel(UICommandBuilder update, MachineComponent machine, ItemContainer inventory) {
         int tier = machine == null ? QuarryConfig.MIN_TIER : QuarryConfig.clampTier(machine.getTier());
         if (tier != lastTier) {
@@ -605,6 +622,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return reqKey.toString();
     }
 
+    /** Consumes required materials, applies the new tier and preserves the container on swap. */
     private boolean handleUpgrade(
             Ref<EntityStore> playerRef,
             Store<EntityStore> store,
@@ -669,6 +687,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return true;
     }
 
+    /** Moves quarry stacks into the player's hotbar or storage when a stack fits. */
     private boolean handleTakeItems(Store<EntityStore> store) {
         if (store == null) {
             return false;
@@ -693,6 +712,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         ItemContainer storage = inventory.getStorage();
         boolean movedAny = false;
         short capacity = container.getCapacity();
+        // Prefer the hotbar, then storage; leave stacks in the quarry if neither can accept them.
         for (short slot = 0; slot < capacity; slot++) {
             ItemStack stack = container.getItemStack(slot);
             if (stack == null || ItemStack.isEmpty(stack)) {
@@ -723,6 +743,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return false;
     }
 
+    /** Gives two border torches if the player's hotbar or storage has room. */
     private void handleGiveTorch(Store<EntityStore> store) {
         if (store == null) {
             return;
@@ -745,6 +766,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         sendPlayerMessage(playerRef.getReference(), store, "No space for Border Torch.");
     }
 
+    /** Applies tier energy and mining limits, clamping stored energy and existing progress. */
     private void applyTier(MachineComponent machine, EnergyNodeComponent node, int tier) {
         int capacity = QuarryConfig.getCapacityForTier(tier);
         node.setCapacity(capacity);
@@ -761,6 +783,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Returns the player's storage container for upgrade-material checks. */
     private ItemContainer getPlayerInventory(Store<EntityStore> store) {
         if (store == null) {
             return null;
@@ -777,6 +800,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return inventory == null ? null : inventory.getStorage();
     }
 
+    /** Returns the full player inventory for hotbar and storage transfers. */
     private Inventory getPlayerInventoryFull(Store<EntityStore> store) {
         if (store == null) {
             return null;
@@ -792,6 +816,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return player.getInventory();
     }
 
+    /** Totals matching item quantities across the supplied container. */
     private int countItem(ItemContainer container, String itemId) {
         if (container == null || itemId == null) {
             return 0;
@@ -810,6 +835,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return total;
     }
 
+    /** Formats common ingredient IDs as readable requirement labels. */
     private String formatRequirementName(String itemId) {
         if (itemId == null) {
             return "";
@@ -834,6 +860,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return name.replace('_', ' ');
     }
 
+    /** Refreshes the tracked reference if the block was replaced during an upgrade. */
     Ref<ChunkStore> resolveBlockRef(World world) {
         if (world == null) {
             return blockRef;
@@ -858,6 +885,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return blockRef;
     }
 
+    /** Looks up the energy node by position, then by the current reference. */
     private EnergyNodeComponent resolveNode(World world) {
         if (world == null) {
             return null;
@@ -886,6 +914,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Looks up the machine state by position, then by the current reference. */
     private MachineComponent resolveMachine(World world) {
         if (world == null) {
             return null;
@@ -914,6 +943,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Persists energy state through a block reference or holder. */
     private void storeNode(World world, EnergyNodeComponent node) {
         if (world == null || node == null) {
             return;
@@ -960,6 +990,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Persists machine state through a block reference or holder. */
     private void storeMachine(World world, MachineComponent machine) {
         if (world == null || machine == null) {
             return;
@@ -1006,6 +1037,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Sends an action result message when the player is available. */
     private void sendPlayerMessage(Ref<EntityStore> playerRef, Store<EntityStore> store, String text) {
         if (store == null || playerRef == null) {
             return;
@@ -1017,6 +1049,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         player.sendMessage(Message.raw(text));
     }
 
+    /** Finds the quarry reference in loaded chunks and caches its world position. */
     Vector3i resolveBlockPosition(World world) {
         if (world == null) {
             return null;
@@ -1053,6 +1086,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return null;
     }
 
+    /** Finds the chunk-local block index for this page's reference. */
     private int findBlockIndex(BlockComponentChunk blockComponents) {
         int targetIndex = blockRef.getIndex();
         if (targetIndex == Integer.MIN_VALUE) {
@@ -1068,11 +1102,13 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return Integer.MIN_VALUE;
     }
 
+    /** Retrieves the world associated with the player's entity store. */
     private World getWorld(Store<EntityStore> store) {
         EntityStore entityStore = store == null ? null : store.getExternalData();
         return entityStore == null ? null : entityStore.getWorld();
     }
 
+    /** Builds indexed selectors for the fixed-size storage preview. */
     private static String[] buildSlotIds(String prefix) {
         String[] ids = new String[STORAGE_SLOT_COUNT];
         for (int i = 0; i < STORAGE_SLOT_COUNT; i++) {
@@ -1081,6 +1117,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return ids;
     }
 
+    /** Refreshes storage immediately after an item transfer. */
     private boolean refreshStorage(Store<EntityStore> store) {
         UICommandBuilder update = new UICommandBuilder();
         if (updateStorage(update)) {
@@ -1090,6 +1127,7 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return false;
     }
 
+    /** Binds the quarry controls to their corresponding action names. */
     private void bindButtons(UIEventBuilder uiEventBuilder) {
         uiEventBuilder.addEventBinding(
                 CustomUIEventBindingType.Activating,
@@ -1113,10 +1151,12 @@ public class QuarryPage extends InteractiveCustomUIPage<SideToggleEvent> {
                 EventData.of("Action", "ToggleReplace"));
     }
 
+    /** Substitutes the configured default for an unset area dimension. */
     private static int normalizeArea(int value) {
         return value > 0 ? value : DEFAULT_AREA;
     }
 
+    /** Restricts an area dimension to the configured minimum and tier maximum. */
     private static int clampArea(int value, int max) {
         if (value < MIN_AREA) {
             return MIN_AREA;

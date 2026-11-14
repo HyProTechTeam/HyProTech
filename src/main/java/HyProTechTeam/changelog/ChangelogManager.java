@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
 
+/** Loads per-player changelog state and opens the current changelog when appropriate. */
 public final class ChangelogManager {
     public static final String CHANGELOG_VERSION = "1.5.0";
     public static final String CHANGELOG_TEXT = """
@@ -142,6 +143,7 @@ Components and future expansion
 Added a large set of new items and crafting components (currently placeholders, to be expanded in upcoming updates).
 Early preparation work for upcoming Nuclear Science and Heat Science.
 """;
+    // The content hash changes the ID when text changes without a version change.
     public static final String CHANGELOG_ID =
             CHANGELOG_VERSION + ":" + Integer.toHexString(CHANGELOG_TEXT.hashCode());
 
@@ -151,12 +153,14 @@ Early preparation work for upcoming Nuclear Science and Heat Science.
     private ChangelogConfig state = new ChangelogConfig();
     private boolean loaded;
 
+    /** Keeps the plugin, state configuration, and file path used for loading and saving. */
     public ChangelogManager(JavaPlugin plugin, Config<ChangelogConfig> config, Path configPath) {
         this.plugin = plugin;
         this.config = config;
         this.configPath = configPath;
     }
 
+    /** Loads state once, using empty state on failure and saving when the file did not exist. */
     public void load() {
         if (loaded) {
             return;
@@ -184,6 +188,7 @@ Early preparation work for upcoming Nuclear Science and Heat Science.
         }
     }
 
+    /** Checks whether a player has seen the current version and text hash. */
     public boolean shouldShow(UUID uuid) {
         if (uuid == null) {
             return false;
@@ -193,6 +198,7 @@ Early preparation work for upcoming Nuclear Science and Heat Science.
         return !CHANGELOG_ID.equalsIgnoreCase(lastSeen);
     }
 
+    /** Records the current changelog ID for a player and schedules a save. */
     public void markSeen(UUID uuid) {
         if (uuid == null) {
             return;
@@ -202,6 +208,7 @@ Early preparation work for upcoming Nuclear Science and Heat Science.
         save();
     }
 
+    /** Opens the page if the player and UI context are valid and the display is due or forced. */
     public boolean openForPlayer(Player player, PlayerRef playerRef, boolean force) {
         if (player == null || playerRef == null) {
             return false;
@@ -228,12 +235,14 @@ Early preparation work for upcoming Nuclear Science and Heat Science.
         return true;
     }
 
+    /** Loads state lazily when it has not yet been loaded. */
     private void ensureLoaded() {
         if (!loaded) {
             load();
         }
     }
 
+    /** Saves asynchronously and logs failures when a plugin logger is available. */
     private void save() {
         if (config == null) {
             return;

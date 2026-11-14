@@ -1,4 +1,5 @@
 $C = "Common.ui";
+// Import shared styling tokens used by the filter panel.
 $M = "HyProTech_Master.ui";
 @IconSize = 64;
 @SideButtonWidth = 280;
@@ -24,6 +25,7 @@ $M = "HyProTech_Master.ui";
   Background: "TexturesUI/filter.png";
 };
 
+// Item cable page with directional, rename, and filter controls for each face.
 $C.@PageOverlay {
   $C.@DecoratedContainer {
     Anchor: (Width: 560, Height: 700);
@@ -52,6 +54,7 @@ $C.@PageOverlay {
           Text: "Item Transport";
         }
 
+        // The following rows provide a side icon, mode button, optional name, and filter action.
         Label #SideHeader {
           Style: (
             FontSize: 14,
@@ -66,6 +69,7 @@ $C.@PageOverlay {
           LayoutMode: Left;
           Padding: (Top: 4);
 
+          // East-side neighbor icon; the mode and optional actions follow in this row.
           ItemSlot #SideEastIcon {
             Anchor: (Width: @IconSize, Height: @IconSize, Vertical: 0);
             ShowQualityBackground: false;
@@ -108,6 +112,7 @@ $C.@PageOverlay {
           LayoutMode: Left;
           Padding: (Top: 2);
 
+          // West-side neighbor icon, direction mode, storage rename, and filter actions.
           ItemSlot #SideWestIcon {
             Anchor: (Width: @IconSize, Height: @IconSize, Vertical: 0);
             ShowQualityBackground: false;
@@ -150,6 +155,7 @@ $C.@PageOverlay {
           LayoutMode: Left;
           Padding: (Top: 2);
 
+          // Up-side neighbor icon, direction mode, storage rename, and filter actions.
           ItemSlot #SideUpIcon {
             Anchor: (Width: @IconSize, Height: @IconSize, Vertical: 0);
             ShowQualityBackground: false;
@@ -192,6 +198,7 @@ $C.@PageOverlay {
           LayoutMode: Left;
           Padding: (Top: 2);
 
+          // Down-side neighbor icon, direction mode, storage rename, and filter actions.
           ItemSlot #SideDownIcon {
             Anchor: (Width: @IconSize, Height: @IconSize, Vertical: 0);
             ShowQualityBackground: false;
@@ -234,6 +241,7 @@ $C.@PageOverlay {
           LayoutMode: Left;
           Padding: (Top: 2);
 
+          // South-side neighbor icon, direction mode, storage rename, and filter actions.
           ItemSlot #SideSouthIcon {
             Anchor: (Width: @IconSize, Height: @IconSize, Vertical: 0);
             ShowQualityBackground: false;
@@ -276,6 +284,7 @@ $C.@PageOverlay {
           LayoutMode: Left;
           Padding: (Top: 2);
 
+          // North-side neighbor icon, direction mode, storage rename, and filter actions.
           ItemSlot #SideNorthIcon {
             Anchor: (Width: @IconSize, Height: @IconSize, Vertical: 0);
             ShowQualityBackground: false;
@@ -318,6 +327,7 @@ $C.@PageOverlay {
           LayoutMode: Top;
           Padding: (Top: 10);
 
+          // Overall cable mode, inventory target, and connected-network settings.
           $C.@SmallSecondaryTextButton #ItemMode {
             Text: "Item Mode: Take/Put";
             Visible: false;
@@ -336,6 +346,7 @@ $C.@PageOverlay {
   }
 }
 
+// Initially hidden overlay for editing a side's item filter.
 Group #FilterPanel {
   Anchor: (Full: 0);
   Background: #000000(0.65);
@@ -356,6 +367,7 @@ Group #FilterPanel {
         Padding: (Top: 12, Bottom: 12, Left: 12, Right: 12);
         LayoutMode: Left;
 
+        // Sidebar contains category selection and named preset controls.
         Group #FilterSidebar {
           Anchor: (Width: @FilterSidebarWidth, Height: @FilterPanelInnerHeight);
           Background: @PanelBorderColor;
@@ -380,6 +392,7 @@ Group #FilterPanel {
             Group { Anchor: (Height: 1); Background: @PanelDividerColor; }
             Group { Anchor: (Height: 8); }
 
+            // Category buttons narrow the catalog shown in the filter list.
             $C.@SmallSecondaryTextButton #FilterCategoryAll { Anchor: (Width: @FilterSidebarContentWidth, Height: 32); Text: "All"; }
             $C.@SmallSecondaryTextButton #FilterCategoryOres { Anchor: (Width: @FilterSidebarContentWidth, Height: 32); Text: "Ores"; }
             $C.@SmallSecondaryTextButton #FilterCategoryIngots { Anchor: (Width: @FilterSidebarContentWidth, Height: 32); Text: "Ingots"; }
@@ -404,6 +417,7 @@ Group #FilterPanel {
               Text: "Presets";
             }
 
+          // Named presets store the active side's selected filter items.
           CompactTextField #FilterPresetNameInput {
             Anchor: (Width: @FilterSidebarContentWidth, Height: 34, Vertical: 0);
             CollapsedWidth: @FilterSidebarContentWidth;
@@ -441,7 +455,8 @@ Group #FilterPanel {
         Anchor: (Width: 12);
       }
 
-      Group #FilterMain {
+        // Main area contains category, search, filter items, and paging controls.
+        Group #FilterMain {
         Anchor: (Width: @FilterMainWidth, Height: @FilterPanelInnerHeight);
         Background: @PanelBorderColor;
         Padding: (Full: 1);
@@ -499,6 +514,7 @@ Group #FilterPanel {
           }
         }
 
+          // The mode checkbox selects whether listed items are allowed or blocked.
           Group #FilterModeRow {
             Anchor: (Height: 38);
             LayoutMode: Left;
@@ -536,6 +552,7 @@ Group #FilterPanel {
             }
           }
 
+          // Search text filters the item catalog by item ID or display name.
           Group #FilterSearchRow {
             Anchor: (Height: 44);
             LayoutMode: Left;
@@ -580,6 +597,7 @@ Group #FilterPanel {
             }
           }
 
+          // The text field and copy/paste controls exchange filter selections as text.
           Group #FilterPresetRow {
             Anchor: (Height: 44);
             LayoutMode: Left;
@@ -636,6 +654,7 @@ Group #FilterPanel {
             }
           }
 
+        // The server reveals this message when the filtered catalog has no matching items.
         Label #FilterEmpty {
           Style: (
             FontSize: 13,
@@ -646,6 +665,7 @@ Group #FilterPanel {
           Visible: false;
         }
 
+          // Repeated rows below are populated with items and their selection state.
           Group #FilterList {
             Anchor: (Left: 0, Right: 0);
             LayoutMode: Top;
@@ -1055,6 +1075,7 @@ Group #FilterPanel {
           }
         }
 
+        // Page controls navigate the filtered item list.
         Group #FilterPaging {
           Anchor: (Height: 32);
           LayoutMode: Left;
@@ -1107,6 +1128,7 @@ Group #FilterPanel {
 
 $C.@BackButton {}
 
+// Initially hidden overlay used to edit a storage name.
 Group #RenamePanel {
   Anchor: (Full: 0);
   Background: #000000(0.55);
@@ -1131,6 +1153,7 @@ Group #RenamePanel {
         Text: "Storage Name";
       }
 
+      // The page saves this text as the connected storage's custom name.
       CompactTextField #RenameInput {
         Anchor: (Width: 280, Height: 30, Vertical: 0);
         CollapsedWidth: 280;

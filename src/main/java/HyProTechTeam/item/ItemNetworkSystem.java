@@ -69,16 +69,19 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         this.itemType = itemType;
     }
 
+    /** Processes chunks that contain both world and block-component data. */
     @Override
     public Query<ChunkStore> getQuery() {
         return Archetype.of(WorldChunk.getComponentType(), BlockComponentChunk.getComponentType());
     }
 
+    /** Serializes network processing because traversal and budget state are shared per world. */
     @Override
     public boolean isParallel(int total, int chunkSize) {
         return false;
     }
 
+    /** Processes cable holders and references, then removes invalid references from the chunk. */
     @Override
     public void tick(
             float delta,
@@ -209,6 +212,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
     }
 
 
+    /** Converts a chunk-local block index to world coordinates and reads its loaded block type. */
     private BlockType getBlockTypeAt(World world, int chunkX, int chunkZ, int blockIndex) {
         int localX = ChunkUtil.xFromBlockInColumn(blockIndex);
         int localY = ChunkUtil.yFromBlockInColumn(blockIndex);
@@ -227,6 +231,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return accessor.getBlockType(worldX, worldY, worldZ);
     }
 
+    /** Best-effort removal of a cable from the server's block ticking queue. */
     private void disableTickingAt(World world, int chunkX, int chunkZ, int blockIndex) {
         if (world == null) {
             return;
@@ -248,6 +253,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Restores pending settings, synchronizes cable tier and processes its connected network. */
     private void processNode(
             BlockComponentChunk blockComponents,
             World world,
@@ -279,6 +285,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         processCableNetwork(world.getChunkStore(), world, worldX, worldY, worldZ, deltaSeconds, cableState);
     }
 
+    /** Normalizes priority, distribution mode, cable tier and tier-specific transfer limit. */
     private boolean ensureDefaults(ItemNodeComponent node) {
         boolean changed = false;
         int priority = ItemNodeComponent.clampPriority(node.getPriority());
@@ -303,6 +310,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return changed;
     }
 
+    /** Raises a component's tier when its placed block ID specifies a higher tier. */
     private boolean syncCableTierFromBlockId(
             World world,
             int worldX,
@@ -321,6 +329,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return true;
     }
 
+    /** Queues a tiered block swap when the component's tier does not match its asset ID. */
     private boolean syncCableBlockId(
             World world,
             int worldX,
@@ -351,6 +360,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return true;
     }
 
+    /** Parses a cable tier from the block ID or state at the supplied position. */
     private int getCableTierFromBlockId(World world, int worldX, int worldY, int worldZ, String baseId) {
         if (world == null || baseId == null) {
             return -1;
@@ -362,6 +372,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return BlockIdUtil.parseCableTierFromIdOrState(blockType.getId(), baseId);
     }
 
+    /** Checks a block ID against a base cable ID and its states. */
     private boolean isIdOrState(String blockId, String baseId) {
         return BlockIdUtil.isIdOrState(blockId, baseId);
     }
@@ -552,6 +563,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         network.sinks.addAll(sinks);
     }
 
+    /** Updates cable visual states from neighbor connections, rotation and tier. */
     private void updateCableStates(World world, ChunkStore chunkStore, CableNetwork network) {
         for (CableNode cable : network.cables) {
             BlockAccessor accessor = world.getChunkIfLoaded(cable.chunkIndex);
@@ -585,6 +597,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Builds a side mask for adjacent item cables and containers. */
     private int computeConnectedMask(World world, ChunkStore chunkStore, CableNode cable) {
         int mask = 0;
         for (EnergySide side : EnergySide.VALUES) {
@@ -608,6 +621,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return mask;
     }
 
+    /** Selects a processing bench's input, fuel or output container for insertion or extraction. */
     private ItemContainer resolveContainer(
             World world,
             Vector3i pos,
@@ -656,6 +670,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
     }
 
 
+    /** Adds an extraction endpoint with its side filter, distribution mode and slot range. */
     private void addSource(
             List<SourceEndpoint> sources,
             ItemContainer container,
@@ -692,6 +707,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 side));
     }
 
+    /** Adds an insertion endpoint with its side filter, slot range and storage priority. */
     private void addSink(
             List<SinkEndpoint> sinks,
             ItemContainer container,
@@ -728,6 +744,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 side));
     }
 
+    /** Derives a bounded tick budget from network transfer rate and processes its endpoints. */
     private void applyTransfers(World world, CableNetwork network, float deltaSeconds, CableState cableState) {
         if (deltaSeconds <= 0f) {
             return;
@@ -758,6 +775,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         transferItems(world, network, budget, cableState);
     }
 
+    /** Groups sinks by priority and transfers from sources until the budget or time limit is reached. */
     private int transferItems(World world, CableNetwork network, int budget, CableState cableState) {
         if (budget <= 0 || network.sinks.isEmpty()) {
             return 0;
@@ -800,6 +818,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return moved;
     }
 
+    /** Scans permitted source slots and routes individual items using the source's distribution mode. */
     private int transferFromSource(
             World world,
             SourceEndpoint source,
@@ -881,6 +900,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return moved;
     }
 
+    /** Tries higher-priority sinks first and rotates the next starting sink after a successful move. */
     private boolean transferRoundRobin(
             World world,
             SourceEndpoint source,
@@ -930,6 +950,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return false;
     }
 
+    /** Tries eligible sinks in priority order, preferring the nearest or furthest cable distance. */
     private boolean transferByDistance(
             World world,
             SourceEndpoint source,
@@ -977,6 +998,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return false;
     }
 
+    /** Selects an eligible reachable sink by distance, using endpoint order to break ties. */
     private int selectBestSinkIndex(
             SourceEndpoint source,
             ItemStack stack,
@@ -1034,6 +1056,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return bestIndex;
     }
 
+    /** Reuses or computes distances from a source cable for this network traversal. */
     private int[] getDistances(
             CableNetwork network,
             int sourceCableIndex,
@@ -1050,6 +1073,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return distances;
     }
 
+    /** Computes shortest cable-hop distances with breadth-first search; unreachable nodes stay -1. */
     private int[] computeDistances(CableNetwork network, int sourceCableIndex) {
         int size = network == null ? 0 : network.cables.size();
         int[] distances = new int[size];
@@ -1090,6 +1114,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return distances;
     }
 
+    /** Checks insertion capacity either across the container or within the sink's allowed slot range. */
     private boolean canAccept(SinkEndpoint sink, ItemStack stack) {
         if (sink == null || sink.container == null || stack == null) {
             return false;
@@ -1109,6 +1134,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return false;
     }
 
+    /** Stops work once the shared per-world tick time budget is exceeded. */
     private boolean shouldAbortTick(CableState cableState) {
         if (cableState == null) {
             return false;
@@ -1119,10 +1145,12 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return System.nanoTime() - cableState.tickStartNanos > MAX_TICK_NANOS;
     }
 
+    /** Retains a no-op hook for the removed machine-inventory cache. */
     private void cacheAfterMove(World world, Endpoint source, Endpoint sink) {
         // Machine inventory is removed; no cache behavior needed here.
     }
 
+    /** Delegates one item move to the rollback-aware transfer path. */
     private boolean tryMove(
             SourceEndpoint source,
             ItemContainer sourceContainer,
@@ -1135,6 +1163,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return tryMoveSafely(sourceContainer, slot, sink, stack);
     }
 
+    /** Chooses unrestricted or slot-range insertion and delegates to a rollback-aware one-item move. */
     private boolean tryMoveSafely(
             ItemContainer sourceContainer,
             short sourceSlot,
@@ -1163,6 +1192,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return false;
     }
 
+    /** Adds one item to any sink slot, verifies counts, then removes it from the source with rollback on failure. */
     private boolean tryMoveOneAnySlotWithRollback(
             ItemContainer sourceContainer,
             short sourceSlot,
@@ -1204,6 +1234,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return true;
     }
 
+    /** Adds one item to a specified sink slot and attempts rollback if source removal fails. */
     private boolean tryMoveOneToSlotWithRollback(
             ItemContainer sourceContainer,
             short sourceSlot,
@@ -1246,6 +1277,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return true;
     }
 
+    /** Totals matching item quantities across a container to verify transfer results. */
     private int countItemQuantity(ItemContainer container, String itemId) {
         if (container == null || itemId == null || itemId.isEmpty()) {
             return 0;
@@ -1264,6 +1296,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return total;
     }
 
+    /** Sorts sources and sinks consistently before transfers. */
     private void sortEndpoints(CableNetwork network) {
         if (network == null) {
             return;
@@ -1272,6 +1305,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         network.sinks.sort(ENDPOINT_ORDER);
     }
 
+    /** Groups sinks by clamped storage priority for highest-priority-first routing. */
     private List<SinkEndpoint>[] groupSinksByPriority(List<SinkEndpoint> sinks) {
         @SuppressWarnings("unchecked")
         List<SinkEndpoint>[] grouped = new List[ItemNodeComponent.MAX_PRIORITY + 1];
@@ -1293,6 +1327,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return grouped;
     }
 
+    /** Reads the next round-robin position for a network and priority. */
     private int getRoundRobinIndex(CableState state, NetworkKey key, int priority) {
         if (state == null || key == null) {
             return 0;
@@ -1305,6 +1340,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return priorities.get(priority);
     }
 
+    /** Stores the next round-robin position for a network and priority. */
     private void setRoundRobinIndex(CableState state, NetworkKey key, int priority, int index) {
         if (state == null || key == null) {
             return;
@@ -1317,6 +1353,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         priorities.put(priority, index);
     }
 
+    /** Rejects filtered sinks and transfers back into the same container or owner. */
     private boolean isEligibleSink(SourceEndpoint source, SinkEndpoint sink, ItemStack stack) {
         if (source == null || sink == null || stack == null) {
             return false;
@@ -1333,6 +1370,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return !sameOwner(source, sink);
     }
 
+    /** Checks whether source and sink refer to the same block position. */
     private boolean sameOwner(SourceEndpoint first, SinkEndpoint second) {
         if (first == null || second == null) {
             return false;
@@ -1342,6 +1380,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return a != null && a.equals(b);
     }
 
+    /** Resolves storage priority using block or chunk settings, with the cable as fallback. */
     private int resolveStoragePriority(
             World world,
             ChunkStore chunkStore,
@@ -1404,6 +1443,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
     }
 
     @SuppressWarnings("removal")
+    /** Copies existing block-level storage settings to chunk storage for non-HyProTech blocks. */
     private void cleanupStorageConfig(World world, ChunkStore chunkStore, int x, int y, int z) {
         if (world == null || chunkStore == null || HyProTechComponents.ITEM_STORAGE == null) {
             return;
@@ -1439,6 +1479,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         storeChunkStorageConfig(chunkStore, x, y, z, config);
     }
 
+    /** Stores a storage configuration in the per-chunk fallback component. */
     private void storeChunkStorageConfig(
             ChunkStore chunkStore,
             int x,
@@ -1465,6 +1506,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Checks the HyProTech block prefix after removing an optional namespace. */
     private boolean isHyProTechBlockId(String blockId) {
         if (blockId == null || blockId.isEmpty()) {
             return false;
@@ -1474,6 +1516,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return normalized.regionMatches(true, 0, "HyProTech_", 0, "HyProTech_".length());
     }
 
+    /** Reads priority from chunk-level storage settings or returns the supplied fallback. */
     private int resolveChunkStoragePriority(
             ChunkStore chunkStore,
             long chunkIndex,
@@ -1497,6 +1540,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
     }
 
     @SuppressWarnings("removal")
+    /** Resolves a multiblock part to its base position when available. */
     private Vector3i resolveBasePosition(World world, Vector3i pos) {
         if (world == null || pos == null) {
             return pos;
@@ -1510,6 +1554,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
 
     private static final Comparator<Endpoint> ENDPOINT_ORDER = ItemNetworkSystem::compareEndpoints;
 
+    /** Orders endpoints by cable position, side and storage position for deterministic traversal. */
     private static int compareEndpoints(Endpoint first, Endpoint second) {
         if (first == second) {
             return 0;
@@ -1560,6 +1605,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return Integer.compare(firstPos.getZ(), secondPos.getZ());
     }
 
+    /** Orders cable coordinates lexicographically by X, Y and Z. */
     private static int compareCablePos(
             int firstX,
             int firstY,
@@ -1578,6 +1624,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return Integer.compare(firstZ, secondZ);
     }
 
+    /** Checks whether a block position has an item-cable component. */
     private boolean isItemCable(ChunkStore chunkStore, int x, int y, int z) {
         if (chunkStore == null || y < ChunkUtil.MIN_Y || y >= ChunkUtil.HEIGHT) {
             return false;
@@ -1594,6 +1641,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return blockComponents.getComponent(blockIndex, itemType) != null;
     }
 
+    /** Transforms world-side connections into the cable block's local rotated mask. */
     private int rotateMaskToLocal(int mask, RotationTuple rotation) {
         int normalized = mask & EnergySide.ALL_MASK;
         if (rotation == null) {
@@ -1619,6 +1667,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return localMask;
     }
 
+    /** Precomputes the visual state name for each possible six-side connection mask. */
     private static String[] buildCableStateNames() {
         String[] names = new String[EnergySide.ALL_MASK + 1];
         for (int mask = 0; mask < names.length; mask++) {
@@ -1627,11 +1676,13 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return names;
     }
 
+    /** Returns the visual state name for a normalized connection mask. */
     private static String cableStateName(int mask, int tier) {
         int normalized = mask & EnergySide.ALL_MASK;
         return CABLE_STATE_NAMES[normalized];
     }
 
+    /** Finds a container at the position or on a horizontally adjacent matching block. */
     private ContainerLookup resolveContainerState(World world, ChunkStore chunkStore, int x, int y, int z) {
         Object state = getItemContainerState(world, x, y, z);
         if (state != null) {
@@ -1689,6 +1740,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return null;
     }
 
+    /** Defines accessible input and output slot ranges for supported machines. */
     private MachineSlotLayout resolveMachineSlots(
             World world,
             int x,
@@ -1730,6 +1782,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return null;
     }
 
+    /** Reads a block type without forcing its chunk to load. */
     private BlockType getBlockTypeIfLoaded(World world, int x, int y, int z) {
         if (world == null) {
             return null;
@@ -1742,6 +1795,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return accessor.getBlockType(x, y, z);
     }
 
+    /** Compares non-null block IDs case-insensitively. */
     private boolean sameBlockId(String firstId, String secondId) {
         if (firstId == null || secondId == null) {
             return false;
@@ -1749,6 +1803,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return firstId.equalsIgnoreCase(secondId);
     }
 
+    /** Recognizes quarry border block IDs so they are not treated as machines. */
     private boolean isQuarryBorder(String blockId) {
         if (blockId == null || blockId.isEmpty()) {
             return false;
@@ -1758,6 +1813,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
                 || blockId.regionMatches(true, 0, baseId, 0, baseId.length());
     }
 
+    /** Retrieves the container state at a world position when available. */
     private Object getItemContainerState(World world, int x, int y, int z) {
         if (world == null) {
             return null;
@@ -1765,6 +1821,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return MachineItemAccess.getContainerState(world, x, y, z);
     }
 
+    /** Retrieves or creates the traversal and routing state for a world. */
     private CableState getCableState(World world) {
         CableState state = cableStates.get(world);
         if (state == null) {
@@ -1774,6 +1831,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return state;
     }
 
+    /** Marks a cable's chunk-local block index and reports whether it was newly visited. */
     private boolean markVisited(CableState state, long chunkIndex, int blockIndex) {
         IntOpenHashSet visited = state.visitedByChunk.get(chunkIndex);
         if (visited == null) {
@@ -1783,6 +1841,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         return visited.add(blockIndex);
     }
 
+    /** A discovered container, its owning position and optional machine slot layout. */
     private static final class ContainerLookup {
         private final Object state;
         private final ItemContainer inputContainer;
@@ -1807,6 +1866,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Per-world traversal limits, visited positions and round-robin cursors. */
     private static final class CableState {
         private long lastTick = Long.MIN_VALUE;
         private long tickStartNanos = 0L;
@@ -1815,6 +1875,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         private final Map<NetworkKey, Int2IntOpenHashMap> roundRobinByNetwork = new HashMap<>();
     }
 
+    /** Cables and endpoints discovered for one network, with coordinate lookup and anchor. */
     private static final class CableNetwork {
         private final List<CableNode> cables = new ArrayList<>();
         private final List<SourceEndpoint> sources = new ArrayList<>();
@@ -1827,6 +1888,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         private boolean hasAnchor;
         private NetworkKey networkKey;
 
+        /** Indexes a cable, updates the limiting transfer rate and chooses the smallest anchor. */
         private void addCable(
                 ItemNodeComponent node,
                 int x,
@@ -1856,6 +1918,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
             }
         }
 
+        /** Looks up a cable's network index using its chunk and local block index. */
         private int getCableIndex(int x, int y, int z) {
             long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
             Int2IntMap indices = cableIndexByChunk.get(chunkIndex);
@@ -1871,6 +1934,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
             return indices.get(blockIndex);
         }
 
+        /** Lazily creates the round-robin key from the selected network anchor. */
         private NetworkKey getNetworkKey() {
             if (networkKey == null) {
                 networkKey = new NetworkKey(anchorX, anchorY, anchorZ);
@@ -1879,6 +1943,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** A cable component and its world and chunk coordinates. */
     private static final class CableNode {
         private final ItemNodeComponent node;
         private final int x;
@@ -1895,6 +1960,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Shared container, side-filter and cable location data for a network endpoint. */
     private static class Endpoint {
         final ItemContainer container;
         final Vector3i position;
@@ -1933,6 +1999,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
             this.side = side;
         }
 
+        /** Applies the side's whitelist or blacklist; an empty filter accepts any nonempty ID. */
         boolean allows(String itemId) {
             if (itemId == null || itemId.isEmpty()) {
                 return false;
@@ -1944,11 +2011,13 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
             return filterMode == FilterMode.BLACKLIST ? !contains : contains;
         }
 
+        /** Accepts any slot unless the endpoint has a restricted machine slot range. */
         boolean allowsSlot(short slot) {
             return slotRange == null || slotRange.contains(slot);
         }
     }
 
+    /** Extraction endpoint with a distribution strategy. */
     private static final class SourceEndpoint extends Endpoint {
         private final ItemDistributionMode distributionMode;
 
@@ -1972,6 +2041,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Insertion endpoint with a clamped routing priority. */
     private static final class SinkEndpoint extends Endpoint {
         private final int priority;
 
@@ -1993,6 +2063,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Half-open range of slots allowed for a machine endpoint. */
     private static final class SlotRange {
         private final int start;
         private final int count;
@@ -2002,16 +2073,19 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
             this.count = Math.max(0, count);
         }
 
+        /** Checks whether a slot lies within this range. */
         private boolean contains(short slot) {
             int value = slot;
             return value >= start && value < start + count;
         }
 
+        /** Reports whether the range has no allowed slots. */
         private boolean isEmpty() {
             return count <= 0;
         }
     }
 
+    /** Input and output slot ranges for a machine's item container. */
     private static final class MachineSlotLayout {
         private final SlotRange inputRange;
         private final SlotRange outputRange;
@@ -2022,6 +2096,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** Coordinate key for per-network round-robin state. */
     private static final class NetworkKey {
         private final int x;
         private final int y;
@@ -2039,11 +2114,13 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
             hash = result;
         }
 
+        /** Returns the precomputed coordinate hash. */
         @Override
         public int hashCode() {
             return hash;
         }
 
+        /** Network keys match when all anchor coordinates match. */
         @Override
         public boolean equals(Object obj) {
             if (this == obj) {
@@ -2057,6 +2134,7 @@ public class ItemNetworkSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
+    /** World coordinates of a cable queued for traversal. */
     private static final class CablePos {
         private final int x;
         private final int y;

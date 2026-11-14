@@ -35,25 +35,31 @@ import com.shailist.hytale.api.transfer.v1.storage.StorageView;
 import com.shailist.hytale.api.transfer.v1.storage.base.ExtractionOnlyStorage;
 import com.shailist.hytale.api.transfer.v1.transaction.TransactionContext;
 
+/** Extraction-only source that represents an effectively unlimited energy amount. */
 public final class InfiniteEnergyStorage implements ExtractionOnlyStorage<Energy> {
+    /** Returns Long.MAX_VALUE regardless of the requested amount or transaction. */
     @Override
     public long extract(Energy resource, long maxAmount, @NonNull TransactionContext transaction) {
         return Long.MAX_VALUE;
     }
 
+    /** Invokes extraction for the singleton energy resource. */
     public long extract(long maxAmount, @NonNull TransactionContext transaction) {
         return extract(Energy.INSTANCE, maxAmount, transaction);
     }
 
+    /** Exposes no individual storage views. */
     @Override
     public @NonNull Iterator<StorageView<Energy>> iterator() {
         return Collections.emptyIterator();
     }
 
+    /** Reports Long.MAX_VALUE as the available amount. */
     public long getAmount() {
         return Long.MAX_VALUE;
     }
 
+    /** Returns a diagnostic name for this source. */
     @Override
     public String toString() {
         return "InfiniteEnergyStorage[]";

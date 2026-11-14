@@ -34,6 +34,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import java.util.ArrayList;
 import java.util.List;
 
+/** Displays wind turbine status and handles tier upgrades. */
 public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
     private static final String ACTION_UPGRADE = "Upgrade";
     private static final long UPDATE_INTERVAL_MS = 250L;
@@ -82,10 +83,12 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         this.energyType = energyType;
     }
 
+    /** Returns the currently tracked block reference. */
     public Ref<ChunkStore> getBlockRef() {
         return blockRef;
     }
 
+    /** Loads the layout, binds the upgrade button and populates the initial values. */
     @Override
     public void build(
             Ref<EntityStore> playerRef,
@@ -103,6 +106,7 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         updateForWorld(uiCommandBuilder, world, inventory);
     }
 
+    /** Handles the page's upgrade action. */
     @Override
     public void handleDataEvent(Ref<EntityStore> playerRef, Store<EntityStore> store, WindUpgradeEvent data) {
         if (data == null || data.getAction() == null) {
@@ -116,6 +120,7 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         }
     }
 
+    /** Checks and consumes materials, updates the tier and queues a state-preserving block swap. */
     private boolean handleUpgrade(Ref<EntityStore> playerRef, Store<EntityStore> store) {
         World world = getWorld(store);
         if (world == null) {
@@ -145,6 +150,7 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
             stacks.add(new ItemStack(requirement.getItemId(), requirement.getQuantity()));
         }
 
+        // Check all requirements before attempting the inventory removal transaction.
         if (!stacks.isEmpty() && !inventory.canRemoveItemStacks(stacks)) {
             sendPlayerMessage(playerRef, store, "Missing upgrade materials.");
             return false;
@@ -176,10 +182,12 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         return true;
     }
 
+    /** Requests a throttled refresh of the displayed node values. */
     public void update(EnergyNodeComponent node) {
         update(node, false);
     }
 
+    /** Sends changed values, allowing immediate refresh after an upgrade. */
     private void update(EnergyNodeComponent node, boolean force) {
         if (node == null) {
             return;
@@ -204,6 +212,7 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         lastUpdateMs = now;
     }
 
+    /** Populates the page from the world or displays placeholders for a missing node. */
     private boolean updateForWorld(UICommandBuilder update, World world, ItemContainer inventory) {
         if (world == null) {
             showNoNode(update);
@@ -217,6 +226,7 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         return updateForNode(update, node, inventory);
     }
 
+    /** Updates tier, energy, configured output and upgrade requirements when they change. */
     private boolean updateForNode(UICommandBuilder update, EnergyNodeComponent node, ItemContainer inventory) {
         boolean changed = false;
 
@@ -254,6 +264,7 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         return changed;
     }
 
+    /** Displays the next tier and compares required materials with the player's inventory. */
     private String updateUpgradePanel(UICommandBuilder update, int tier, ItemContainer inventory) {
         boolean hasNextTier = WindUpgradeConfig.hasNextTier(tier);
         String nextText = hasNextTier
@@ -315,6 +326,7 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         return reqKey.toString();
     }
 
+    /** Clears the display when no wind turbine node is available. */
     private void showNoNode(UICommandBuilder update) {
         update.set("#WindTier.Text", "Tier: -");
         update.set("#WindEnergy.Text", "Energy: -");
@@ -332,6 +344,7 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         }
     }
 
+    /** Applies tier capacity, generation and transfer limits, clamping stored energy. */
     private void applyWindTier(EnergyNodeComponent node, int tier) {
         int capacity = WindUpgradeConfig.getCapacityForTier(tier);
         node.setCapacity(capacity);
@@ -342,6 +355,7 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         node.setMaxTransfer(WindUpgradeConfig.getMaxTransferForTier(tier));
     }
 
+    /** Retrieves the player's storage inventory for upgrade checks. */
     private ItemContainer getPlayerInventory(Store<EntityStore> store) {
         Ref<EntityStore> playerEntityRef = playerRef.getReference();
         if (playerEntityRef == null) {
@@ -355,6 +369,7 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         return inventory == null ? null : inventory.getStorage();
     }
 
+    /** Totals matching item quantities across storage slots. */
     private int countItem(ItemContainer container, String itemId) {
         if (container == null || itemId == null) {
             return 0;
@@ -373,6 +388,7 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         return total;
     }
 
+    /** Formats an ingredient ID as a readable requirement label. */
     private String formatRequirementName(String itemId) {
         if (itemId == null) {
             return "";
@@ -385,6 +401,7 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         return name.replace('_', ' ');
     }
 
+    /** Refreshes the component reference if the block was replaced during an upgrade. */
     Ref<ChunkStore> resolveBlockRef(World world) {
         if (world == null) {
             return blockRef;
@@ -409,6 +426,7 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         return blockRef;
     }
 
+    /** Looks up the node by position, then falls back to the component reference. */
     private EnergyNodeComponent resolveNode(World world) {
         if (world == null) {
             return null;
@@ -437,6 +455,7 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         }
     }
 
+    /** Writes the node to its live reference or holder and marks the chunk for saving. */
     private void storeNode(World world, EnergyNodeComponent node) {
         if (world == null || node == null) {
             return;
@@ -483,6 +502,7 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         }
     }
 
+    /** Sends an upgrade result message if the player is available. */
     private void sendPlayerMessage(Ref<EntityStore> playerRef, Store<EntityStore> store, String text) {
         Player player = store.getComponent(playerRef, Player.getComponentType());
         if (player == null) {
@@ -491,11 +511,13 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         player.sendMessage(Message.raw(text));
     }
 
+    /** Retrieves the world associated with the player's entity store. */
     private World getWorld(Store<EntityStore> store) {
         EntityStore entityStore = store.getExternalData();
         return entityStore == null ? null : entityStore.getWorld();
     }
 
+    /** Finds the reference in loaded chunks and caches its world coordinates. */
     Vector3i resolveBlockPosition(World world) {
         if (world == null) {
             return null;
@@ -532,6 +554,7 @@ public class WindPage extends InteractiveCustomUIPage<WindUpgradeEvent> {
         return null;
     }
 
+    /** Finds the chunk-local block index corresponding to the page's reference. */
     private int findBlockIndex(BlockComponentChunk blockComponents) {
         int targetIndex = blockRef.getIndex();
         if (targetIndex == Integer.MIN_VALUE) {

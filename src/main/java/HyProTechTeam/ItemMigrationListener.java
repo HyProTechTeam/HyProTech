@@ -9,8 +9,10 @@ import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.transaction.ItemStackSlotTransaction;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 
+/** Replaces known legacy item IDs in player storage when a player connects. */
 public class ItemMigrationListener {
 
+    // Lookup table maps old Machinarium and earlier HyProTech IDs to their current IDs.
     private static Map<String, String> replace_map = new HashMap<>();
 
     static {
@@ -180,30 +182,31 @@ public class ItemMigrationListener {
         replace_map.put("Machinarium_Tungsten_Carbide_Chunk",             "HyProTech_Chunk_Tungsten_Carbide");
     }
 
+    /** Scans the first 36 storage slots and replaces known IDs while retaining stack data. */
     public static void onPlayerJoin(PlayerConnectEvent event) {
 /*         if (event.isCancelled()) {
             return;
         } */
-        // Получаем инвентарь игрока
+        // Use the player's storage container as the migration target.
         ItemContainer inventory = event.getPlayer().getInventory().getStorage();
         
-        // Проходим по всем слотам
+        // Inspect the first 36 slots of the storage container.
         for (short i = 0; i < 36; i++) {
             ItemStack stack = inventory.getItemStack(i);
             
-            // Если слот не пуст
+            // Empty slots have no item to migrate.
             if (stack != null) {
                 String OLD_ID = stack.getItemId();
-                // Проверяем наличие устаревшего ID
+                // Only IDs present in the migration table are replaced.
                 if( replace_map.containsKey( OLD_ID ) == true ) {
-                    // Создаем новый стак с тем же количеством и метаданными
+                    // Keep the original quantity and metadata with the replacement ID.
                     ItemStack newStack = new ItemStack(
                         replace_map.get( OLD_ID ), 
                         stack.getQuantity(), 
                         stack.getMetadata()
                     );
                     
-                    // Устанавливаем новый предмет в тот же слот
+                    // Replace the old stack in its existing slot.
                     inventory.replaceItemStackInSlot(i, stack, newStack);
                 }
             }

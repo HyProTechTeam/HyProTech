@@ -19,6 +19,7 @@
 
 package com.doctorreborn.hytale.api.energy.v2;
 
+/** Exposes an energy transfer limit. */
 public interface EnergyTransferer {
     /**
      * @return The maximum amount of energy this transferer can transfer.

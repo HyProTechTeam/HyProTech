@@ -25,7 +25,9 @@ import java.util.function.IntFunction;
 import java.util.function.IntToDoubleFunction;
 import java.util.function.Supplier;
 
+/** Integrates the optional MAC configuration UI without a compile-time dependency on MAC. */
 public final class MacConfigBridge {
+    // Resolve MAC types by name so the plugin can also run when MAC is absent.
     private static final String PLUGIN_CONFIG_CLASS = "net.lyivx.mac.config.PluginConfig";
     private static final String CONFIG_BUILDER_CLASS = "net.lyivx.mac.config.ConfigBuilder";
     private static final String CONFIG_FIELD_CLASS = "net.lyivx.mac.config.ConfigField";
@@ -33,6 +35,7 @@ public final class MacConfigBridge {
     private MacConfigBridge() {
     }
 
+    /** Groups the plugin's native config handles for conversion and persistence. */
     public static final class ConfigBundle {
         public final Config<BatteryUpgradeConfig.ConfigData> battery;
         public final Config<SolarUpgradeConfig.ConfigData> solar;
@@ -43,6 +46,7 @@ public final class MacConfigBridge {
         public final Config<AlloySmelterConfig.ConfigData> alloySmelter;
         public final Config<QuarryConfig.ConfigData> quarry;
 
+        /** Retains the native configuration handles that the MAC settings update. */
         public ConfigBundle(
                 Config<BatteryUpgradeConfig.ConfigData> battery,
                 Config<SolarUpgradeConfig.ConfigData> solar,
@@ -63,6 +67,7 @@ public final class MacConfigBridge {
         }
     }
 
+    /** Registers the optional schema, merges its settings with defaults and applies them. */
     public static void applyIfPresent(JavaPlugin plugin, ConfigBundle bundle) {
         if (plugin == null || bundle == null) {
             return;
@@ -90,6 +95,7 @@ public final class MacConfigBridge {
             plugin.getLogger().atWarning().log("[HyProTech] MAC config registration failed: %s", ex.getMessage());
             return;
         }
+        // Preserve defaults for missing settings before updating MAC and the native configs.
         MacSettings settings = readSettings(pluginConfig);
         MacSettings merged = mergeSettings(settings, defaults);
         if (merged == null) {
@@ -99,6 +105,7 @@ public final class MacConfigBridge {
         applySettings(plugin, bundle, merged, defaults);
     }
 
+    /** Returns null when an optional MAC class is not installed. */
     private static Class<?> loadClass(String name) {
         try {
             return Class.forName(name);
@@ -107,6 +114,7 @@ public final class MacConfigBridge {
         }
     }
 
+    /** Finds a compatible five-argument MAC registration overload via reflection. */
     private static Object registerConfig(
             JavaPlugin plugin,
             Class<?> pluginConfigClass,
@@ -138,6 +146,7 @@ public final class MacConfigBridge {
         throw new IllegalStateException("PluginConfig.register overload not found");
     }
 
+    /** Builds the Energy and Machines sections from current plugin defaults. */
     private static void buildSchema(
             Object builderObj,
             Class<?> configBuilderClass,
@@ -185,6 +194,7 @@ public final class MacConfigBridge {
             addQuarrySchema(nestedBuilder, fields, defaults == null ? null : defaults.quarry);
         });
     }
+    /** Exposes battery tier names, capacity, transfer rates and upgrade costs. */
     private static void addBatterySchema(MacSchemaBuilder builder, MacFieldFactory fields, MacSettings.Battery defaults) {
         if (builder == null) {
             return;
@@ -196,6 +206,7 @@ public final class MacConfigBridge {
         builder.arrayField("Upgrade Requirements", fields.requirementGroupField(), safe.upgradeRequirements);
     }
 
+    /** Exposes solar tiers, generation, capacity and upgrade costs. */
     private static void addSolarSchema(MacSchemaBuilder builder, MacFieldFactory fields, MacSettings.Solar defaults) {
         if (builder == null) {
             return;
@@ -207,6 +218,7 @@ public final class MacConfigBridge {
         builder.arrayField("Upgrade Requirements", fields.requirementGroupField(), safe.upgradeRequirements);
     }
 
+    /** Exposes wind-generator tiers, generation, capacity and upgrade costs. */
     private static void addWindSchema(MacSchemaBuilder builder, MacFieldFactory fields, MacSettings.Wind defaults) {
         if (builder == null) {
             return;
@@ -218,6 +230,7 @@ public final class MacConfigBridge {
         builder.arrayField("Upgrade Requirements", fields.requirementGroupField(), safe.upgradeRequirements);
     }
 
+    /** Exposes energy and item cable limits and tier upgrade costs. */
     private static void addCableSchema(MacSchemaBuilder builder, MacFieldFactory fields, MacSettings.Cable defaults) {
         if (builder == null) {
             return;
@@ -230,6 +243,7 @@ public final class MacConfigBridge {
         builder.arrayField("Upgrade Requirements", fields.requirementGroupField(), safe.upgradeRequirements);
     }
 
+    /** Exposes the electric furnace consumption multiplier. */
     private static void addFurnaceSchema(MacSchemaBuilder builder, MacSettings.Furnace defaults) {
         if (builder == null) {
             return;
@@ -239,6 +253,7 @@ public final class MacConfigBridge {
         builder.defaultsTo(field, safe.consumptionMultiplier);
     }
 
+    /** Exposes crusher processing, energy, upgrade and bonus-drop settings. */
     private static void addOreCrusherSchema(
             MacSchemaBuilder builder,
             MacFieldFactory fields,
@@ -260,6 +275,7 @@ public final class MacConfigBridge {
         });
     }
 
+    /** Exposes alloy-smelter processing, energy, upgrade and bonus-drop settings. */
     private static void addAlloySmelterSchema(
             MacSchemaBuilder builder,
             MacFieldFactory fields,
@@ -277,6 +293,7 @@ public final class MacConfigBridge {
         builder.arrayField("Bonus Drops", fields.bonusDropField(), safe.bonusDrops);
     }
 
+    /** Exposes quarry dimensions, speed, energy, backfill timing and upgrade costs. */
     private static void addQuarrySchema(
             MacSchemaBuilder builder,
             MacFieldFactory fields,
@@ -306,6 +323,7 @@ public final class MacConfigBridge {
         builder.defaultsTo(forceField, safe.forceReplaceBlocks);
     }
 
+    /** Defines the item, quantity and chance fields shared by bonus-drop objects. */
     private static void addBonusDropFields(MacSchemaBuilder builder, MacSettings.BonusDrop defaults) {
         if (builder == null) {
             return;
@@ -320,6 +338,7 @@ public final class MacConfigBridge {
         Object perField = builder.numberField("Per Tier Chance");
         builder.defaultsTo(perField, safe.perTierChance);
     }
+    /** Creates reusable primitive and nested MAC fields through reflection. */
     private static final class MacFieldFactory {
         private final Class<?> configBuilderClass;
         private final Class<?> configFieldClass;
@@ -329,14 +348,17 @@ public final class MacConfigBridge {
             this.configFieldClass = configFieldClass;
         }
 
+        /** Creates a reusable MAC string field through the reflected factory. */
         Object stringField(String label) {
             return invokeStatic(configFieldClass, "stringField", label);
         }
 
+        /** Creates a reusable MAC numeric field through the reflected factory. */
         Object numberField(String label) {
             return invokeStatic(configFieldClass, "numberField", label);
         }
 
+        /** Builds a group containing an array of item-and-quantity requirements. */
         Object requirementGroupField() {
             Object requirementField = buildObjectField("Requirement", builder -> {
                 MacSchemaBuilder schema = new MacSchemaBuilder(builder, configBuilderClass, configFieldClass);
@@ -354,6 +376,7 @@ public final class MacConfigBridge {
             });
         }
 
+        /** Builds an object field for one bonus-drop rule. */
         Object bonusDropField() {
             return buildObjectField("Bonus Drop", builder -> {
                 MacSchemaBuilder schema = new MacSchemaBuilder(builder, configBuilderClass, configFieldClass);
@@ -361,6 +384,7 @@ public final class MacConfigBridge {
             });
         }
 
+        /** Builds a nested schema before wrapping it as an object field. */
         private Object buildObjectField(String label, Consumer<Object> nestedConsumer) {
             Object nestedBuilder = newConfigBuilder(configBuilderClass);
             if (nestedBuilder == null) {
@@ -375,6 +399,7 @@ public final class MacConfigBridge {
         }
     }
 
+    /** Adapts MAC builder and field APIs that may differ between installed versions. */
     private static final class MacSchemaBuilder {
         private final Object builder;
         private final Object adder;
@@ -388,26 +413,32 @@ public final class MacConfigBridge {
             this.adder = resolveAdder(builder);
         }
 
+        /** Wraps a nested schema builder with the same reflected MAC types. */
         MacSchemaBuilder child(Object nested) {
             return new MacSchemaBuilder(nested, configBuilderClass, configFieldClass);
         }
 
+        /** Adds a named section through the resolved builder facade. */
         void section(String title) {
             invoke(adder, "section", title);
         }
 
+        /** Adds a string field through the resolved builder facade. */
         Object stringField(String label) {
             return invoke(adder, "stringField", label);
         }
 
+        /** Adds a numeric field through the resolved builder facade. */
         Object numberField(String label) {
             return invoke(adder, "numberField", label);
         }
 
+        /** Adds a boolean field through the resolved builder facade. */
         Object booleanField(String label) {
             return invoke(adder, "booleanField", label);
         }
 
+        /** Adds an array only when its element field was created successfully. */
         Object arrayField(String label, Object elementField) {
             if (elementField == null) {
                 return null;
@@ -415,11 +446,13 @@ public final class MacConfigBridge {
             return invoke(adder, "arrayField", label, elementField);
         }
 
+        /** Adds an array field and tries to apply its default values. */
         void arrayField(String label, Object elementField, Object defaults) {
             Object field = arrayField(label, elementField);
             defaultsTo(field, defaults);
         }
 
+        /** Supports object-field overloads accepting either a consumer or a built schema. */
         void objectField(String label, Consumer<Object> nestedConsumer) {
             if (adder == null || nestedConsumer == null) {
                 return;
@@ -452,6 +485,7 @@ public final class MacConfigBridge {
             }
         }
 
+        /** Tries the original default value, then compatible array representations for lists. */
         void defaultsTo(Object field, Object value) {
             if (field == null || value == null) {
                 return;
@@ -481,6 +515,7 @@ public final class MacConfigBridge {
         }
     }
 
+    /** Instantiates an optional MAC builder, returning null if its API is unavailable. */
     private static Object newConfigBuilder(Class<?> configBuilderClass) {
         if (configBuilderClass == null) {
             return null;
@@ -492,6 +527,7 @@ public final class MacConfigBridge {
         }
     }
 
+    /** Calls the optional builder's no-argument build method. */
     private static Object buildConfigBuilder(Object builder) {
         if (builder == null) {
             return null;
@@ -504,6 +540,7 @@ public final class MacConfigBridge {
         }
     }
 
+    /** Finds the builder's add facade through a field or method, falling back to the builder. */
     private static Object resolveAdder(Object builder) {
         if (builder == null) {
             return null;
@@ -532,6 +569,7 @@ public final class MacConfigBridge {
         return builder;
     }
 
+    /** Prefers the consumer-based objectField overload, with another two-argument fallback. */
     private static Method findObjectFieldMethod(Class<?> type) {
         Method fallback = null;
         for (Method method : type.getMethods()) {
@@ -549,6 +587,7 @@ public final class MacConfigBridge {
         return fallback;
     }
 
+    /** Invokes a compatible public instance method, returning null on lookup or invocation failure. */
     private static Object invoke(Object target, String name, Object... args) {
         if (target == null) {
             return null;
@@ -564,6 +603,7 @@ public final class MacConfigBridge {
         }
     }
 
+    /** Invokes a compatible public static method, returning null if it cannot be used. */
     private static Object invokeStatic(Class<?> type, String name, Object... args) {
         if (type == null) {
             return null;
@@ -579,6 +619,7 @@ public final class MacConfigBridge {
         }
     }
 
+    /** Finds the first public overload whose parameter types accept the supplied arguments. */
     private static Method findCompatibleMethod(Class<?> type, String name, Object[] args) {
         for (Method method : type.getMethods()) {
             if (!method.getName().equals(name) || method.getParameterCount() != args.length) {
@@ -599,6 +640,7 @@ public final class MacConfigBridge {
         return null;
     }
 
+    /** Matches null only to reference types and compares primitive parameters through wrappers. */
     private static boolean isCompatible(Class<?> paramType, Object arg) {
         if (arg == null) {
             return !paramType.isPrimitive();
@@ -607,6 +649,7 @@ public final class MacConfigBridge {
         return wrapped.isAssignableFrom(arg.getClass());
     }
 
+    /** Maps Java primitive types to their reflection argument wrapper classes. */
     private static Class<?> wrapPrimitive(Class<?> type) {
         if (!type.isPrimitive()) {
             return type;
@@ -638,6 +681,7 @@ public final class MacConfigBridge {
         return type;
     }
 
+    /** Tries a compatible defaultsTo overload and reports whether it was invoked. */
     private static boolean invokeDefaults(Object field, Object value) {
         if (field == null) {
             return false;
@@ -654,6 +698,7 @@ public final class MacConfigBridge {
         }
     }
 
+    /** Converts a list to an array based on its first non-null element's type. */
     private static Object listToTypedArray(List<?> list) {
         if (list == null || list.isEmpty()) {
             return null;
@@ -675,6 +720,7 @@ public final class MacConfigBridge {
         return array;
     }
 
+    /** Tries primitive array overloads when a MAC field does not accept the original list. */
     private static boolean tryPrimitiveDefaults(Object field, List<?> list) {
         if (list == null || list.isEmpty()) {
             return false;
@@ -738,6 +784,7 @@ public final class MacConfigBridge {
         return false;
     }
 
+    /** Copies a primitive array into a boxed object array for alternate overloads. */
     private static Object boxPrimitiveArray(Object value) {
         if (value == null) {
             return null;
@@ -754,6 +801,7 @@ public final class MacConfigBridge {
         return boxed;
     }
 
+    /** Finds a settings accessor by common names, then by a compatible return type. */
     private static MacSettings readSettings(Object pluginConfig) {
         if (pluginConfig == null) {
             return null;
@@ -796,6 +844,7 @@ public final class MacConfigBridge {
         }
     }
 
+    /** Unwraps direct or optional settings, waiting for a future when necessary. */
     private static MacSettings unwrapSettings(Object value) {
         if (value == null) {
             return null;
@@ -814,6 +863,7 @@ public final class MacConfigBridge {
         return null;
     }
 
+    /** Converts each settings section into native config data, applies it and saves it. */
     private static void applySettings(
             JavaPlugin plugin,
             ConfigBundle bundle,
@@ -852,6 +902,7 @@ public final class MacConfigBridge {
         persistConfig(plugin, "quarry", bundle.quarry, quarryData);
     }
 
+    /** Writes merged settings back to MAC and requests persistence when supported. */
     private static void persistMacConfig(JavaPlugin plugin, Object pluginConfig, MacSettings settings) {
         if (pluginConfig == null || settings == null) {
             return;
@@ -863,6 +914,7 @@ public final class MacConfigBridge {
         }
     }
 
+    /** Tries known setter names and then known backing fields across MAC versions. */
     private static boolean setMacConfigValue(Object pluginConfig, MacSettings settings) {
         if (pluginConfig == null || settings == null) {
             return false;
@@ -903,6 +955,7 @@ public final class MacConfigBridge {
         return false;
     }
 
+    /** Invokes a supported save method and logs asynchronous failures when possible. */
     private static boolean saveMacConfig(JavaPlugin plugin, Object pluginConfig) {
         String[] methodNames = {"save", "saveAsync", "write", "writeAsync", "flush"};
         for (String name : methodNames) {
@@ -935,6 +988,7 @@ public final class MacConfigBridge {
         return false;
     }
 
+    /** Updates a native config handle and reports failures from its asynchronous save. */
     private static <T> void persistConfig(JavaPlugin plugin, String label, Config<T> config, T data) {
         if (config == null || data == null) {
             return;
@@ -954,6 +1008,7 @@ public final class MacConfigBridge {
         });
     }
 
+    /** Replaces the native config's backing value through reflection. */
     private static <T> boolean setConfigValue(Config<T> config, T data) {
         try {
             Field field = config.getClass().getDeclaredField("config");
@@ -965,14 +1020,17 @@ public final class MacConfigBridge {
         }
     }
 
+    /** Constructs a machine-specific requirement from normalized MAC fields. */
     private interface RequirementFactory<R> {
         R create(String itemId, int quantity);
     }
 
+    /** Constructs a machine-specific bonus-drop rule from normalized MAC fields. */
     private interface BonusDropFactory<D> {
         D create(String itemId, int quantity, double baseChance, double perTierChance);
     }
 
+    /** Converts battery tiers, energy limits and costs into the native config representation. */
     private static BatteryUpgradeConfig.ConfigData buildBatteryConfig(
             MacSettings settings,
             MacSettings defaults) {
@@ -1009,6 +1067,7 @@ public final class MacConfigBridge {
         return data;
     }
 
+    /** Converts solar tiers, generation and upgrade costs into native config data. */
     private static SolarUpgradeConfig.ConfigData buildSolarConfig(
             MacSettings settings,
             MacSettings defaults) {
@@ -1045,6 +1104,7 @@ public final class MacConfigBridge {
         return data;
     }
 
+    /** Converts wind tiers, generation and upgrade costs into native config data. */
     private static WindUpgradeConfig.ConfigData buildWindConfig(
             MacSettings settings,
             MacSettings defaults) {
@@ -1081,6 +1141,7 @@ public final class MacConfigBridge {
         return data;
     }
 
+    /** Converts cable tier transfer limits and upgrade costs into native config data. */
     private static CableUpgradeConfig.ConfigData buildCableConfig(
             MacSettings settings,
             MacSettings defaults) {
@@ -1123,6 +1184,7 @@ public final class MacConfigBridge {
         return data;
     }
 
+    /** Converts the furnace consumption multiplier into native config data. */
     private static FurnaceConfig.ConfigData buildFurnaceConfig(
             MacSettings settings,
             MacSettings defaults) {
@@ -1137,6 +1199,7 @@ public final class MacConfigBridge {
         return data;
     }
 
+    /** Converts crusher tiers, processing parameters, costs and bonus drops. */
     private static OreCrusherConfig.ConfigData buildOreCrusherConfig(
             MacSettings settings,
             MacSettings defaults) {
@@ -1199,6 +1262,7 @@ public final class MacConfigBridge {
         return data;
     }
 
+    /** Converts smelter tiers, processing parameters, costs and bonus drops. */
     private static AlloySmelterConfig.ConfigData buildAlloySmelterConfig(
             MacSettings settings,
             MacSettings defaults) {
@@ -1255,6 +1319,7 @@ public final class MacConfigBridge {
         return data;
     }
 
+    /** Converts quarry area, timing, energy, replacement and tier settings. */
     private static QuarryConfig.ConfigData buildQuarryConfig(
             MacSettings settings,
             MacSettings defaults) {
@@ -1327,6 +1392,7 @@ public final class MacConfigBridge {
         setField(data, "forceReplaceBlocks", forceReplace);
         return data;
     }
+    /** Sets a native config field reflectively when the field and value are available. */
     private static void setField(Object target, String fieldName, Object value) {
         if (target == null || fieldName == null || value == null) {
             return;
@@ -1340,6 +1406,7 @@ public final class MacConfigBridge {
         }
     }
 
+    /** Builds one normalized requirement array per tier, using the matching default when needed. */
     private static <R> R[][] buildRequirementTable(
             List<MacSettings.RequirementGroup> value,
             List<MacSettings.RequirementGroup> defaults,
@@ -1355,6 +1422,7 @@ public final class MacConfigBridge {
         return table;
     }
 
+    /** Selects the requested tier's requirements, falling back to the default group. */
     private static List<MacSettings.Requirement> resolveRequirementItems(
             List<MacSettings.RequirementGroup> value,
             List<MacSettings.RequirementGroup> defaults,
@@ -1369,6 +1437,7 @@ public final class MacConfigBridge {
         return group.items;
     }
 
+    /** Drops invalid requirements and converts valid item IDs and quantities with the factory. */
     private static <R> R[] toRequirementArray(
             List<MacSettings.Requirement> items,
             RequirementFactory<R> factory,
@@ -1395,6 +1464,7 @@ public final class MacConfigBridge {
         return result.toArray(array);
     }
 
+    /** Converts bonus drops, retrying defaults when a supplied list has no valid entries. */
     private static <D> D[] buildBonusDropArray(
             List<MacSettings.BonusDrop> value,
             List<MacSettings.BonusDrop> defaults,
@@ -1408,6 +1478,7 @@ public final class MacConfigBridge {
         return result;
     }
 
+    /** Converts one bonus drop, retrying the default if the supplied value is invalid. */
     private static <D> D buildSingleBonusDrop(
             MacSettings.BonusDrop value,
             MacSettings.BonusDrop defaults,
@@ -1420,6 +1491,7 @@ public final class MacConfigBridge {
         return result;
     }
 
+    /** Converts valid bonus-drop rules to the machine-specific array type. */
     private static <D> D[] toBonusDropArray(
             List<MacSettings.BonusDrop> items,
             BonusDropFactory<D> factory,
@@ -1441,6 +1513,7 @@ public final class MacConfigBridge {
         return result.toArray(array);
     }
 
+    /** Normalizes a drop rule and rejects an empty item ID or nonpositive quantity. */
     private static <D> D toBonusDrop(MacSettings.BonusDrop drop, BonusDropFactory<D> factory) {
         if (drop == null) {
             return null;
@@ -1455,6 +1528,7 @@ public final class MacConfigBridge {
         return factory.create(itemId, quantity, baseChance, perTierChance);
     }
 
+    /** Fills a fixed-size string array from defaults, overriding with nonempty supplied values. */
     private static String[] mergeStringList(List<String> value, List<String> defaults, int length) {
         String[] result = new String[length];
         for (int i = 0; i < length; i++) {
@@ -1473,6 +1547,7 @@ public final class MacConfigBridge {
         return result;
     }
 
+    /** Fills a fixed-size integer array and clamps supplied and default values to a minimum. */
     private static int[] mergeIntList(List<Integer> value, List<Integer> defaults, int length, int minValue) {
         int[] result = new int[length];
         for (int i = 0; i < length; i++) {
@@ -1494,6 +1569,7 @@ public final class MacConfigBridge {
         return result;
     }
 
+    /** Fills a fixed-size floating-point array using normalized supplied and default values. */
     private static double[] mergeDoubleList(List<Double> value, List<Double> defaults, int length, double minValue) {
         double[] result = new double[length];
         for (int i = 0; i < length; i++) {
@@ -1512,6 +1588,7 @@ public final class MacConfigBridge {
         return result;
     }
 
+    /** Returns null for a missing list or an index outside its range. */
     private static <T> T getListItem(List<T> list, int index) {
         if (list == null || index < 0 || index >= list.size()) {
             return null;
@@ -1519,6 +1596,7 @@ public final class MacConfigBridge {
         return list.get(index);
     }
 
+    /** Fills missing sections and fields in loaded MAC settings from independent defaults. */
     private static MacSettings mergeSettings(MacSettings settings, MacSettings defaults) {
         if (settings == null) {
             return copySettings(defaults);
@@ -1665,6 +1743,7 @@ public final class MacConfigBridge {
         return settings;
     }
 
+    /** Copies all settings sections and their nested lists so defaults are not shared. */
     private static MacSettings copySettings(MacSettings defaults) {
         MacSettings copy = new MacSettings();
         if (defaults == null) {
@@ -1734,6 +1813,7 @@ public final class MacConfigBridge {
         return copy;
     }
 
+    /** Keeps supplied list entries and fills missing or null positions from defaults. */
     private static <T> List<T> mergeList(List<T> value, List<T> defaults) {
         if (value == null || value.isEmpty()) {
             return copyList(defaults);
@@ -1754,6 +1834,7 @@ public final class MacConfigBridge {
         return merged;
     }
 
+    /** Creates a mutable list copy, or an empty list for null input. */
     private static <T> List<T> copyList(List<T> list) {
         if (list == null) {
             return new ArrayList<>();
@@ -1761,6 +1842,7 @@ public final class MacConfigBridge {
         return new ArrayList<>(list);
     }
 
+    /** Merges requirement groups by tier, copying nested default groups as needed. */
     private static List<MacSettings.RequirementGroup> mergeRequirementGroups(
             List<MacSettings.RequirementGroup> value,
             List<MacSettings.RequirementGroup> defaults) {
@@ -1785,6 +1867,7 @@ public final class MacConfigBridge {
         return merged;
     }
 
+    /** Merges each item requirement with its corresponding default entry. */
     private static List<MacSettings.Requirement> mergeRequirements(
             List<MacSettings.Requirement> value,
             List<MacSettings.Requirement> defaults) {
@@ -1804,6 +1887,7 @@ public final class MacConfigBridge {
         return merged;
     }
 
+    /** Fills a requirement's missing item ID and quantity from its default. */
     private static MacSettings.Requirement mergeRequirement(
             MacSettings.Requirement value,
             MacSettings.Requirement defaults) {
@@ -1824,6 +1908,7 @@ public final class MacConfigBridge {
         return merged;
     }
 
+    /** Deep-copies the list of tier requirement groups. */
     private static List<MacSettings.RequirementGroup> copyRequirementGroups(
             List<MacSettings.RequirementGroup> source) {
         if (source == null) {
@@ -1836,6 +1921,7 @@ public final class MacConfigBridge {
         return copy;
     }
 
+    /** Copies one group and its nested requirements. */
     private static MacSettings.RequirementGroup copyRequirementGroup(
             MacSettings.RequirementGroup source) {
         MacSettings.RequirementGroup group = new MacSettings.RequirementGroup();
@@ -1847,6 +1933,7 @@ public final class MacConfigBridge {
         return group;
     }
 
+    /** Copies non-null requirement entries into a mutable list. */
     private static List<MacSettings.Requirement> copyRequirements(
             List<MacSettings.Requirement> source) {
         if (source == null) {
@@ -1862,6 +1949,7 @@ public final class MacConfigBridge {
         return copy;
     }
 
+    /** Copies an item ID and quantity into a new requirement object. */
     private static MacSettings.Requirement copyRequirement(MacSettings.Requirement source) {
         if (source == null) {
             return null;
@@ -1872,6 +1960,7 @@ public final class MacConfigBridge {
         return copy;
     }
 
+    /** Merges bonus-drop rules by index, filling missing entries from defaults. */
     private static List<MacSettings.BonusDrop> mergeBonusDrops(
             List<MacSettings.BonusDrop> value,
             List<MacSettings.BonusDrop> defaults) {
@@ -1891,6 +1980,7 @@ public final class MacConfigBridge {
         return merged;
     }
 
+    /** Fills missing fields of one bonus-drop rule from its default. */
     private static MacSettings.BonusDrop mergeBonusDrop(
             MacSettings.BonusDrop value,
             MacSettings.BonusDrop defaults) {
@@ -1921,6 +2011,7 @@ public final class MacConfigBridge {
         return merged;
     }
 
+    /** Copies non-null bonus-drop rules into a mutable list. */
     private static List<MacSettings.BonusDrop> copyBonusDrops(List<MacSettings.BonusDrop> source) {
         if (source == null) {
             return new ArrayList<>();
@@ -1935,6 +2026,7 @@ public final class MacConfigBridge {
         return copy;
     }
 
+    /** Copies the item, quantity and chance fields of a bonus-drop rule. */
     private static MacSettings.BonusDrop copyBonusDrop(MacSettings.BonusDrop source) {
         if (source == null) {
             return null;
@@ -1947,6 +2039,7 @@ public final class MacConfigBridge {
         return copy;
     }
 
+    /** Reads the currently active native settings into MAC's editable default structure. */
     private static MacSettings buildDefaults() {
         MacSettings defaults = new MacSettings();
 
@@ -2145,6 +2238,7 @@ public final class MacConfigBridge {
         return defaults;
     }
 
+    /** Reads and normalizes one string for every tier in the inclusive range. */
     private static List<String> buildStringList(
             int minTier,
             int maxTier,
@@ -2156,6 +2250,7 @@ public final class MacConfigBridge {
         return list;
     }
 
+    /** Reads one integer per tier, substituting zero for missing values. */
     private static List<Integer> buildIntList(
             int minTier,
             int maxTier,
@@ -2168,6 +2263,7 @@ public final class MacConfigBridge {
         return list;
     }
 
+    /** Reads one floating-point value for each tier in the inclusive range. */
     private static List<Double> buildDoubleList(
             int minTier,
             int maxTier,
@@ -2179,6 +2275,7 @@ public final class MacConfigBridge {
         return list;
     }
 
+    /** Converts each tier's requirement list into a MAC requirement group. */
     private static List<MacSettings.RequirementGroup> buildRequirementGroups(
             int minTier,
             int maxTier,
@@ -2193,6 +2290,7 @@ public final class MacConfigBridge {
         return groups;
     }
 
+    /** Converts valid native requirements into MAC item-and-quantity entries. */
     private static <R> List<MacSettings.Requirement> toSettingRequirements(
             R[] requirements,
             java.util.function.Function<R, String> itemIdGetter,
@@ -2218,6 +2316,7 @@ public final class MacConfigBridge {
         return list;
     }
 
+    /** Converts a list of native drop rules to editable MAC settings. */
     private static <D> List<MacSettings.BonusDrop> toSettingBonusDrops(
             List<D> drops,
             java.util.function.Function<D, String> itemIdGetter,
@@ -2242,6 +2341,7 @@ public final class MacConfigBridge {
         return list;
     }
 
+    /** Converts a valid native bonus-drop rule into a MAC settings object. */
     private static <D> MacSettings.BonusDrop toSettingBonusDrop(
             D drop,
             java.util.function.Function<D, String> itemIdGetter,
@@ -2266,6 +2366,7 @@ public final class MacConfigBridge {
         return built;
     }
 
+    /** Reads the current furnace multiplier reflectively, if available. */
     private static Integer readFurnaceMultiplier() {
         try {
             Field field = FurnaceConfig.class.getDeclaredField("consumptionMultiplier");
@@ -2277,6 +2378,7 @@ public final class MacConfigBridge {
         }
     }
 
+    /** Trims an item ID and represents null or whitespace-only values as empty strings. */
     private static String normalizeItemId(String value) {
         if (value == null) {
             return "";
@@ -2285,6 +2387,7 @@ public final class MacConfigBridge {
         return trimmed.isEmpty() ? "" : trimmed;
     }
 
+    /** Treats an absent quantity as zero. */
     private static int normalizeQuantity(Integer value) {
         if (value == null) {
             return 0;
@@ -2292,10 +2395,12 @@ public final class MacConfigBridge {
         return normalizeQuantity(value.intValue());
     }
 
+    /** Clamps a quantity to zero or greater. */
     private static int normalizeQuantity(int value) {
         return Math.max(0, value);
     }
 
+    /** Treats an absent chance as zero. */
     private static double normalizeChance(Double value) {
         if (value == null) {
             return 0.0;
@@ -2303,6 +2408,7 @@ public final class MacConfigBridge {
         return normalizeChance(value.doubleValue());
     }
 
+    /** Replaces non-finite chance values with zero; finite values are retained. */
     private static double normalizeChance(double value) {
         if (!Double.isFinite(value)) {
             return 0.0;
@@ -2310,6 +2416,7 @@ public final class MacConfigBridge {
         return value;
     }
 
+    /** Replaces absent, non-finite or too-small numbers with the supplied minimum. */
     private static double normalizeDouble(Double value, double minValue) {
         if (value == null) {
             return minValue;

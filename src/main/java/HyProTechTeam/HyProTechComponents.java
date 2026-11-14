@@ -8,6 +8,7 @@ import HyProTechTeam.machine.MachineComponent;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 
+/** Shared references to the component types registered during plugin initialization. */
 public final class HyProTechComponents {
     public static ComponentType<ChunkStore, EnergyNodeComponent> ENERGY;
     public static ComponentType<ChunkStore, ItemNodeComponent> ITEM;
@@ -18,6 +19,7 @@ public final class HyProTechComponents {
     private HyProTechComponents() {
     }
 
+    /** Stores the registered component types for access by the rest of the plugin. */
     public static void init(
             ComponentType<ChunkStore, EnergyNodeComponent> energyType,
             ComponentType<ChunkStore, ItemNodeComponent> itemType,

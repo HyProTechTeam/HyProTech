@@ -1,4 +1,5 @@
 $C = "Common.ui";
+// Shared sizing and color tokens for this machine layout.
 $M = "HyProTech_Master.ui";
 @ReqSlotSize = $M.@ReqSlotSize;
 @ItemSlotSize = $M.@ItemSlotSize;
@@ -17,6 +18,7 @@ $M = "HyProTech_Master.ui";
 @RightColumnWidth = $M.@RightColumnWidth;
 @PanelGap = $M.@PanelGap;
 
+// Ore crusher layout; the matching Java page populates data and binds actions.
 $C.@PageOverlay {
   $C.@DecoratedContainer {
     Anchor: (Width: 1000, Height: 940);
@@ -37,6 +39,7 @@ $C.@PageOverlay {
         Anchor: (Width: @LeftColumnWidth);
         LayoutMode: Top;
 
+        // Recipe selector and the hidden machine inventory grids.
         Group #InputPanel {
           Anchor: (Left: 0, Right: 0);
           Background: @PanelBorderColor;
@@ -65,6 +68,7 @@ $C.@PageOverlay {
               LayoutMode: Top;
               Anchor: (Left: 0, Right: 0);
 
+              // Clicking an icon selects a recipe whose details are shown below.
               ItemGrid #RecipeGrid {
                 Anchor: (Left: 0, Right: 0, Height: 260);
                 SlotsPerRow: 4;
@@ -94,6 +98,7 @@ $C.@PageOverlay {
 
             Group { Anchor: (Height: 8); }
 
+            // Machine grids are initially hidden and can be controlled by page logic.
             Group #HiddenMachineGrids {
               Anchor: (Left: 0, Right: 0, Height: 108);
               LayoutMode: Top;
@@ -107,6 +112,7 @@ $C.@PageOverlay {
                   LayoutMode: Left;
                   Anchor: (Width: 260, Height: 92);
 
+                  // The page fills this grid from the machine's input container slots.
                   ItemGrid #InputGrid {
                     Anchor: (Width: 44, Height: 44);
                     SlotsPerRow: 1;
@@ -137,6 +143,7 @@ $C.@PageOverlay {
 
                   Group { Anchor: (Width: 10); }
 
+                  // The page fills this grid from the machine's output container slots.
                   ItemGrid #OutputGrid {
                     Anchor: (Width: 288, Height: 44);
                     SlotsPerRow: 6;
@@ -159,6 +166,7 @@ $C.@PageOverlay {
                 LayoutMode: Center;
                 Anchor: (Left: 0, Right: 0, Height: 26);
 
+                // Move available input stacks back to the player's inventory.
                 $C.@SmallSecondaryTextButton #TakeInputButton {
                   Anchor: (Width: 140, Height: 26);
                   Text: "Take Input";
@@ -166,6 +174,7 @@ $C.@PageOverlay {
 
                 Group { Anchor: (Width: 8); }
 
+                // Collect available machine output into the player's inventory.
                 $C.@SmallSecondaryTextButton #TakeOutputButton {
                   Anchor: (Width: 140, Height: 26);
                   Text: "Take Output";
@@ -177,6 +186,7 @@ $C.@PageOverlay {
 
         Group { Anchor: (Height: @PanelGap); }
 
+        // Selected recipe details, requirements, quantity, and player inventory grid.
         Group #InventoryPanel {
           Anchor: (Left: 0, Right: 0);
           Background: @PanelBorderColor;
@@ -201,6 +211,7 @@ $C.@PageOverlay {
             Group { Anchor: (Height: 1); Background: @PanelDividerColor; }
             Group { Anchor: (Height: 8); }
 
+            // Placeholder shown when no recipe details are selected.
             Group #RecipeDetailsEmpty {
               Anchor: (Left: 0, Right: 0, Height: 22);
               LayoutMode: Center;
@@ -214,6 +225,7 @@ $C.@PageOverlay {
               }
             }
 
+            // Recipe details include ingredient rows and quantity controls.
             Group #RecipeDetails {
               LayoutMode: Top;
               Anchor: (Left: 0, Right: 0);
@@ -346,6 +358,7 @@ $C.@PageOverlay {
 
               Group { Anchor: (Height: 8); }
 
+              // Quantity controls adjust how many copies of the selected recipe to load.
               Group #RecipeQtyRow {
                 LayoutMode: Top;
                 Anchor: (Left: 0, Right: 0, Height: 58);
@@ -399,6 +412,7 @@ $C.@PageOverlay {
                   LayoutMode: Center;
                   Anchor: (Left: 0, Right: 0, Height: 26);
 
+                  // Request insertion of the selected recipe's ingredients into the machine.
                   $C.@SmallSecondaryTextButton #RecipeConfirmButton {
                     Anchor: (Width: 140, Height: 26);
                     Text: "Load Recipe";
@@ -408,6 +422,7 @@ $C.@PageOverlay {
 
               Group { Anchor: (Height: 6); }
 
+              // The page displays requested and available recipe materials here.
               Label #RecipeCostText {
                 Style: (
                   FontSize: 12,
@@ -439,6 +454,7 @@ $C.@PageOverlay {
           }
         }
         Group { Anchor: (Height: @PanelGap); }
+        // Bonus rows display configured secondary outputs.
         Group #BonusPanel {
           Anchor: (Left: 0, Right: 0);
           Background: @PanelBorderColor;
@@ -630,6 +646,7 @@ $C.@PageOverlay {
                 }
               }
 
+              // Placeholder shown when the current input has no displayed bonus drops.
               Label #BonusEmpty {
                 Style: (
                   FontSize: 13,
@@ -651,6 +668,7 @@ $C.@PageOverlay {
         Anchor: (Width: @RightColumnWidth);
         LayoutMode: Top;
 
+        // Machine tier, energy, and processing state are displayed here.
         Group #StatusPanel {
           Anchor: (Left: 0, Right: 0);
           Background: @PanelBorderColor;
@@ -736,6 +754,7 @@ $C.@PageOverlay {
 
         Group { Anchor: (Height: @PanelGap); }
 
+        // Upgrade panel contains the next tier information and material requirement rows.
         Group #UpgradePanel {
           Anchor: (Left: 0, Right: 0);
           Background: @PanelBorderColor;
@@ -916,6 +935,7 @@ $C.@PageOverlay {
                 }
               }
 
+              // Placeholder shown when the current tier has no further upgrade.
               Label #UpgradeReqEmpty {
                 Style: (
                   FontSize: 13,
@@ -929,6 +949,7 @@ $C.@PageOverlay {
 
             Group { Anchor: (Height: 8); }
 
+            // Submit the upgrade request using the materials listed above.
             $C.@TextButton #UpgradeButton {
               Anchor: (Left: 0, Right: 0, Height: 34);
               Text: "Upgrade";

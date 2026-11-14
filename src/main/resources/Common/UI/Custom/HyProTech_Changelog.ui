@@ -1,5 +1,6 @@
 $C = "Common.ui";
 
+// Dismissible changelog page; the Java page fills the text and binds CloseButton.
 $C.@PageOverlay {
   $C.@DecoratedContainer {
     Anchor: (Width: 880, Height: 720);
@@ -19,6 +20,7 @@ $C.@PageOverlay {
         LayoutMode: Top;
         Padding: (Top: 8, Left: 10, Right: 10, Bottom: 10);
 
+        // Header row contains the explicit close action.
         Group #HeaderRow {
           LayoutMode: Left;
           Padding: (Bottom: 6);
@@ -29,6 +31,7 @@ $C.@PageOverlay {
           }
         }
 
+        // Scrollable text field receives the current changelog content.
         MultilineTextField #ChangelogText {
           Anchor: (Width: 840, Height: 320);
           ScrollbarStyle: $C.@DefaultScrollbarStyle;
@@ -38,6 +41,7 @@ $C.@PageOverlay {
           ContentPadding: (Horizontal: 10, Vertical: 8);
         }
 
+        // Reference image shows the quarry border setup beneath the changelog.
         Group #QuarrySetupImageRow {
           LayoutMode: Middle;
           Anchor: (Width: 840, Height: 300);

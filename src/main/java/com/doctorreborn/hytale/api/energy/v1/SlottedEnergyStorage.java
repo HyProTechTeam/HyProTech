@@ -72,6 +72,7 @@ public interface SlottedEnergyStorage extends EnergyStorage {
      * @return An unmodifiable view over all the slots in this storage.
      */
     default List<SingleSlotEnergyStorage> getSlots() {
+        // The list delegates reads to this storage rather than copying its slots.
         return EnergyApiImpl.makeListView(this);
     }
 }

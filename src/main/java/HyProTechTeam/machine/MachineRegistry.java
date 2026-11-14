@@ -25,6 +25,7 @@ public final class MachineRegistry {
         }
     }
 
+    /** Looks up a registered definition by ID, or returns null for an absent or empty ID. */
     public static MachineDefinition getById(String id) {
         if (id == null || id.isEmpty()) {
             return null;

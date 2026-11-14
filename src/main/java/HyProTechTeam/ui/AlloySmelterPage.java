@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+/** Displays alloy-smelter status, recipes, inventory interactions and tier upgrades. */
 public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEvent> implements WindowlessPage {
     private static final String ACTION_UPGRADE = "Upgrade";
     private static final String ACTION_TOGGLE = "ToggleEnabled";
@@ -180,14 +181,17 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         this.machineType = machineType;
     }
 
+    /** Returns the currently tracked smelter component reference. */
     public Ref<ChunkStore> getBlockRef() {
         return blockRef;
     }
 
+    /** Records the base position supplied by the opening interaction. */
     public void setBlockPosition(Vector3i blockPosition) {
         this.blockPosition = blockPosition;
     }
 
+    /** Loads the layout, binds controls and grids, and populates the initial state. */
     @Override
     public void build(
             Ref<EntityStore> playerRef,
@@ -204,6 +208,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         updateForWorld(uiCommandBuilder, world, inventory, store);
     }
 
+    /** Routes inventory gestures, recipe actions, machine controls and upgrades. */
     @Override
     public void handleDataEvent(Ref<EntityStore> playerRef, Store<EntityStore> store, AlloySmelterUiEvent data) {
         if (data == null || data.getAction() == null) {
@@ -306,10 +311,12 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
 
 
 
+    /** Requests a throttled refresh using current energy and machine state. */
     public void update(EnergyNodeComponent node, MachineComponent machine) {
         update(node, machine, false);
     }
 
+    /** Updates changed status, recipes, slots, bonus drops and upgrade information. */
     private void update(EnergyNodeComponent node, MachineComponent machine, boolean force) {
         if (node == null) {
             return;
@@ -348,6 +355,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         lastUpdateMs = now;
     }
 
+    /** Initializes labels and empty grids before live machine state is available. */
     private void initStaticUi(UICommandBuilder update) {
         update.set("#CrusherTier.Text", "Tier: " + AlloySmelterConfig.getTierName(AlloySmelterConfig.MIN_TIER));
         update.set("#CrusherEnergy.Text", "Energy: 0 / 0");
@@ -366,6 +374,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         updateBonusPanel(update, null, null);
     }
 
+    /** Resolves machine state, reconciles its tier with the block ID and populates the page. */
     private boolean updateForWorld(
             UICommandBuilder update,
             World world,
@@ -415,6 +424,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return changed;
     }
 
+    /** Updates displayed energy and consumption when they change. */
     private boolean updateEnergy(UICommandBuilder update, EnergyNodeComponent node) {
         boolean changed = false;
         int energy = node.getEnergy();
@@ -438,6 +448,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return changed;
     }
 
+    /** Updates displayed smelting progress. */
     private boolean updateProgress(UICommandBuilder update, MachineComponent machine) {
         if (machine == null) {
             return false;
@@ -454,6 +465,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return false;
     }
 
+    /** Updates the displayed tier-dependent output multiplier. */
     private boolean updateYield(UICommandBuilder update, MachineComponent machine) {
         int tier = machine == null ? AlloySmelterConfig.MIN_TIER : AlloySmelterConfig.clampTier(machine.getTier());
         int yield = AlloySmelterConfig.getOutputMultiplierForTier(tier);
@@ -465,6 +477,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return false;
     }
 
+    /** Displays the machine's enabled state and toggle label. */
     private boolean updateControls(UICommandBuilder update, MachineComponent machine) {
         boolean enabled = machine == null || machine.isEnabled();
         if (lastEnabled == null || enabled != lastEnabled) {
@@ -476,6 +489,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return false;
     }
 
+    /** Refreshes machine grids and invokes the currently disabled player-grid update. */
     private boolean updateSlots(UICommandBuilder update) {
         Ref<EntityStore> playerEntityRef = playerRef.getReference();
         if (playerEntityRef == null) {
@@ -493,6 +507,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return changed;
     }
 
+    /** Updates input and output grids when their stacks change. */
     private boolean updateMachineSlots(UICommandBuilder update, ItemContainer container) {
         if (container == null) {
             return updateEmptyMachineSlots(update);
@@ -516,11 +531,13 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return changed;
     }
 
+    /** Retains a no-op hook after the player inventory grid was removed from this UI. */
     private boolean updatePlayerInventorySlots(UICommandBuilder update, Store<EntityStore> store) {
         // Player inventory grid removed from this UI.
         return false;
     }
 
+    /** Clears machine grids when their container is unavailable. */
     private boolean updateEmptyMachineSlots(UICommandBuilder update) {
         boolean changed = false;
         if (!"empty".equals(lastInputKey)) {
@@ -536,6 +553,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return changed;
     }
 
+    /** Displays next-tier statistics and counts owned upgrade materials. */
     private String updateUpgradePanel(UICommandBuilder update, MachineComponent machine, ItemContainer inventory) {
         int tier = machine == null ? AlloySmelterConfig.MIN_TIER : AlloySmelterConfig.clampTier(machine.getTier());
         if (tier != lastTier) {
@@ -609,6 +627,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return reqKey.toString();
     }
 
+    /** Displays bonus drops and tier-dependent chances for the first available input. */
     private boolean updateBonusPanel(UICommandBuilder update, MachineComponent machine, ItemContainer container) {
         int tier = machine == null ? AlloySmelterConfig.MIN_TIER : AlloySmelterConfig.clampTier(machine.getTier());
         ItemStack input = getFirstInputStack(container);
@@ -666,6 +685,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return true;
     }
 
+    /** Rebuilds recipe output icons when the available recipe list changes. */
     private boolean updateRecipeGrid(UICommandBuilder update) {
         List<AlloySmelterRecipes.RecipeEntry> recipes = AlloySmelterRecipes.getRecipes();
         StringBuilder keyBuilder = new StringBuilder();
@@ -693,6 +713,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return true;
     }
 
+    /** Displays selected output, ingredient requirements and available craft count. */
     private boolean updateRecipeDetails(UICommandBuilder update, MachineComponent machine, ItemContainer inventory) {
         AlloySmelterRecipes.RecipeEntry entry = getSelectedRecipeEntry();
         if (entry == null) {
@@ -751,6 +772,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return true;
     }
 
+    /** Clears recipe icons and labels when no recipe is selected. */
     private void clearRecipeDetails(UICommandBuilder update) {
         update.set("#RecipeOutputSlot.ItemId", "");
         update.set("#RecipeOutputName.Text", "");
@@ -764,6 +786,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         update.set("#RecipeCostText.Text", "");
     }
 
+    /** Selects a valid recipe and resets the requested quantity. */
     private void handleRecipeSelect(Store<EntityStore> store, AlloySmelterUiEvent data) {
         List<AlloySmelterRecipes.RecipeEntry> recipes = AlloySmelterRecipes.getRecipes();
         if (recipes.isEmpty()) {
@@ -789,6 +812,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         sendUpdate(update);
     }
 
+    /** Adjusts requested recipe quantity within the inventory-based limit. */
     private void handleRecipeQuantity(String action, Store<EntityStore> store) {
         AlloySmelterRecipes.RecipeEntry entry = getSelectedRecipeEntry();
         if (entry == null) {
@@ -814,6 +838,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         }
     }
 
+    /** Checks input capacity and moves the selected recipe's ingredients into the smelter. */
     private boolean handleLoadRecipe(Store<EntityStore> store) {
         if (store == null) {
             return false;
@@ -863,6 +888,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
             }
         }
 
+        // Track successful removals so earlier ingredients can be refunded on a later failure.
         List<ItemStack> removedStacks = new ArrayList<>();
         for (ItemStack required : requiredStacks) {
             ItemStackTransaction remove = combined.removeItemStack(required);
@@ -889,6 +915,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return true;
     }
 
+    /** Computes the selectable craft count, keeping the UI quantity at least one. */
     private int resolveMaxRecipeQuantity(AlloySmelterRecipes.RecipeEntry entry, Store<EntityStore> store) {
         if (entry == null || store == null) {
             return 1;
@@ -901,6 +928,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return Math.max(1, max);
     }
 
+    /** Limits craft count by whichever recipe ingredient is available for the fewest crafts. */
     private int resolveMaxCrafts(AlloySmelterRecipes.RecipeEntry entry, ItemContainer inventory) {
         if (entry == null || inventory == null) {
             return 0;
@@ -924,6 +952,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return Math.max(0, max);
     }
 
+    /** Multiplies each valid ingredient quantity by the requested craft count. */
     private List<ItemStack> buildRequiredInputStacks(AlloySmelterRecipes.RecipeEntry entry, int quantity) {
         List<ItemStack> stacks = new ArrayList<>();
         if (entry == null) {
@@ -940,6 +969,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return stacks;
     }
 
+    /** Simulates merging into existing inputs and then filling empty slots before removing items. */
     private boolean canFitInputStacks(ItemContainer container, List<ItemStack> stacks) {
         if (container == null || stacks == null) {
             return false;
@@ -993,6 +1023,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return true;
     }
 
+    /** Adds each valid ingredient stack to the machine's input slots. */
     private boolean addInputStacks(ItemContainer container, List<ItemStack> stacks) {
         if (container == null || stacks == null) {
             return false;
@@ -1008,6 +1039,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return true;
     }
 
+    /** Fills matching stacks first, then empty input slots, respecting the item stack limit. */
     private boolean addToInputSlots(ItemContainer container, String itemId, int quantity) {
         if (container == null || itemId == null || itemId.isEmpty()) {
             return false;
@@ -1055,6 +1087,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return remaining <= 0;
     }
 
+    /** Attempts to return removed ingredients to the player's combined inventory. */
     private void refundStacks(ItemContainer container, List<ItemStack> stacks) {
         if (container == null || stacks == null) {
             return;
@@ -1067,6 +1100,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         }
     }
 
+    /** Reads an item's stack limit, falling back to 100 for missing or invalid assets. */
     private int getMaxStack(String itemId) {
         if (itemId == null || itemId.isEmpty()) {
             return 100;
@@ -1079,6 +1113,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return max > 0 ? max : 100;
     }
 
+    /** Returns the selected recipe only while its index remains valid. */
     private AlloySmelterRecipes.RecipeEntry getSelectedRecipeEntry() {
         List<AlloySmelterRecipes.RecipeEntry> recipes = AlloySmelterRecipes.getRecipes();
         if (selectedRecipeIndex < 0 || selectedRecipeIndex >= recipes.size()) {
@@ -1087,6 +1122,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return recipes.get(selectedRecipeIndex);
     }
 
+    /** Turns a namespaced item ID into a readable recipe label. */
     private static String formatItemName(String itemId) {
         if (itemId == null || itemId.isEmpty()) {
             return "";
@@ -1110,6 +1146,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return title;
     }
 
+    /** Formats words in a generated item label using the root locale. */
     private static String toTitleCase(String input) {
         if (input == null || input.isEmpty()) {
             return "";
@@ -1136,6 +1173,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
     }
 
 
+    /** Consumes displayed requirements and swaps the smelter while retaining storage. */
     private boolean handleUpgrade(
             Ref<EntityStore> playerRef,
             Store<EntityStore> store,
@@ -1202,6 +1240,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return true;
     }
 
+    /** Moves available input stacks into the player's hotbar or storage when they fit. */
     private boolean handleTakeInput(Store<EntityStore> store) {
         if (store == null) {
             return false;
@@ -1258,6 +1297,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return false;
     }
 
+    /** Moves available output stacks into the player's hotbar or storage when they fit. */
     private boolean handleTakeOutput(Store<EntityStore> store) {
         if (store == null) {
             return false;
@@ -1315,6 +1355,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return false;
     }
 
+    /** Applies smelter tier energy, speed and progress limits to its components. */
     private void applyTier(MachineComponent machine, EnergyNodeComponent node, int tier) {
         int capacity = AlloySmelterConfig.getCapacityForTier(tier);
         node.setCapacity(capacity);
@@ -1331,6 +1372,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         }
     }
 
+    /** Retrieves the player's storage inventory for upgrade checks. */
     private ItemContainer getPlayerInventory(Store<EntityStore> store) {
         if (store == null) {
             return null;
@@ -1347,6 +1389,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return inventory == null ? null : inventory.getStorage();
     }
 
+    /** Retrieves the full inventory for hotbar and storage operations. */
     private Inventory getPlayerInventoryFull(Store<EntityStore> store) {
         if (store == null) {
             return null;
@@ -1362,6 +1405,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return player.getInventory();
     }
 
+    /** Retrieves a combined hotbar and storage view for recipe-material checks. */
     private ItemContainer getCombinedInventory(Store<EntityStore> store) {
         Inventory inventory = getPlayerInventoryFull(store);
         if (inventory == null) {
@@ -1374,6 +1418,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return combined;
     }
 
+    /** Totals matching item quantities across the container. */
     private int countItem(ItemContainer container, String itemId) {
         if (container == null || itemId == null) {
             return 0;
@@ -1392,6 +1437,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return total;
     }
 
+    /** Formats common ingredient IDs as readable upgrade-requirement labels. */
     private String formatRequirementName(String itemId) {
         if (itemId == null) {
             return "";
@@ -1416,6 +1462,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return name.replace('_', ' ');
     }
 
+    /** Formats bonus-drop IDs and recognizes the random-crystal placeholder. */
     private String formatBonusName(String itemId) {
         if (itemId == null) {
             return "";
@@ -1435,6 +1482,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return name.replace('_', ' ');
     }
 
+    /** Builds a change-detection key from an item's ID, quantity and metadata. */
     private String buildSlotKey(ItemStack stack) {
         if (stack == null || ItemStack.isEmpty(stack)) {
             return "";
@@ -1446,6 +1494,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return key;
     }
 
+    /** Builds a change-detection key from all input slots. */
     private String buildInputKey(ItemContainer container) {
         StringBuilder key = new StringBuilder();
         for (int i = 0; i < INPUT_SLOT_COUNT; i++) {
@@ -1455,6 +1504,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return key.toString();
     }
 
+    /** Builds a change-detection key from all output slots. */
     private String buildOutputKey(ItemContainer container) {
         StringBuilder key = new StringBuilder();
         for (int i = 0; i < OUTPUT_SLOT_COUNT; i++) {
@@ -1464,6 +1514,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return key.toString();
     }
 
+    /** Creates the requested number of empty interactive grid slots. */
     private List<ItemGridSlot> buildEmptySlots(int count, boolean skipQualityBackground) {
         List<ItemGridSlot> slots = new ArrayList<>(Math.max(0, count));
         for (int i = 0; i < count; i++) {
@@ -1472,6 +1523,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return slots;
     }
 
+    /** Builds the fixed set of smelter input-grid slots. */
     private List<ItemGridSlot> buildInputSlots(ItemContainer container) {
         List<ItemGridSlot> slots = new ArrayList<>(INPUT_SLOT_COUNT);
         for (int i = 0; i < INPUT_SLOT_COUNT; i++) {
@@ -1480,6 +1532,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return slots;
     }
 
+    /** Builds the fixed set of smelter output-grid slots. */
     private List<ItemGridSlot> buildOutputSlots(ItemContainer container) {
         List<ItemGridSlot> slots = new ArrayList<>(OUTPUT_SLOT_COUNT);
         for (int i = 0; i < OUTPUT_SLOT_COUNT; i++) {
@@ -1488,6 +1541,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return slots;
     }
 
+    /** Builds player-grid slots in hotbar-first order. */
     private List<ItemGridSlot> buildPlayerSlots(
             Inventory inventory,
             int hotbarCapacity,
@@ -1500,6 +1554,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return slots;
     }
 
+    /** Appends grid representations of the requested container slots. */
     private void appendSlotsFromContainer(
             List<ItemGridSlot> slots,
             ItemContainer container,
@@ -1513,6 +1568,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         }
     }
 
+    /** Maps an output-grid index to its machine-container slot. */
     private ItemStack getOutputStack(ItemContainer container, int outputIndex) {
         if (container == null || outputIndex < 0 || outputIndex >= OUTPUT_SLOT_COUNT) {
             return null;
@@ -1524,6 +1580,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return container.getItemStack(slot);
     }
 
+    /** Maps an input-grid index to its machine-container slot. */
     private ItemStack getInputStack(ItemContainer container, int inputIndex) {
         if (container == null || inputIndex < 0 || inputIndex >= INPUT_SLOT_COUNT) {
             return null;
@@ -1535,6 +1592,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return container.getItemStack(slot);
     }
 
+    /** Finds the first nonempty input stack for the bonus-drop preview. */
     private ItemStack getFirstInputStack(ItemContainer container) {
         if (container == null) {
             return null;
@@ -1548,6 +1606,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return null;
     }
 
+    /** Creates an interactive grid slot and copies its stack for display. */
     private ItemGridSlot createSlot(ItemStack stack, boolean skipQualityBackground) {
         ItemGridSlot slot = new ItemGridSlot();
         boolean hasItem = stack != null && !ItemStack.isEmpty(stack);
@@ -1560,6 +1619,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return slot;
     }
 
+    /** Copies an item stack and its metadata for display. */
     private ItemStack copyStack(ItemStack stack) {
         if (stack == null || ItemStack.isEmpty(stack)) {
             return null;
@@ -1567,16 +1627,19 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return new ItemStack(stack.getItemId(), stack.getQuantity(), stack.getMetadata());
     }
 
+    /** Returns hotbar capacity or its default when unavailable. */
     private int getHotbarCapacity(Inventory inventory) {
         ItemContainer hotbar = inventory == null ? null : inventory.getHotbar();
         return hotbar == null ? Inventory.DEFAULT_HOTBAR_CAPACITY : hotbar.getCapacity();
     }
 
+    /** Returns storage capacity or its default when unavailable. */
     private int getStorageCapacity(Inventory inventory) {
         ItemContainer storage = inventory == null ? null : inventory.getStorage();
         return storage == null ? Inventory.DEFAULT_STORAGE_CAPACITY : storage.getCapacity();
     }
 
+    /** Builds a change-detection key for hotbar and storage stacks. */
     private String buildInventoryKey(Inventory inventory, int hotbarCapacity, int storageCapacity) {
         StringBuilder key = new StringBuilder();
         ItemContainer hotbar = inventory == null ? null : inventory.getHotbar();
@@ -1586,6 +1649,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return key.toString();
     }
 
+    /** Adds each container slot to an inventory change-detection key. */
     private void appendInventoryKey(StringBuilder key, ItemContainer container, int capacity) {
         for (int i = 0; i < capacity; i++) {
             ItemStack stack = null;
@@ -1596,6 +1660,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         }
     }
 
+    /** Appends item ID, quantity and metadata hash, or an empty-slot marker. */
     private void appendStackKey(StringBuilder key, ItemStack stack) {
         if (stack == null || ItemStack.isEmpty(stack)) {
             key.append("|");
@@ -1610,6 +1675,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         key.append('|');
     }
 
+    /** Refreshes the tracked component reference after a block replacement. */
     Ref<ChunkStore> resolveBlockRef(World world) {
         if (world == null) {
             return blockRef;
@@ -1634,6 +1700,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return blockRef;
     }
 
+    /** Resolves the energy node by position, falling back to the current reference. */
     private EnergyNodeComponent resolveNode(World world) {
         if (world == null) {
             return null;
@@ -1662,6 +1729,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         }
     }
 
+    /** Resolves the machine component by position, falling back to the current reference. */
     private MachineComponent resolveMachine(World world) {
         if (world == null) {
             return null;
@@ -1690,6 +1758,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         }
     }
 
+    /** Persists energy state through a live reference or chunk holder. */
     private void storeNode(World world, EnergyNodeComponent node) {
         if (world == null || node == null) {
             return;
@@ -1736,6 +1805,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         }
     }
 
+    /** Persists machine state through a live reference or chunk holder. */
     private void storeMachine(World world, MachineComponent machine) {
         if (world == null || machine == null) {
             return;
@@ -1782,6 +1852,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         }
     }
 
+    /** Reports a recipe or upgrade result to the player when available. */
     private void sendPlayerMessage(Ref<EntityStore> playerRef, Store<EntityStore> store, String text) {
         if (store == null || playerRef == null) {
             return;
@@ -1793,6 +1864,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         player.sendMessage(Message.raw(text));
     }
 
+    /** Finds the reference in loaded chunks and caches its world position. */
     Vector3i resolveBlockPosition(World world) {
         if (world == null) {
             return null;
@@ -1829,6 +1901,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return null;
     }
 
+    /** Finds the chunk-local index corresponding to this page's reference. */
     private int findBlockIndex(BlockComponentChunk blockComponents) {
         int targetIndex = blockRef.getIndex();
         if (targetIndex == Integer.MIN_VALUE) {
@@ -1844,11 +1917,13 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return Integer.MIN_VALUE;
     }
 
+    /** Retrieves the world associated with the player's entity store. */
     private World getWorld(Store<EntityStore> store) {
         EntityStore entityStore = store == null ? null : store.getExternalData();
         return entityStore == null ? null : entityStore.getWorld();
     }
 
+    /** Resolves the smelter's item container from the player's world. */
     private ItemContainer resolveMachineContainer(Store<EntityStore> store) {
         World world = getWorld(store);
         if (world == null) {
@@ -1861,6 +1936,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return MachineItemAccess.getContainer(world, pos.getX(), pos.getY(), pos.getZ());
     }
 
+    /** Binds recipe selection and machine-grid click and drag events. */
     private void bindItemGrids(UIEventBuilder uiEventBuilder) {
         uiEventBuilder.addEventBinding(
                 CustomUIEventBindingType.SlotClicking,
@@ -1872,6 +1948,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         bindClick(uiEventBuilder, "#OutputGrid", ACTION_OUTPUT_CLICK);
     }
 
+    /** Binds drag start and drop variants for a grid selector. */
     private void bindDrag(UIEventBuilder uiEventBuilder, String selector, String action) {
         uiEventBuilder.addEventBinding(
                 CustomUIEventBindingType.SlotClickPressWhileDragging,
@@ -1891,6 +1968,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
                 EventData.of("Action", action));
     }
 
+    /** Binds click and drag-completion variants for a grid selector. */
     private void bindClick(UIEventBuilder uiEventBuilder, String selector, String action) {
         uiEventBuilder.addEventBinding(
                 CustomUIEventBindingType.SlotClicking,
@@ -1910,6 +1988,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
                 EventData.of("Action", action));
     }
 
+    /** Recognizes drop actions targeting a machine or player inventory grid. */
     private boolean isDragAction(String action) {
         if (action == null) {
             return false;
@@ -1919,6 +1998,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
                 || ACTION_INVENTORY_DROP.equalsIgnoreCase(action);
     }
 
+    /** Converts click-based transfers into drag events using a short-lived cursor snapshot. */
     private boolean handleClickDrop(Store<EntityStore> store, AlloySmelterUiEvent data, GridType targetGrid) {
         if (store == null || data == null || targetGrid == null) {
             return false;
@@ -1935,6 +2015,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
                 data.getSourceSlotId() != null
                         || data.getSourceInventorySectionId() != null
                         || data.getSourceItemGridIndex() != null;
+        // A client-supplied source can be forwarded directly to the drag handler.
         if (hasExplicitSource) {
             AlloySmelterUiEvent dropEvent = new AlloySmelterUiEvent();
             dropEvent.setAction(action);
@@ -1956,6 +2037,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
             return true;
         }
 
+        // A prior click acts as the source when the client does not provide one.
         DragSnapshot cursor = getActiveClickCursor();
         if (cursor != null) {
             if (cursor.grid == targetGrid && cursor.slotId == targetSlot) {
@@ -1990,6 +2072,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
             return true;
         }
 
+        // Otherwise use a recent drag source or remember this clicked stack.
         DragSnapshot snapshot = getRecentDragSource();
         if (snapshot == null) {
             Inventory inventory = getPlayerInventoryFull(store);
@@ -2041,6 +2124,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return true;
     }
 
+    /** Maps a target grid to its corresponding drop action. */
     private String actionForTarget(GridType gridType) {
         if (gridType == GridType.INPUT) {
             return ACTION_INPUT_DROP;
@@ -2054,6 +2138,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return null;
     }
 
+    /** Maps an internal grid type to the client section selector. */
     private String gridSectionId(GridType gridType) {
         if (gridType == GridType.INPUT) {
             return "#InputGrid";
@@ -2067,6 +2152,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return null;
     }
 
+    /** Maps an internal grid type to the client grid index. */
     private Integer gridIndexFor(GridType gridType) {
         if (gridType == GridType.INPUT) {
             return GRID_INDEX_INPUT;
@@ -2081,6 +2167,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
     }
 
 
+    /** Resolves source and target slots, performs a transfer or permitted swap, and refreshes UI. */
     private void handleDrag(Store<EntityStore> store, AlloySmelterUiEvent data) {
         boolean updateSent = false;
         try {
@@ -2108,6 +2195,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
                     : MachineItemAccess.getContainer(world, pos.getX(), pos.getY(), pos.getZ());
             Inventory inventory = getPlayerInventoryFull(store);
 
+            // Reconcile alternate payload fields and recent source information from the client.
             String sourceSectionId = firstNonEmpty(
                     data.getSourceInventorySectionId(),
                     data.getDragSourceInventorySectionId());
@@ -2193,6 +2281,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
                 }
             }
 
+            // Reject disallowed input/output grid pairs before resolving concrete slots.
             if (!canMoveBetween(sourceGrid, targetGrid)) {
                 return;
             }
@@ -2281,6 +2370,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
                 return;
             }
 
+            // Try the standard slot transaction first, then fall back to manual transfer paths.
             MoveTransaction<?> move = sourceRef.container.moveItemStackFromSlotToSlot(
                     sourceRef.slot,
                     quantity,
@@ -2334,6 +2424,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
                 }
             }
 
+            // A permitted occupied destination may be handled with a swap instead.
             ItemStack targetStack = targetRef.container.getItemStack(targetRef.slot);
             if (targetStack != null && !ItemStack.isEmpty(targetStack)
                     && canSwapBetween(sourceGrid, targetGrid)) {
@@ -2357,6 +2448,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         }
     }
 
+    /** Logs drag payload fields used to diagnose slot and index mismatches. */
     private void debugDragEvent(Store<EntityStore> store, AlloySmelterUiEvent data) {
         String msg = "DBG Drag action=" + data.getAction()
                 + " target=" + data.getTarget()
@@ -2373,6 +2465,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         System.out.println("[HyProTech] v2 " + msg);
     }
 
+    /** Logs click payload fields used to diagnose slot and index mismatches. */
     private void debugClickEvent(String label, AlloySmelterUiEvent data) {
         if (data == null) {
             return;
@@ -2393,6 +2486,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         System.out.println("[HyProTech] v2 " + msg);
     }
 
+    /** Refreshes and sends machine slot changes after an inventory operation. */
     private boolean refreshSlots(Store<EntityStore> store) {
         UICommandBuilder update = new UICommandBuilder();
         if (updateSlots(update)) {
@@ -2402,6 +2496,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return false;
     }
 
+    /** Adds to the destination then removes from the source, attempting rollback on failure. */
     private boolean tryManualTransfer(
             SlotRef sourceRef,
             SlotRef targetRef,
@@ -2434,6 +2529,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return true;
     }
 
+    /** Attempts a manual input transfer when the normal slot move fails. */
     private boolean tryManualInputTransfer(
             SlotRef sourceRef,
             SlotRef targetRef,
@@ -2466,6 +2562,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return true;
     }
 
+    /** Suppresses repeated transfers with the same source, target, item and quantity. */
     private boolean isDuplicateDrag(
             GridType sourceGrid,
             int sourceSlot,
@@ -2493,6 +2590,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return false;
     }
 
+    /** Restricts moves into output and directly from output into input. */
     private boolean canMoveBetween(GridType source, GridType target) {
         if (target == GridType.OUTPUT && source != GridType.OUTPUT) {
             return false;
@@ -2503,6 +2601,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return true;
     }
 
+    /** Prevents swaps between the output grid and another grid. */
     private boolean canSwapBetween(GridType source, GridType target) {
         if (source == GridType.OUTPUT && target != GridType.OUTPUT) {
             return false;
@@ -2513,6 +2612,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return true;
     }
 
+    /** Maps a drop action to its destination grid. */
     private GridType resolveTargetGrid(String action) {
         if (action == null) {
             return null;
@@ -2529,6 +2629,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return null;
     }
 
+    /** Resolves a source grid from its section identifier and optional client grid index. */
     private GridType resolveSourceGrid(String sectionId, Integer gridIndex) {
         if (sectionId == null) {
             return null;
@@ -2550,6 +2651,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return null;
     }
 
+    /** Corrects a reported machine source when the stack indicates a different grid. */
     private GridType reconcileSourceGrid(
             GridType sourceGrid,
             AlloySmelterUiEvent data,
@@ -2591,6 +2693,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return sourceGrid;
     }
 
+    /** Checks whether any smelter output slot contains the item ID. */
     private boolean matchesAnyOutput(ItemContainer container, String itemId) {
         if (container == null || itemId == null) {
             return false;
@@ -2607,6 +2710,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return false;
     }
 
+    /** Checks whether any smelter input slot contains the item ID. */
     private boolean matchesAnyInput(ItemContainer container, String itemId) {
         if (container == null || itemId == null) {
             return false;
@@ -2623,6 +2727,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return false;
     }
 
+    /** Checks whether a nonempty stack has the specified item ID. */
     private boolean stackMatches(ItemStack stack, String itemId) {
         if (stack == null || ItemStack.isEmpty(stack) || itemId == null) {
             return false;
@@ -2630,6 +2735,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return itemId.equals(stack.getItemId());
     }
 
+    /** Infers a grid type from the target UI selector. */
     private GridType resolveGridFromTarget(String target) {
         if (target == null) {
             return null;
@@ -2647,6 +2753,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return null;
     }
 
+    /** Records the available source grid, slot and item from a drag-start event. */
     private void captureDragSource(AlloySmelterUiEvent data) {
         if (data == null) {
             return;
@@ -2677,6 +2784,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
                 System.currentTimeMillis());
     }
 
+    /** Records a clicked grid slot as a possible source for a subsequent event. */
     private void captureClickSource(GridType grid, AlloySmelterUiEvent data) {
         if (data == null || grid == null) {
             return;
@@ -2695,6 +2803,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
                 System.currentTimeMillis());
     }
 
+    /** Returns the last drag source only within the accepted time window. */
     private DragSnapshot getRecentDragSource() {
         if (lastDragSource == null) {
             return null;
@@ -2706,6 +2815,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return lastDragSource;
     }
 
+    /** Returns the click-transfer cursor until timeout, clearing expired state. */
     private DragSnapshot getActiveClickCursor() {
         if (clickCursor == null) {
             return null;
@@ -2718,6 +2828,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return clickCursor;
     }
 
+    /** Compares event and snapshot item IDs when both are available. */
     private boolean dragMatchesSnapshot(AlloySmelterUiEvent data, DragSnapshot snapshot) {
         if (snapshot == null) {
             return false;
@@ -2729,6 +2840,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return itemId.equals(snapshot.itemId);
     }
 
+    /** Returns the first available integer from three alternate payload fields. */
     private static Integer firstNonNull(Integer first, Integer second, Integer third) {
         if (first != null) {
             return first;
@@ -2739,10 +2851,12 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return third;
     }
 
+    /** Returns the first available integer from two alternate payload fields. */
     private static Integer firstNonNull(Integer first, Integer second) {
         return first != null ? first : second;
     }
 
+    /** Returns the first nonblank string from two alternate payload fields. */
     private static String firstNonEmpty(String first, String second) {
         if (first != null && !first.isBlank()) {
             return first;
@@ -2753,6 +2867,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return null;
     }
 
+    /** Resolves the dragged item ID from event fields or the captured source. */
     private String resolveEventItemId(AlloySmelterUiEvent data) {
         if (data == null) {
             return null;
@@ -2764,6 +2879,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return itemId;
     }
 
+    /** Resolves a player source using the reported index, recent source and item matching. */
     private SlotRef resolvePlayerSourceRef(
             Inventory inventory,
             Integer sourceSlotId,
@@ -2823,6 +2939,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return null;
     }
 
+    /** Searches hotbar then storage for a stack meeting the requested quantity. */
     private SlotRef findMatchingPlayerSlot(Inventory inventory, String itemId, Integer desiredQty) {
         if (inventory == null || itemId == null) {
             return null;
@@ -2842,6 +2959,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return null;
     }
 
+    /** Finds the first matching stack with at least the requested quantity. */
     private SlotRef findMatchingSlotInContainer(ItemContainer container, String itemId, int minQty) {
         if (container == null || itemId == null) {
             return null;
@@ -2859,6 +2977,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return null;
     }
 
+    /** Infers a missing source grid from the target, source slot and matching stacks. */
     private GridType inferSourceGrid(
             AlloySmelterUiEvent data,
             GridType targetGrid,
@@ -2900,6 +3019,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return GridType.PLAYER;
     }
 
+    /** Maps a client grid index to a transferable grid, excluding the recipe grid. */
     private GridType resolveGridIndex(int gridIndex) {
         if (gridIndex == GRID_INDEX_RECIPE) {
             return null;
@@ -2916,6 +3036,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return null;
     }
 
+    /** Maps a UI grid and index to a machine or player container slot. */
     private SlotRef resolveSlotRef(
             GridType gridType,
             int slotIndex,
@@ -2954,6 +3075,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return null;
     }
 
+    /** Interprets a combined player index with hotbar slots before storage slots. */
     private SlotRef resolvePlayerSlot(Inventory inventory, int gridIndex) {
         if (gridIndex < 0) {
             return null;
@@ -2974,6 +3096,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return null;
     }
 
+    /** Interprets an index relative to the hotbar alone. */
     private SlotRef resolvePlayerSlotHotbarOnly(Inventory inventory, int gridIndex) {
         if (gridIndex < 0 || inventory == null) {
             return null;
@@ -2985,6 +3108,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return null;
     }
 
+    /** Interprets an index relative to storage alone. */
     private SlotRef resolvePlayerSlotStorageOnly(Inventory inventory, int gridIndex) {
         if (gridIndex < 0 || inventory == null) {
             return null;
@@ -2996,6 +3120,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return null;
     }
 
+    /** Resolves the player slot using the chosen index interpretation and fallbacks. */
     private SlotRef resolvePlayerSlotByMode(
             Inventory inventory,
             int gridIndex,
@@ -3016,6 +3141,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return ref;
     }
 
+    /** Selects the index interpretation whose slot matches the reported item ID. */
     private PlayerIndexMode resolvePlayerIndexMode(
             Inventory inventory,
             Integer slotIndex,
@@ -3038,6 +3164,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return PlayerIndexMode.COMBINED;
     }
 
+    /** Reads the stack referenced by a resolved slot, if present. */
     private ItemStack slotRefStack(SlotRef ref) {
         if (ref == null || ref.container == null) {
             return null;
@@ -3045,6 +3172,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return ref.container.getItemStack(ref.slot);
     }
 
+    /** Converts a hotbar or storage slot reference back to a combined grid index. */
     private Integer resolvePlayerGridIndex(Inventory inventory, SlotRef slotRef) {
         if (inventory == null || slotRef == null || slotRef.container == null) {
             return null;
@@ -3061,6 +3189,7 @@ public class AlloySmelterPage extends InteractiveCustomUIPage<AlloySmelterUiEven
         return null;
     }
 
+    /** Binds machine, recipe and upgrade buttons to their action events. */
     private void bindButtons(UIEventBuilder uiEventBuilder) {
         uiEventBuilder.addEventBinding(
                 CustomUIEventBindingType.Activating,

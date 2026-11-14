@@ -4,7 +4,9 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.simple.StringCodec;
 
+/** Carries a wind upgrade UI action. */
 public class WindUpgradeEvent {
+    // Decode the UI event fields from their named string values.
     public static final BuilderCodec<WindUpgradeEvent> CODEC =
             BuilderCodec.<WindUpgradeEvent>builder(WindUpgradeEvent.class, WindUpgradeEvent::new)
                     .addField(new KeyedCodec<>("Action", new StringCodec()),
@@ -14,6 +16,7 @@ public class WindUpgradeEvent {
 
     private String action;
 
+    /** Returns the decoded action. */
     public String getAction() {
         return action;
     }

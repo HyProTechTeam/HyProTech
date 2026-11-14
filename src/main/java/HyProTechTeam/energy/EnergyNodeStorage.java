@@ -20,15 +20,18 @@ public final class EnergyNodeStorage extends SnapshotParticipant<Integer>
         this.onChanged = onChanged;
     }
 
+    /** Replaces the callback invoked after a final transaction commit. */
     public void setOnChanged(Runnable onChanged) {
         this.onChanged = onChanged;
     }
 
+    /** Solar nodes do not accept inserted energy through this adapter. */
     @Override
     public boolean supportsInsertion() {
         return node.getNodeType() != EnergyNodeComponent.NodeType.SOLAR;
     }
 
+    /** Inserts up to the requested amount and available capacity within a transaction. */
     @Override
     public long insert(long maxAmount, TransactionContext transaction) {
         StoragePreconditions.notNegative(maxAmount);
@@ -50,11 +53,13 @@ public final class EnergyNodeStorage extends SnapshotParticipant<Integer>
         return insertable;
     }
 
+    /** Furnace nodes do not expose energy extraction through this adapter. */
     @Override
     public boolean supportsExtraction() {
         return node.getNodeType() != EnergyNodeComponent.NodeType.FURNACE;
     }
 
+    /** Extracts up to the requested amount and stored energy within a transaction. */
     @Override
     public long extract(long maxAmount, TransactionContext transaction) {
         StoragePreconditions.notNegative(maxAmount);
@@ -75,31 +80,37 @@ public final class EnergyNodeStorage extends SnapshotParticipant<Integer>
         return extracted;
     }
 
+    /** Exposes this single storage view through the storage iterator. */
     @Override
     public Iterator<EnergyStorageView> iterator() {
         return Collections.singleton((EnergyStorageView) this).iterator();
     }
 
+    /** Returns the node's stored energy. */
     @Override
     public long getAmount() {
         return node.getEnergy();
     }
 
+    /** Returns the node's storage capacity. */
     @Override
     public long getCapacity() {
         return node.getCapacity();
     }
 
+    /** Captures the energy amount for a transaction rollback. */
     @Override
     protected Integer createSnapshot() {
         return node.getEnergy();
     }
 
+    /** Restores the saved energy amount, using zero for a null snapshot. */
     @Override
     protected void readSnapshot(Integer snapshot) {
         node.setEnergy(snapshot == null ? 0 : snapshot);
     }
 
+    /** Notifies the owner after the outermost transaction commits. */
     @Override
     protected void onFinalCommit() {
         // Notify the owner only after the outermost transaction commits.
@@ -108,11 +119,13 @@ public final class EnergyNodeStorage extends SnapshotParticipant<Integer>
         }
     }
 
+    /** Returns the nonnegative transfer rate exposed by the node. */
     @Override
     public long getTransferRate() {
         return Math.max(0, node.getMaxTransfer());
     }
 
+    /** Formats the current energy and capacity for diagnostics. */
     @Override
     public String toString() {
         return "EnergyNodeStorage[" + node.getEnergy() + "/" + node.getCapacity() + "]";

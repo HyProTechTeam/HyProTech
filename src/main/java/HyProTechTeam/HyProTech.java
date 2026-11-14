@@ -72,6 +72,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 
+/** Plugin entry point: loads configuration and registers systems, interactions, and events. */
 public class HyProTech extends JavaPlugin {
     private static final String TUTBOOKS_DOWNLOAD_URL =
             "https://github.com/YoofeCZ/HyProTechBook/releases/latest/download/HyProTechBook.zip";
@@ -99,6 +100,7 @@ public class HyProTech extends JavaPlugin {
     private final Config<ChangelogConfig> changelogStateConfig;
     private ChangelogManager changelogManager;
 
+    /** Binds each named configuration file to its codec. */
     public HyProTech(@NonNullDecl JavaPluginInit init) {
         super(init);
         batteryConfig = withConfig(CONFIG_BATTERY, BatteryUpgradeConfig.ConfigData.CODEC);
@@ -112,10 +114,12 @@ public class HyProTech extends JavaPlugin {
         changelogStateConfig = withConfig(CONFIG_CHANGELOG_STATE, ChangelogConfig.CODEC);
     }
 
+    /** Initializes configuration, component types, systems, UI pages, and event handlers. */
     @Override
     protected void setup() {
         super.setup();
 
+        // Load active settings and persisted changelog state before registering game systems.
         loadConfigs();
         changelogManager = new ChangelogManager(
                 this,
@@ -128,6 +132,7 @@ public class HyProTech extends JavaPlugin {
         registerTutbooksDownloadOnPlayerJoin();
         registerChangelogPopupOnPlayerJoin();
 
+        // Register persistent chunk components and share their handles with other systems.
         ComponentType<ChunkStore, EnergyNodeComponent> energyType =
                 getChunkStoreRegistry().registerComponent(
                         EnergyNodeComponent.class,
@@ -160,10 +165,12 @@ public class HyProTech extends JavaPlugin {
                 storageChunkType,
                 machineType);
 
+        // Definitions determine which machine behavior applies to each recognized block.
         MachineRegistry.register(new QuarryMachine());
         MachineRegistry.register(new OreCrusherMachine());
         MachineRegistry.register(new AlloySmelterMachine());
 
+        // Expose loaded energy-node components through the external storage lookup API.
         EnergyStorageLookup.register((world, x, y, z) -> {
             if (world == null || y < ChunkUtil.MIN_Y || y >= ChunkUtil.HEIGHT) {
                 return null;
@@ -188,11 +195,13 @@ public class HyProTech extends JavaPlugin {
             return node.getStorage(components::markNeedsSaving);
         });
 
+        // Register chunk tick systems and the player UI system.
         getChunkStoreRegistry().registerSystem(new EnergyNetworkSystem(energyType));
         getChunkStoreRegistry().registerSystem(new ItemNetworkSystem(itemType));
         getChunkStoreRegistry().registerSystem(new MachineSystem(machineType, energyType));
         getEntityStoreRegistry().registerSystem(new PlayerUiSystem(energyType, itemType, machineType));
 
+        // Make custom block interactions available to asset definitions.
         getCodecRegistry(Interaction.CODEC).register(
                 HyProTechIds.OPEN_UI_INTERACTION_ID,
                 OpenCustomUIInteraction.class,
@@ -216,6 +225,7 @@ public class HyProTech extends JavaPlugin {
 
         getCommandRegistry().registerCommand(new HyProTechCommand(changelogManager));
 
+        // Connect each block page ID to a page instance using the required component types.
         OpenCustomUIInteraction.registerBlockEntityCustomPage(
                 this,
                 OpenCustomUIInteraction.CustomPageSupplier.class,
@@ -264,6 +274,7 @@ public class HyProTech extends JavaPlugin {
                 HyProTechIds.QUARRY_PAGE_ID,
                 (playerRef, blockRef) -> new QuarryPage(playerRef, blockRef, energyType, machineType));
 
+        // Cache upgrade-related drops before a break and disable cable ticking.
         getEventRegistry().registerGlobal(
                 DamageBlockEvent.class,
                 event -> {
@@ -283,12 +294,14 @@ public class HyProTech extends JavaPlugin {
                     if (world == null) {
                         return;
                     }
+                    // Cable components need ticking disabled immediately and again on the world thread.
                     if (isCableBlockId(blockId)) {
                         disableBlockTicking(world, pos);
                         Vector3i disablePos = new Vector3i(pos);
                         world.execute(() -> disableBlockTicking(world, disablePos));
                         return;
                     }
+                    // Snapshot container contents while the damaged block's components still exist.
                     UpgradePersistence.cleanupInvalidChunkReferences(world, pos);
                     Vector3i cleanupPos = new Vector3i(pos);
                     world.execute(() -> UpgradePersistence.cleanupInvalidChunkReferences(world, cleanupPos));
@@ -296,6 +309,7 @@ public class HyProTech extends JavaPlugin {
                     UpgradePersistence.cacheBreakDrops(world, pos, drops);
                 });
 
+        // Preserve upgraded block drops, remove quarry borders, and clean stale references.
         getEventRegistry().registerGlobal(
                 BreakBlockEvent.class,
                 event -> {
@@ -328,6 +342,7 @@ public class HyProTech extends JavaPlugin {
                         }
                         return;
                     }
+                    // Remove any visible quarry border before processing ordinary upgraded drops.
                     if (pos != null && TieredIdUtil.isTieredId(blockId, HyProTechIds.BLOCK_QUARRY)) {
                         if (world != null) {
                             MachineComponent machine = getMachineAt(world, pos, machineType);
@@ -352,6 +367,7 @@ public class HyProTech extends JavaPlugin {
                     if (drop == null) {
                         return;
                     }
+                    // Prefer contents cached before break, otherwise try a final snapshot.
                     List<ItemStack> extraDrops = UpgradePersistence.consumeBreakDrops(world, pos);
                     if (extraDrops == null || extraDrops.isEmpty()) {
                         extraDrops = UpgradePersistence.snapshotBreakDrops(world, pos);
@@ -361,6 +377,7 @@ public class HyProTech extends JavaPlugin {
                     schedulePostBreakReferenceCleanup(world, pos);
                 });
 
+        // Record upgrades for placed blocks and reject placements inside turbine height.
         getEventRegistry().registerGlobal(
                 PlaceBlockEvent.class,
                 event -> {
@@ -384,6 +401,7 @@ public class HyProTech extends JavaPlugin {
                             world.execute(() -> disableBlockTicking(world, disablePos));
                         });
                     }
+                    // Prevent another block from occupying the space reserved above a turbine.
                     if (!TieredIdUtil.isTieredId(blockId, HyProTechIds.BLOCK_WIND_TURBINE)) {
                         if (isBlockedByWindTurbine(world, pos)) {
                             event.setCancelled(true);
@@ -393,14 +411,16 @@ public class HyProTech extends JavaPlugin {
                     if (!UpgradePersistence.isUpgradeableBlockId(blockId)) {
                         return;
                     }
+                    // Apply the item's upgrade metadata once its new block components are ready.
                     UpgradePersistence.storePending(world, pos, blockId, stack);
                 });
                 
-        // Registration of upgrade IDs event
+        // Migrate legacy item IDs in a player's inventory on connection.
         getEventRegistry().registerGlobal(PlayerConnectEvent.class, HyProTechTeam.ItemMigrationListener::onPlayerJoin);
         // Furnace custom UI removed; vanilla bench opens via interaction.
     }
 
+    /** Loads each settings file, applies it, then applies the optional compatibility bridge. */
     private void loadConfigs() {
         BatteryUpgradeConfig.applyConfig(loadConfig(CONFIG_BATTERY, batteryConfig, BatteryUpgradeConfig.ConfigData::new));
         SolarUpgradeConfig.applyConfig(loadConfig(CONFIG_SOLAR, solarConfig, SolarUpgradeConfig.ConfigData::new));
@@ -426,6 +446,7 @@ public class HyProTech extends JavaPlugin {
                         quarryConfig));
     }
 
+    /** Loads one file, uses a fallback on failure, and saves defaults when the file is absent. */
     private <T> T loadConfig(String name, Config<T> config, Supplier<T> fallbackSupplier) {
         boolean exists = Files.exists(resolveConfigPath(name));
         T loaded;
@@ -444,10 +465,12 @@ public class HyProTech extends JavaPlugin {
         return loaded;
     }
 
+    /** Resolves a named configuration to its JSON path in the plugin data directory. */
     private Path resolveConfigPath(String name) {
         return getDataDirectory().resolve(name + ".json");
     }
 
+    /** Queues the TutBooks download and reload once a player is ready, allowing retries on failure. */
     private void registerTutbooksDownloadOnPlayerJoin() {
         getEventRegistry().registerGlobal(
                 PlayerReadyEvent.class,
@@ -480,6 +503,7 @@ public class HyProTech extends JavaPlugin {
                 });
     }
 
+    /** Opens the changelog for a ready player when the required player components are available. */
     private void registerChangelogPopupOnPlayerJoin() {
         getEventRegistry().registerGlobal(
                 PlayerReadyEvent.class,
@@ -504,6 +528,7 @@ public class HyProTech extends JavaPlugin {
                 });
     }
 
+    /** Looks up a machine component in the chunk containing the supplied world position. */
     private static MachineComponent getMachineAt(
             World world,
             Vector3i pos,
@@ -530,6 +555,7 @@ public class HyProTech extends JavaPlugin {
         return blockComponents.getComponent(blockIndex, machineType);
     }
 
+    /** Checks whether the placement position lies within a turbine's vertical block height. */
     private static boolean isBlockedByWindTurbine(World world, Vector3i pos) {
         if (world == null || pos == null) {
             return false;
@@ -554,6 +580,7 @@ public class HyProTech extends JavaPlugin {
         return false;
     }
 
+    /** Stops the configured loop for supported machine types when their block breaks. */
     private static void stopMachineSound(World world, Vector3i pos, String blockId) {
         if (world == null || pos == null || blockId == null) {
             return;
@@ -590,6 +617,7 @@ public class HyProTech extends JavaPlugin {
         }
     }
 
+    /** Recognizes energy or item cable base IDs and state variants. */
     private static boolean isCableBlockId(String blockId) {
         if (blockId == null || blockId.isEmpty()) {
             return false;
@@ -598,6 +626,7 @@ public class HyProTech extends JavaPlugin {
                 || BlockIdUtil.isIdOrState(blockId, HyProTechIds.BLOCK_ITEM_CABLE);
     }
 
+    /** Best-effort removal of vanilla block ticking for a loaded position. */
     private static void disableBlockTicking(World world, Vector3i pos) {
         if (world == null || pos == null) {
             return;
@@ -614,6 +643,7 @@ public class HyProTech extends JavaPlugin {
         }
     }
 
+    /** Schedules nearby stale-reference cleanup twice on the world executor. */
     private static void schedulePostBreakReferenceCleanup(World world, Vector3i pos) {
         if (world == null || pos == null) {
             return;
@@ -625,6 +655,7 @@ public class HyProTech extends JavaPlugin {
         });
     }
 
+    /** Requests reference cleanup for chunks at offsets around a broken block. */
     private static void cleanupInvalidReferencesNear(World world, Vector3i pos) {
         if (world == null || pos == null) {
             return;

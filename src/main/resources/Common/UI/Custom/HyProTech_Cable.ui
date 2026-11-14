@@ -1,6 +1,7 @@
 $C = "Common.ui";
 @SideIconSize = 64;
 
+// Cable page: the server updates the energy readout and each side control.
 $C.@PageOverlay {
   $C.@DecoratedContainer {
     Anchor: (Width: 440, Height: 600);
@@ -20,6 +21,7 @@ $C.@PageOverlay {
         LayoutMode: Top;
         Padding: (Top: 8, Left: 8, Right: 8);
 
+        // Current stored energy and capacity.
         Label #CableEnergy {
           Style: (
             FontSize: 16,
@@ -39,6 +41,7 @@ $C.@PageOverlay {
           Text: "Sides";
         }
 
+        // Each side row pairs a state icon with the corresponding toggle button.
         Group {
           LayoutMode: Left;
           Padding: (Top: 4);

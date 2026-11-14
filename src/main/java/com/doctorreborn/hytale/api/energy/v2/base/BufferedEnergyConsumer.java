@@ -28,20 +28,24 @@ import com.doctorreborn.hytale.api.energy.v2.Energy;
 import com.shailist.hytale.api.transfer.v1.storage.Storage;
 import com.shailist.hytale.api.transfer.v1.transaction.Transaction;
 
+/** Energy consumer backed by a storage buffer and a transaction per operation. */
 public class BufferedEnergyConsumer<T extends Storage<Energy>> extends BaseEnergyConsumer {
     private long lastConsumed = 0;
     private T storage;
 
+    /** Stores the buffer and configured limit. */
     public BufferedEnergyConsumer(T storage, long energyConsumption) {
         super(energyConsumption);
         this.storage = storage;
     }
 
+    /** Returns the amount from the previous operation. */
     @Override
     public long getLastConsumed() {
         return lastConsumed;
     }
 
+    /** Opens an outer transaction, transfers the configured amount, and commits the result. */
     @Override
     public long consume() {
         try (Transaction transaction = Transaction.openOuter()) {

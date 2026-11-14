@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+/** Tier, processing, upgrade, and bonus-drop configuration for the alloy smelter. */
 public final class AlloySmelterConfig {
     public static final int MIN_TIER = 0;
     public static final int MAX_TIER = 5;
@@ -75,6 +76,7 @@ public final class AlloySmelterConfig {
             1.0
     };
 
+    /** One item and quantity required for an upgrade. */
     public static final class Requirement {
         private String itemId;
         private int quantity;
@@ -89,24 +91,29 @@ public final class AlloySmelterConfig {
                                 requirement -> requirement.quantity)
                         .build();
 
+        /** Creates an empty requirement for decoding. */
         public Requirement() {
             this("", 0);
         }
 
+        /** Normalizes the item ID and quantity. */
         public Requirement(String itemId, int quantity) {
             this.itemId = normalizeItemId(itemId);
             this.quantity = normalizeQuantity(quantity);
         }
 
+        /** Returns the required item ID. */
         public String getItemId() {
             return itemId;
         }
 
+        /** Returns the required item count. */
         public int getQuantity() {
             return quantity;
         }
     }
 
+    /** Configures an extra item drop and its chance by tier. */
     public static final class BonusDrop {
         private String itemId;
         private int quantity;
@@ -129,10 +136,12 @@ public final class AlloySmelterConfig {
                                 drop -> drop.perTierChance)
                         .build();
 
+        /** Creates an empty drop for decoding. */
         public BonusDrop() {
             this("", 0, 0.0, 0.0);
         }
 
+        /** Normalizes the item, quantity, and chance values. */
         public BonusDrop(String itemId, int quantity, double baseChance, double perTierChance) {
             this.itemId = normalizeItemId(itemId);
             this.quantity = normalizeQuantity(quantity);
@@ -140,14 +149,17 @@ public final class AlloySmelterConfig {
             this.perTierChance = normalizeChance(perTierChance);
         }
 
+        /** Returns the configured bonus item ID. */
         public String getItemId() {
             return itemId;
         }
 
+        /** Returns the configured bonus item count. */
         public int getQuantity() {
             return quantity;
         }
 
+        /** Adds the per-tier chance and clamps the resulting probability to zero through one. */
         public double getChance(int tier) {
             int safeTier = clampTier(tier);
             double value = baseChance + perTierChance * safeTier;
@@ -157,10 +169,12 @@ public final class AlloySmelterConfig {
             return Math.min(1.0, value);
         }
 
+        /** Returns the configured base chance. */
         public double getBaseChance() {
             return baseChance;
         }
 
+        /** Returns the configured chance increment per tier. */
         public double getPerTierChance() {
             return perTierChance;
         }
@@ -224,6 +238,7 @@ public final class AlloySmelterConfig {
     private static BonusDrop[] bonusDrops = copyBonusDrops(DEFAULT_BONUS_DROPS);
     private static List<BonusDrop> bonusDropList = toBonusDropList(bonusDrops);
 
+    /** Codec-backed settings initialized with copies of the defaults. */
     public static final class ConfigData {
         public static final BuilderCodec<ConfigData> CODEC =
                 BuilderCodec.builder(ConfigData.class, ConfigData::new)
@@ -293,6 +308,7 @@ public final class AlloySmelterConfig {
     private AlloySmelterConfig() {
     }
 
+    /** Merges supplied tier values, processing settings, upgrade costs, and bonus drops. */
     public static void applyConfig(ConfigData data) {
         if (data == null) {
             return;
@@ -319,6 +335,7 @@ public final class AlloySmelterConfig {
         bonusDropList = toBonusDropList(bonusDrops);
     }
 
+    /** Restricts a tier to the supported range. */
     public static int clampTier(int tier) {
         if (tier < MIN_TIER) {
             return MIN_TIER;
@@ -329,39 +346,48 @@ public final class AlloySmelterConfig {
         return tier;
     }
 
+    /** Reports whether the clamped tier has an upgrade. */
     public static boolean hasNextTier(int tier) {
         return clampTier(tier) < MAX_TIER;
     }
 
+    /** Returns the configured name for a tier. */
     public static String getTierName(int tier) {
         return tierNames[clampTier(tier)];
     }
 
+    /** Returns the configured energy capacity. */
     public static int getCapacityForTier(int tier) {
         return capacity[clampTier(tier)];
     }
 
+    /** Returns the configured energy consumption per second. */
     public static int getConsumptionPerSecond(int tier) {
         return consumptionPerSecond[clampTier(tier)];
     }
 
+    /** Uses at least one unit or the configured consumption as the transfer limit. */
     public static int getMaxTransferForTier(int tier) {
         return Math.max(1, getConsumptionPerSecond(tier));
     }
 
+    /** Returns the configured output multiplier. */
     public static int getOutputMultiplierForTier(int tier) {
         return outputMultiplier[clampTier(tier)];
     }
 
+    /** Returns the configured processing duration in seconds. */
     public static double getProcessingSecondsForTier(int tier) {
         return processingSeconds[clampTier(tier)];
     }
 
+    /** Converts processing seconds to at least one game tick. */
     public static int getProcessingDelayTicks(int tier) {
         double seconds = getProcessingSecondsForTier(tier);
         return Math.max(1, (int) Math.round(seconds * TICKS_PER_SECOND));
     }
 
+    /** Returns the next upgrade cost, or an empty array at the highest tier. */
     public static Requirement[] getUpgradeRequirements(int currentTier) {
         int safeTier = clampTier(currentTier);
         if (safeTier >= MAX_TIER) {
@@ -374,6 +400,7 @@ public final class AlloySmelterConfig {
         return requirements;
     }
 
+    /** Returns the configured bonus list for a nonempty input ID, otherwise an empty list. */
     public static List<BonusDrop> getBonusDropsForInput(String inputId) {
         if (inputId == null || inputId.isEmpty()) {
             return Collections.emptyList();
@@ -381,10 +408,12 @@ public final class AlloySmelterConfig {
         return bonusDropList;
     }
 
+    /** Returns the configured bonus-drop list. */
     public static List<BonusDrop> getBonusDropConfig() {
         return bonusDropList;
     }
 
+    /** Starts with sanitized defaults and replaces each supplied tier row. */
     private static Requirement[][] mergeRequirements(Requirement[][] value, Requirement[][] defaults) {
         Requirement[][] result = new Requirement[TIER_COUNT][];
         for (int i = 0; i < TIER_COUNT; i++) {
@@ -403,10 +432,12 @@ public final class AlloySmelterConfig {
         return result;
     }
 
+    /** Creates a sanitized copy of the requirement table and its entries. */
     private static Requirement[][] copyRequirements(Requirement[][] source) {
         return mergeRequirements(source, source);
     }
 
+    /** Drops null entries, blank IDs, and non-positive counts. */
     private static Requirement[] sanitizeRequirements(Requirement[] requirements) {
         if (requirements == null || requirements.length == 0) {
             return new Requirement[0];
@@ -429,6 +460,7 @@ public final class AlloySmelterConfig {
         return cleaned.toArray(new Requirement[0]);
     }
 
+    /** Uses sanitized supplied drops, or copies the defaults when the value is null. */
     private static BonusDrop[] mergeBonusDrops(BonusDrop[] value, BonusDrop[] defaults) {
         if (value == null) {
             return copyBonusDrops(defaults);
@@ -436,6 +468,7 @@ public final class AlloySmelterConfig {
         return sanitizeBonusDrops(value);
     }
 
+    /** Returns a sanitized copy of the bonus drops. */
     private static BonusDrop[] copyBonusDrops(BonusDrop[] source) {
         if (source == null || source.length == 0) {
             return new BonusDrop[0];
@@ -443,6 +476,7 @@ public final class AlloySmelterConfig {
         return sanitizeBonusDrops(source);
     }
 
+    /** Copies valid drops and normalizes their item IDs, counts, and chance values. */
     private static BonusDrop[] sanitizeBonusDrops(BonusDrop[] drops) {
         if (drops == null || drops.length == 0) {
             return new BonusDrop[0];
@@ -467,6 +501,7 @@ public final class AlloySmelterConfig {
         return cleaned.toArray(new BonusDrop[0]);
     }
 
+    /** Exposes the array as an unmodifiable list, or an empty list when absent. */
     private static List<BonusDrop> toBonusDropList(BonusDrop[] drops) {
         if (drops == null || drops.length == 0) {
             return Collections.emptyList();
@@ -474,6 +509,7 @@ public final class AlloySmelterConfig {
         return Collections.unmodifiableList(Arrays.asList(drops));
     }
 
+    /** Trims IDs and converts null or whitespace-only values to an empty string. */
     private static String normalizeItemId(String value) {
         if (value == null) {
             return "";
@@ -482,6 +518,7 @@ public final class AlloySmelterConfig {
         return trimmed.isEmpty() ? "" : trimmed;
     }
 
+    /** Treats a missing decoded quantity as zero. */
     private static int normalizeQuantity(Integer value) {
         if (value == null) {
             return 0;
@@ -489,10 +526,12 @@ public final class AlloySmelterConfig {
         return normalizeQuantity(value.intValue());
     }
 
+    /** Clamps quantities to zero or above. */
     private static int normalizeQuantity(int value) {
         return Math.max(0, value);
     }
 
+    /** Treats a missing decoded chance as zero. */
     private static double normalizeChance(Double value) {
         if (value == null) {
             return 0.0;
@@ -500,6 +539,7 @@ public final class AlloySmelterConfig {
         return normalizeChance(value.doubleValue());
     }
 
+    /** Replaces non-finite chance values with zero. */
     private static double normalizeChance(double value) {
         if (!Double.isFinite(value)) {
             return 0.0;

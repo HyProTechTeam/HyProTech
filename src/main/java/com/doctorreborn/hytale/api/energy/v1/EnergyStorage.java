@@ -267,6 +267,7 @@ public interface EnergyStorage extends Iterable<EnergyStorageView> {
             throw new IllegalStateException("getVersion() may not be called during a transaction.");
         }
 
+        // The default conservatively returns a new version on every call.
         return EnergyApiImpl.version.getAndIncrement();
     }
 

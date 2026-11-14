@@ -42,20 +42,24 @@ public class MultiBufferEnergyStorage extends SnapshotParticipant<List<SingleBuf
         implements SlottedEnergyStorage {
     protected List<SingleBufferEnergyStorage> slots;
 
+    /** Wraps the supplied list of energy buffers. */
     public MultiBufferEnergyStorage(List<SingleBufferEnergyStorage> slots) {
         this.slots = slots;
     }
 
+    /** Returns the number of buffers. */
     @Override
     public int getSlotCount() {
         return slots.size();
     }
 
+    /** Returns a buffer by list index. */
     @Override
     public SingleSlotEnergyStorage getSlot(int slot) {
         return slots.get(slot);
     }
 
+    /** Offers each buffer the remaining insertion amount in list order. */
     @Override
     public long insert(long maxAmount, TransactionContext transaction) {
         StoragePreconditions.notNegative(maxAmount);
@@ -70,6 +74,7 @@ public class MultiBufferEnergyStorage extends SnapshotParticipant<List<SingleBuf
         return amount;
     }
 
+    /** Requests the remaining extraction amount from each buffer in list order. */
     @Override
     public long extract(long maxAmount, TransactionContext transaction) {
         StoragePreconditions.notNegative(maxAmount);
@@ -84,21 +89,25 @@ public class MultiBufferEnergyStorage extends SnapshotParticipant<List<SingleBuf
         return amount;
     }
 
+    /** Exposes each buffer as an energy storage view. */
     @Override
     public Iterator<EnergyStorageView> iterator() {
         return Iterators.transform(slots.iterator(), slot -> (EnergyStorageView) slot);
     }
 
+    /** Copies the buffer list for rollback; buffer objects themselves are shared. */
     @Override
     protected List<SingleBufferEnergyStorage> createSnapshot() {
         return new ArrayList<>(slots);
     }
 
+    /** Restores the buffer list from a snapshot. */
     @Override
     protected void readSnapshot(List<SingleBufferEnergyStorage> snapshot) {
         slots = new ArrayList<>(snapshot);
     }
 
+    /** Displays the list of buffers for diagnostics. */
     @Override
     public String toString() {
         return "MultiBufferEnergyStorage[" + slots + "]";

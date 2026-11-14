@@ -1,4 +1,5 @@
 $C = "Common.ui";
+// Reusable single-column item grid with square slots and no spacing.
 ItemGrid #HyUIItemGrid {
   //Anchor: (Width: 300, Height: 300);
   SlotsPerRow: 1;

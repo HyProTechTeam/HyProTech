@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/** Shows connected item storages and edits their priority, name and network distribution. */
 public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetworkPriorityEvent> {
     private static final String PAGE_LAYOUT = "HyProTech_Item_Priority.ui";
     private static final int ROW_COUNT = 6;
@@ -68,6 +69,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         this.storageChunkType = storageChunkType;
     }
 
+    /** Loads the layout and connects the navigation and storage controls. */
     @Override
     public void build(
             Ref<EntityStore> playerRef,
@@ -78,6 +80,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         bindButtons(uiEventBuilder);
     }
 
+    /** Handles distribution, paging, priority and rename actions against a fresh network snapshot. */
     @Override
     public void handleDataEvent(Ref<EntityStore> playerRef, Store<EntityStore> store, ItemNetworkPriorityEvent data) {
         if (data == null || data.getAction() == null) {
@@ -133,6 +136,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
             return;
         }
 
+        // Keep the selected storage position while the rename panel is open.
         if ("Rename".equalsIgnoreCase(action)) {
             StorageEntry entry = getEntryByRow(data.getIndex());
             if (entry == null) {
@@ -168,6 +172,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         }
     }
 
+    /** Periodically rescans the network and sends UI changes only when the snapshot changes. */
     public void update() {
         long now = System.currentTimeMillis();
         if (lastUpdateMs != 0L && now - lastUpdateMs < UPDATE_INTERVAL_MS) {
@@ -198,6 +203,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
             pageIndex = maxPage;
         }
 
+        // The snapshot key avoids resending identical rows on every refresh tick.
         String snapshotKey = snapshot.buildKey(pageIndex);
         if (snapshotKey.equals(lastSnapshotKey)) {
             return;
@@ -211,6 +217,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         sendUpdate(update);
     }
 
+    /** Maps global controls and each visible row to action events. */
     private void bindButtons(UIEventBuilder uiEventBuilder) {
         EventData distributionData = EventData.of("Action", "Distribution");
         uiEventBuilder.addEventBinding(CustomUIEventBindingType.Activating, "#NetworkDistribution", distributionData);
@@ -240,6 +247,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         }
     }
 
+    /** Displays the common distribution mode, or Mixed when cables disagree. */
     private void updateDistribution(UICommandBuilder update, NetworkSnapshot snapshot) {
         String label;
         if (snapshot == null || snapshot.cables.isEmpty()) {
@@ -252,6 +260,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         update.set("#NetworkDistribution.Text", label);
     }
 
+    /** Fills the current page of storage rows and hides unused rows. */
     private void updateStorageRows(UICommandBuilder update, List<StorageEntry> storages) {
         int total = storages == null ? 0 : storages.size();
         int startIndex = pageIndex * ROW_COUNT;
@@ -269,6 +278,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         }
     }
 
+    /** Displays the visible range and enables only available page navigation. */
     private void updatePaging(UICommandBuilder update, int total) {
         if (total <= 0) {
             update.set("#StoragePage.Text", "0 / 0");
@@ -285,6 +295,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         update.set("#StorageNext.Visible", pageIndex < maxPage);
     }
 
+    /** Translates a row index on the current page into a storage entry. */
     private StorageEntry getEntryByRow(String indexValue) {
         int row = parseIndex(indexValue);
         if (row < 0) {
@@ -297,6 +308,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         return storageEntries.get(absoluteIndex);
     }
 
+    /** Advances a storage's priority, wrapping from the maximum to the minimum. */
     private void updatePriority(World world, StorageEntry entry) {
         if (world == null || entry == null) {
             return;
@@ -309,6 +321,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         applyStorageConfig(world, entry.position, config -> config.setPriority(finalPriority));
     }
 
+    /** Saves a trimmed storage name, using an empty name when none was supplied. */
     private void updateName(World world, Vector3i pos, String value) {
         if (world == null || pos == null) {
             return;
@@ -317,6 +330,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         applyStorageConfig(world, pos, config -> config.setName(name));
     }
 
+    /** Sets the selected distribution mode on all discovered cables and marks their chunks dirty. */
     private void applyDistribution(World world, NetworkSnapshot snapshot, ItemDistributionMode mode) {
         if (world == null || snapshot == null || mode == null) {
             return;
@@ -342,6 +356,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         }
     }
 
+    /** Loads or creates storage configuration at the base block, applies an edit and saves it. */
     private void applyStorageConfig(World world, Vector3i pos, ConfigUpdate update) {
         if (world == null || pos == null || update == null) {
             return;
@@ -362,6 +377,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         storeStorageConfig(world, chunkStore, basePos, config);
     }
 
+    /** Looks for configuration on the block holder, its chunk component, then the chunk fallback. */
     private ItemStorageConfigComponent getStorageConfig(World world, ChunkStore chunkStore, Vector3i pos) {
         if (pos == null) {
             return null;
@@ -403,6 +419,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         return getChunkStorageConfig(chunkStore, x, y, z);
     }
 
+    /** Stores HyProTech block settings on the block where possible and also in the chunk map. */
     private void storeStorageConfig(
             World world,
             ChunkStore chunkStore,
@@ -461,6 +478,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         storeChunkStorageConfig(chunkStore, x, y, z, config);
     }
 
+    /** Checks the ID prefix after removing an optional namespace. */
     private boolean isHyProTechBlockId(String blockId) {
         if (blockId == null || blockId.isEmpty()) {
             return false;
@@ -470,6 +488,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         return normalized.regionMatches(true, 0, "HyProTech_", 0, "HyProTech_".length());
     }
 
+    /** Reads storage settings from the per-chunk map using the local block index. */
     private ItemStorageConfigComponent getChunkStorageConfig(ChunkStore chunkStore, int x, int y, int z) {
         if (chunkStore == null || storageChunkType == null) {
             return null;
@@ -485,6 +504,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         return chunkConfig.getConfig(blockIndex);
     }
 
+    /** Writes storage settings into the chunk-level fallback component. */
     private void storeChunkStorageConfig(
             ChunkStore chunkStore,
             int x,
@@ -513,12 +533,14 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         }
     }
 
+    /** Invalidates the cached snapshot and refresh deadline after an edit. */
     private void forceRefresh() {
         lastSnapshotKey = "";
         lastUpdateMs = 0L;
         update();
     }
 
+    /** Computes the last zero-based page for the number of storage entries. */
     private int getMaxPage(int total) {
         if (total <= 0) {
             return 0;
@@ -526,6 +548,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         return (total - 1) / ROW_COUNT;
     }
 
+    /** Parses a UI row index, returning -1 for invalid input. */
     private int parseIndex(String value) {
         if (value == null) {
             return -1;
@@ -537,6 +560,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         }
     }
 
+    /** Traverses connected cables and collects unique accessible adjacent storage blocks. */
     private NetworkSnapshot buildSnapshot(World world, Vector3i startPos) {
         if (world == null || startPos == null) {
             return null;
@@ -556,6 +580,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         List<CableInfo> cables = new ArrayList<>();
         Map<String, StorageEntry> storages = new HashMap<>();
 
+        // Breadth-first traversal visits each cable once, even when the network contains loops.
         while (!queue.isEmpty()) {
             Vector3i pos = queue.removeFirst();
             long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.getX(), pos.getZ());
@@ -592,6 +617,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
                     continue;
                 }
 
+                // Only list adjacent containers on sides configured for insertion or extraction.
                 boolean sideAllowsTake = allowTake && node.allowsTake(side);
                 boolean sideAllowsPut = allowPut && node.allowsPut(side);
                 if (!sideAllowsTake && !sideAllowsPut) {
@@ -617,6 +643,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         return new NetworkSnapshot(cables, storageList, mode);
     }
 
+    /** Returns the common mode across cables, or null when their modes differ. */
     private ItemDistributionMode resolveDistributionMode(List<CableInfo> cables) {
         ItemDistributionMode mode = null;
         for (CableInfo cable : cables) {
@@ -636,6 +663,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         return mode;
     }
 
+    /** Adds one base-block storage entry with configured or fallback display information. */
     private void addStorageEntry(
             World world,
             ChunkStore chunkStore,
@@ -667,6 +695,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         storages.put(key, entry);
     }
 
+    /** Derives a display name from the block's item or block ID when no name is configured. */
     private String buildFallbackName(World world, Vector3i pos) {
         BlockType blockType = getBlockTypeIfLoaded(world, pos.getX(), pos.getY(), pos.getZ());
         if (blockType != null) {
@@ -681,6 +710,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         return "Storage " + pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
     }
 
+    /** Resolves an item ID suitable for the storage row icon. */
     private String getStorageIcon(World world, Vector3i pos) {
         BlockType blockType = getBlockTypeIfLoaded(world, pos.getX(), pos.getY(), pos.getZ());
         if (blockType == null) {
@@ -693,6 +723,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         return "";
     }
 
+    /** Checks whether a block position has an item-network component. */
     private boolean isItemCable(ChunkStore chunkStore, int x, int y, int z) {
         if (chunkStore == null || y < ChunkUtil.MIN_Y || y >= ChunkUtil.HEIGHT) {
             return false;
@@ -709,6 +740,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         return blockComponents.getComponent(blockIndex, itemType) != null;
     }
 
+    /** Records a chunk-local block index and reports whether it was newly visited. */
     private boolean markVisited(Long2ObjectMap<IntOpenHashSet> visited, int x, int y, int z) {
         long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
         int localX = ChunkUtil.localCoordinate((long) x);
@@ -723,6 +755,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         return set.add(blockIndex);
     }
 
+    /** Finds a container at the position or on a horizontally adjacent matching block. */
     private ContainerLookup resolveContainerState(World world, int x, int y, int z) {
         Object state = MachineItemAccess.getContainerState(world, x, y, z);
         if (state != null) {
@@ -766,6 +799,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         return null;
     }
 
+    /** Reads a block type without forcing its chunk to load. */
     private BlockType getBlockTypeIfLoaded(World world, int x, int y, int z) {
         if (world == null) {
             return null;
@@ -778,6 +812,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         return accessor.getBlockType(x, y, z);
     }
 
+    /** Compares two non-null block IDs without case sensitivity. */
     private boolean sameBlockId(String firstId, String secondId) {
         if (firstId == null || secondId == null) {
             return false;
@@ -785,6 +820,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         return firstId.equalsIgnoreCase(secondId);
     }
 
+    /** Finds the page's component reference in loaded chunks and caches its world position. */
     private Vector3i resolveBlockPosition(World world) {
         if (world == null) {
             return null;
@@ -821,6 +857,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         return null;
     }
 
+    /** Resolves multiblock parts to their base position when the server can identify it. */
     @SuppressWarnings("removal")
     private Vector3i resolveBasePosition(World world, Vector3i pos) {
         if (world == null || pos == null) {
@@ -833,6 +870,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         return pos;
     }
 
+    /** Finds the chunk-local block index corresponding to this page's entity reference. */
     private int findBlockIndex(BlockComponentChunk blockComponents) {
         int targetIndex = blockRef.getIndex();
         if (targetIndex == Integer.MIN_VALUE) {
@@ -848,31 +886,38 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         return Integer.MIN_VALUE;
     }
 
+    /** Retrieves the world associated with the player's entity store. */
     private World getWorld(Store<EntityStore> store) {
         EntityStore entityStore = store == null ? null : store.getExternalData();
         return entityStore == null ? null : entityStore.getWorld();
     }
 
+    /** Builds the selector for a storage row. */
     private String storageRowId(int index) {
         return "#StorageRow" + index;
     }
 
+    /** Builds the selector for a storage icon. */
     private String storageIconId(int index) {
         return "#Storage" + index + "Icon";
     }
 
+    /** Builds the selector for a storage name label. */
     private String storageNameId(int index) {
         return "#Storage" + index + "Name";
     }
 
+    /** Builds the selector for a storage priority button. */
     private String storagePriorityId(int index) {
         return "#Storage" + index + "Priority";
     }
 
+    /** Builds the selector for a storage rename button. */
     private String storageRenameId(int index) {
         return "#Storage" + index + "Rename";
     }
 
+    // Sort by display name, then coordinates for stable ordering of equally named storages.
     private static final Comparator<StorageEntry> STORAGE_ORDER = (first, second) -> {
         if (first == second) {
             return 0;
@@ -898,6 +943,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         return Integer.compare(first.position.getZ(), second.position.getZ());
     };
 
+    /** A discovered cable and its location, including the chunk that must be saved. */
     private static final class CableInfo {
         private final ItemNodeComponent node;
         private final int x;
@@ -914,6 +960,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         }
     }
 
+    /** The display and configuration values for one unique connected storage. */
     private static final class StorageEntry {
         private final Vector3i position;
         private final String displayName;
@@ -937,6 +984,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         }
     }
 
+    /** The discovered cables, sorted storages and their common distribution mode. */
     private static final class NetworkSnapshot {
         private final List<CableInfo> cables;
         private final List<StorageEntry> storages;
@@ -951,6 +999,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
             this.distributionMode = distributionMode;
         }
 
+        /** Produces a key from visible state so unchanged snapshots need no UI update. */
         private String buildKey(int pageIndex) {
             StringBuilder key = new StringBuilder();
             key.append(pageIndex).append('|');
@@ -972,6 +1021,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         }
     }
 
+    /** Associates a discovered container state with the position that owns it. */
     private static final class ContainerLookup {
         private final Object state;
         private final Vector3i position;
@@ -982,6 +1032,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
         }
     }
 
+    /** Applies a single edit to a storage configuration. */
     private interface ConfigUpdate {
         void apply(ItemStorageConfigComponent config);
     }

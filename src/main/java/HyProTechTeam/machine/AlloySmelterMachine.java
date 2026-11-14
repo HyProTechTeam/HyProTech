@@ -12,6 +12,7 @@ import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.doctorreborn.hytale.api.energy.v1.EnergyStorage;
 import java.util.List;
 
+/** Implements the alloy smelter's tier settings, energy use, and processing cycle. */
 public final class AlloySmelterMachine implements MachineDefinition {
     public static final String ID = "HyProTech:alloy_smelter";
     private static final short INPUT_SLOT_START = 0;
@@ -19,17 +20,20 @@ public final class AlloySmelterMachine implements MachineDefinition {
     private static final short OUTPUT_SLOT_START = (short) INPUT_SLOT_COUNT;
     private static final int OUTPUT_SLOT_COUNT = AlloySmelterConfig.OUTPUT_SLOT_COUNT;
 
+    /** Returns the registry ID for this machine definition. */
     @Override
     public String id() {
         return ID;
     }
 
+    /** Accepts the machine's base, tiered, and state block IDs. */
     @Override
     public boolean matchesBlockId(String blockId) {
         return TieredIdUtil.isTieredId(blockId, HyProTechIds.BLOCK_ALLOY_SMELTER)
                 || isIdOrState(blockId, HyProTechIds.BLOCK_ALLOY_SMELTER);
     }
 
+    /** Creates machine state at the minimum tier with its initial processing delay. */
     @Override
     public MachineComponent createMachineComponent() {
         MachineComponent component = new MachineComponent();
@@ -39,6 +43,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
         return component;
     }
 
+    /** Creates the initial machine energy node using tier-specific configuration. */
     @Override
     public EnergyNodeComponent createEnergyNode() {
         EnergyNodeComponent node = new EnergyNodeComponent();
@@ -51,6 +56,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
         return node;
     }
 
+    /** Reconciles the machine and energy node with the current tier configuration. */
     @Override
     public void configureDefaults(MachineComponent machine, EnergyNodeComponent energy) {
         if (machine == null || energy == null) {
@@ -65,6 +71,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
         if (energy.getOutputMask() != EnergySide.ALL_MASK) {
             energy.setOutputMask(EnergySide.ALL_MASK);
         }
+        // Apply tier settings and clamp stored energy if the configured capacity shrinks.
         int tier = AlloySmelterConfig.clampTier(machine.getTier());
         if (machine.getTier() != tier) {
             machine.setTier(tier);
@@ -84,6 +91,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
         if (energy.getMaxTransfer() != maxTransfer) {
             energy.setMaxTransfer(maxTransfer);
         }
+        // Keep the machine and energy progress fields synchronized for consumers such as UI.
         int desiredProgressMax = AlloySmelterConfig.getProcessingDelayTicks(tier);
         if (machine.getProgressMax() != desiredProgressMax) {
             machine.setProgressMax(desiredProgressMax);
@@ -99,6 +107,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
         }
     }
 
+    /** Validates input and output space, consumes energy, and advances one processing tick. */
     @Override
     public boolean tick(MachineContext context, float deltaSeconds) {
         if (context == null) {
@@ -110,6 +119,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
             return false;
         }
 
+        // Record relevant values before configuration so changed settings can be persisted.
         int beforeProgress = machine.getProgress();
         int beforeProgressMax = machine.getProgressMax();
         int beforeTier = machine.getTier();
@@ -126,6 +136,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
                 || beforeConsumption != energy.getConsumption()
                 || beforeMaxTransfer != energy.getMaxTransfer();
 
+        // A disabled machine resets progress and does no processing.
         if (!machine.isEnabled()) {
             if (machine.getProgress() != 0) {
                 machine.setProgress(0);
@@ -137,6 +148,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
             return changed;
         }
 
+        // Without the required inventory and matching inputs, no recipe can advance.
         ItemContainer container = context.getItemContainer();
         if (container == null || container.getCapacity() < INPUT_SLOT_COUNT) {
             if (changed) {
@@ -145,6 +157,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
             return changed;
         }
 
+        // Find the first recipe for which the input slots contain enough items.
         AlloySmelterRecipes.RecipeEntry recipe = findMatchingRecipe(container);
         if (recipe == null) {
             if (machine.getProgress() != 0) {
@@ -176,6 +189,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
             return changed;
         }
 
+        // Convert per-second consumption to this tick's cost, rounding positive costs up to one.
         int consumptionPerSecond = Math.max(0, energy.getConsumption());
         int cost = 0;
         if (consumptionPerSecond > 0 && deltaSeconds > 0f) {
@@ -184,6 +198,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
                 cost = 1;
             }
         }
+        // Try the transactional adapter first; fall back to the node's stored amount.
         if (cost > 0 && !consumeEnergy(context.getEnergyStorage(), cost)) {
             int available = energy.getEnergy();
             if (available >= cost) {
@@ -196,6 +211,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
             }
         }
 
+        // Advance by one processing step; produce output when the threshold is reached.
         int progressMax = Math.max(1, machine.getProgressMax());
         int progress = machine.getProgress() + 1;
         if (progress < progressMax) {
@@ -205,6 +221,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
             return true;
         }
 
+        // Consume input only when applying the outputs reports success.
         machine.setProgress(0);
         boolean outputAdded = applyOutputs(container, recipe, tier, primaryInputId);
         if (outputAdded) {
@@ -216,6 +233,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
         return changed;
     }
 
+    /** Finds the first recipe whose required input quantities are present. */
     private AlloySmelterRecipes.RecipeEntry findMatchingRecipe(ItemContainer container) {
         if (container == null) {
             return null;
@@ -235,6 +253,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
         return null;
     }
 
+    /** Checks all valid ingredient entries against the aggregate input-slot counts. */
     private boolean hasInputs(ItemContainer container, AlloySmelterRecipes.RecipeEntry recipe) {
         if (container == null || recipe == null) {
             return false;
@@ -255,6 +274,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
         return foundAny;
     }
 
+    /** Removes each recipe ingredient across matching input slots. */
     private void consumeInputs(ItemContainer container, AlloySmelterRecipes.RecipeEntry recipe) {
         if (container == null || recipe == null) {
             return;
@@ -280,6 +300,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
         }
     }
 
+    /** Sums matching item quantities across the input slots. */
     private int countInputItem(ItemContainer container, String itemId) {
         if (container == null || itemId == null || itemId.isEmpty()) {
             return 0;
@@ -297,6 +318,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
         return total;
     }
 
+    /** Returns the first valid recipe input ID, falling back to its legacy input ID. */
     private String resolvePrimaryInputId(AlloySmelterRecipes.RecipeEntry recipe) {
         if (recipe == null) {
             return null;
@@ -310,6 +332,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
         return recipe.inputItemId;
     }
 
+    /** Checks each possible output against the output slot range before processing. */
     private boolean canFitOutputs(
             ItemContainer container,
             AlloySmelterRecipes.RecipeEntry recipe,
@@ -330,6 +353,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
         return true;
     }
 
+    /** Delegates a single output capacity check to the shared inventory helper. */
     private boolean canFitOutput(ItemContainer container, String itemId, int quantity) {
         return MachineCommonUtil.canFitOutput(
                 container,
@@ -339,6 +363,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
                 OUTPUT_SLOT_COUNT);
     }
 
+    /** Rolls bonus outputs and attempts to add each output to the inventory. */
     private boolean applyOutputs(
             ItemContainer container,
             AlloySmelterRecipes.RecipeEntry recipe,
@@ -376,6 +401,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
         return addedAny;
     }
 
+    /** Adds an item to the configured output slot range. */
     private boolean addToOutputSlots(ItemContainer container, String itemId, int quantity) {
         return MachineCommonUtil.addToOutputSlots(
                 container,
@@ -385,6 +411,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
                 OUTPUT_SLOT_COUNT);
     }
 
+    /** Builds multiplied recipe outputs and adds eligible bonus drops, optionally rolling chances. */
     private List<MaterialQuantity> buildOutputList(
             AlloySmelterRecipes.RecipeEntry recipe,
             int tier,
@@ -393,6 +420,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
         List<MaterialQuantity> list = new java.util.ArrayList<>();
         int multiplier = Math.max(1, AlloySmelterConfig.getOutputMultiplierForTier(tier));
 
+        // Support both the legacy single output and the newer output array.
         MaterialQuantity[] outputs = recipe.outputs;
         if (outputs == null || outputs.length == 0) {
             list.add(new MaterialQuantity(
@@ -417,6 +445,7 @@ public final class AlloySmelterMachine implements MachineDefinition {
             return list;
         }
 
+        // Capacity checks include eligible bonuses; actual processing rolls their chances.
         java.util.concurrent.ThreadLocalRandom random = java.util.concurrent.ThreadLocalRandom.current();
         for (AlloySmelterConfig.BonusDrop bonus : bonuses) {
             if (bonus == null) {
@@ -439,10 +468,12 @@ public final class AlloySmelterMachine implements MachineDefinition {
         return list;
     }
 
+    /** Delegates all-or-nothing energy extraction to the shared transactional helper. */
     private boolean consumeEnergy(EnergyStorage storage, int amount) {
         return MachineCommonUtil.consumeEnergy(storage, amount);
     }
 
+    /** Matches a base block ID or one of its state variants. */
     private static boolean isIdOrState(String blockId, String baseId) {
         return BlockIdUtil.isIdOrState(blockId, baseId);
     }

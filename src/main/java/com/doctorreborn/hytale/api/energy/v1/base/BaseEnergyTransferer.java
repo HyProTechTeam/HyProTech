@@ -21,13 +21,16 @@ package com.doctorreborn.hytale.api.energy.v1.base;
 
 import com.doctorreborn.hytale.api.energy.v1.EnergyTransferer;
 
+/** Stores the configured transfer rate. */
 public class BaseEnergyTransferer implements EnergyTransferer {
     private long transferRate;
 
+    /** Stores the transfer rate. */
     public BaseEnergyTransferer(long transferRate) {
         this.transferRate = transferRate;
     }
 
+    /** Returns the configured transfer rate. */
     @Override
     public long getTransferRate() {
         return transferRate;

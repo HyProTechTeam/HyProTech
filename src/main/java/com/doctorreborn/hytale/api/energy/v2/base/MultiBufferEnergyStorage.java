@@ -32,20 +32,25 @@ import com.doctorreborn.hytale.api.energy.v2.Energy;
 import com.shailist.hytale.api.transfer.v1.storage.base.CombinedSlottedStorage;
 import com.shailist.hytale.api.transfer.v1.transaction.TransactionContext;
 
+/** Combines multiple single energy buffers into one slotted storage. */
 public class MultiBufferEnergyStorage extends CombinedSlottedStorage<Energy, SingleBufferEnergyStorage> {
 
+    /** Wraps the supplied buffer list. */
     public MultiBufferEnergyStorage(List<SingleBufferEnergyStorage> parts) {
         super(parts);
     }
 
+    /** Inserts the singleton energy resource through the combined storage. */
     public long insert(long maxAmount, @NonNull TransactionContext transaction) {
         return insert(Energy.INSTANCE, maxAmount, transaction);
     }
 
+    /** Extracts the singleton energy resource through the combined storage. */
     public long extract(long maxAmount, @NonNull TransactionContext transaction) {
         return extract(Energy.INSTANCE, maxAmount, transaction);
     }
 
+    /** Displays the component buffers for diagnostics. */
     @Override
     public String toString() {
         return "MultiBufferEnergyStorage[" + parts + "]";

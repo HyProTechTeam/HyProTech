@@ -33,24 +33,29 @@ import com.shailist.hytale.api.transfer.v1.storage.base.SingleSlotStorage;
 import com.shailist.hytale.api.transfer.v1.transaction.TransactionContext;
 import com.shailist.hytale.api.transfer.v1.transaction.base.SnapshotParticipant;
 
+/** Single energy buffer with transaction snapshots for rollback. */
 public class SingleBufferEnergyStorage extends SnapshotParticipant<ResourceAmount<Energy>>
         implements SingleSlotStorage<Energy> {
     protected long amount;
     protected long capacity;
 
+    /** Creates an empty buffer with the supplied capacity. */
     public SingleBufferEnergyStorage(long capacity) {
         this(capacity, 0);
     }
 
+    /** Creates a buffer with the supplied capacity and initial amount. */
     protected SingleBufferEnergyStorage(long capacity, long amount) {
         this.capacity = capacity;
         this.amount = amount;
     }
 
+    /** Returns a new buffer with the same capacity and amount. */
     public SingleBufferEnergyStorage copy() {
         return new SingleBufferEnergyStorage(capacity, amount);
     }
 
+    /** Inserts up to the requested amount and remaining capacity, snapshotting before mutation. */
     @Override
     public long insert(Energy resource, long maxAmount, @NonNull TransactionContext transaction) {
         StoragePreconditions.notNegative(maxAmount);
@@ -66,10 +71,12 @@ public class SingleBufferEnergyStorage extends SnapshotParticipant<ResourceAmoun
         return 0;
     }
 
+    /** Inserts the singleton energy resource. */
     public long insert(long maxAmount, @NonNull TransactionContext transaction) {
         return insert(Energy.INSTANCE, maxAmount, transaction);
     }
 
+    /** Extracts up to the requested and stored amount, snapshotting before mutation. */
     @Override
     public long extract(Energy resource, long maxAmount, @NonNull TransactionContext transaction) {
         StoragePreconditions.notNegative(maxAmount);
@@ -85,40 +92,48 @@ public class SingleBufferEnergyStorage extends SnapshotParticipant<ResourceAmoun
         return 0;
     }
 
+    /** Extracts the singleton energy resource. */
     public long extract(long maxAmount, @NonNull TransactionContext transaction) {
         return extract(Energy.INSTANCE, maxAmount, transaction);
     }
 
+    /** This view always represents the energy resource, even when its amount is zero. */
     @Override
     public boolean isResourceBlank() {
         return false;
     }
 
+    /** Returns the singleton energy resource. */
     @Override
     public Energy getResource() {
         return Energy.INSTANCE;
     }
 
+    /** Returns the stored amount. */
     @Override
     public long getAmount() {
         return amount;
     }
 
+    /** Returns the buffer capacity. */
     @Override
     public long getCapacity() {
         return capacity;
     }
 
+    /** Captures the current amount for transaction rollback. */
     @Override
     protected ResourceAmount<Energy> createSnapshot() {
         return new ResourceAmount<>(Energy.INSTANCE, amount);
     }
 
+    /** Restores the amount from a transaction snapshot. */
     @Override
     protected void readSnapshot(ResourceAmount<Energy> snapshot) {
         amount = snapshot.amount();
     }
 
+    /** Displays the amount and capacity for diagnostics. */
     @Override
     public String toString() {
         return "SingleBufferEnergyStorage[" + amount + "/" + capacity + "]";

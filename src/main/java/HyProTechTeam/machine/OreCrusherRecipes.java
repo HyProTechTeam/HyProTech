@@ -13,12 +13,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/** Builds and caches ore-crusher recipes from processing assets and known ore fallbacks. */
 public final class OreCrusherRecipes {
     private static volatile List<RecipeEntry> RECIPE_CACHE;
 
     private OreCrusherRecipes() {
     }
 
+    /** Builds the recipe list on first access and reuses it afterward. */
     public static List<RecipeEntry> getRecipes() {
         if (RECIPE_CACHE != null) {
             return RECIPE_CACHE;
@@ -27,6 +29,7 @@ public final class OreCrusherRecipes {
         return RECIPE_CACHE;
     }
 
+    /** Finds the first recipe with a matching primary input ID, ignoring case. */
     public static RecipeEntry findByInput(String inputItemId) {
         if (inputItemId == null || inputItemId.isEmpty()) {
             return null;
@@ -39,6 +42,7 @@ public final class OreCrusherRecipes {
         return null;
     }
 
+    /** Filters processing recipes to base ores, adds fallbacks, and sorts by input ID. */
     private static List<RecipeEntry> buildRecipeEntries() {
         Map<String, RecipeEntry> byInput = new LinkedHashMap<>();
         Map<String, CraftingRecipe> map = CraftingRecipe.getAssetMap().getAssetMap();
@@ -83,12 +87,14 @@ public final class OreCrusherRecipes {
             }
         }
 
+        // Add known vanilla ores only when no earlier recipe was registered for the input.
         addVanillaOreEntries(byInput);
         List<RecipeEntry> entries = new ArrayList<>(byInput.values());
         entries.sort(Comparator.comparing(o -> o.inputItemId.toLowerCase(Locale.ROOT)));
         return entries;
     }
 
+    /** Adds one-to-one powder recipes for known ore and powder assets missing from the map. */
     private static void addVanillaOreEntries(Map<String, RecipeEntry> byInput) {
         String[][] vanilla = {
                 {"Ore_Copper", "HyProTech_Powder_Copper"},
@@ -120,6 +126,7 @@ public final class OreCrusherRecipes {
         }
     }
 
+    /** Accepts processing recipes registered for the OreCrusher or Furnace bench. */
     private static boolean isProcessingRecipe(CraftingRecipe recipe) {
         BenchRequirement[] requirements = recipe.getBenchRequirement();
         if (requirements == null || requirements.length == 0) {
@@ -137,6 +144,7 @@ public final class OreCrusherRecipes {
         return false;
     }
 
+    /** Returns the first input with a nonempty item ID. */
     private static MaterialQuantity resolvePrimaryInput(CraftingRecipe recipe) {
         MaterialQuantity[] inputs = recipe.getInput();
         if (inputs == null || inputs.length == 0) {
@@ -150,6 +158,7 @@ public final class OreCrusherRecipes {
         return null;
     }
 
+    /** Prefers the declared primary output, then the first valid output array entry. */
     private static MaterialQuantity resolvePrimaryOutput(CraftingRecipe recipe) {
         MaterialQuantity primary = recipe.getPrimaryOutput();
         if (primary != null && primary.getItemId() != null && !primary.getItemId().isEmpty()) {
@@ -167,6 +176,7 @@ public final class OreCrusherRecipes {
         return null;
     }
 
+    /** Returns the first valid normalized output, or the original primary output as fallback. */
     private static MaterialQuantity resolvePrimaryOutputFromOutputs(
             MaterialQuantity fallback,
             MaterialQuantity[] outputs) {
@@ -181,6 +191,7 @@ public final class OreCrusherRecipes {
         return fallback;
     }
 
+    /** Replaces resolved ore outputs with powder, ore chips, and slag when a powder ID is known. */
     private static MaterialQuantity[] normalizeOutputs(
             MaterialQuantity[] outputs,
             String inputId,
@@ -199,6 +210,7 @@ public final class OreCrusherRecipes {
         return resolved.toArray(new MaterialQuantity[0]);
     }
 
+    /** Recognizes base ore IDs while excluding certain variant or block naming forms. */
     private static boolean isBaseOreId(String itemId) {
         if (itemId == null || itemId.isEmpty()) {
             return false;
@@ -212,6 +224,7 @@ public final class OreCrusherRecipes {
         return false;
     }
 
+    /** Accepts an existing item asset that is neither UNKNOWN nor a state asset. */
     private static boolean isKnownItemId(String itemId) {
         if (itemId == null || itemId.isEmpty()) {
             return false;
@@ -220,6 +233,7 @@ public final class OreCrusherRecipes {
         return item != null && item != Item.UNKNOWN && !item.isState();
     }
 
+    /** Snapshot of recipe IDs, primary quantities, and full input/output arrays. */
     public static final class RecipeEntry {
         public final String recipeId;
         public final String inputItemId;

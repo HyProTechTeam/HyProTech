@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 
+/** Preserves upgrade state and inventories across block drops, placement and tier swaps. */
 public final class UpgradePersistence {
     public static final String META_ENERGY = "HyProTechEnergyNode";
     public static final String META_ITEM = "HyProTechItemNode";
@@ -46,6 +47,7 @@ public final class UpgradePersistence {
     private static final boolean DEBUG_PERSISTENCE = false;
     private static final int PENDING_TTL_TICKS = 20;
     private static final int PENDING_DROP_TTL_TICKS = 20 * 60 * 60;
+    // Keep pending state separate per world instance; copied positions are stable map keys.
     private static final Map<World, Map<Vector3i, PendingUpgrade>> PENDING = new IdentityHashMap<>();
     private static final Map<World, Long> LAST_CLEANUP = new IdentityHashMap<>();
     private static final Map<World, Map<Vector3i, PendingDrops>> PENDING_DROPS = new IdentityHashMap<>();
@@ -54,6 +56,7 @@ public final class UpgradePersistence {
     private UpgradePersistence() {
     }
 
+    /** Recognizes the supported base block IDs as well as their state variants. */
     public static boolean isUpgradeableBlockId(String blockId) {
         if (blockId == null) {
             return false;
@@ -68,6 +71,7 @@ public final class UpgradePersistence {
                 || isIdOrState(blockId, HyProTechIds.BLOCK_ALLOY_SMELTER);
     }
 
+    /** Builds the appropriate tiered block item and attaches serializable node snapshots. */
     public static ItemStack buildDropStack(World world, Vector3i pos, BlockType blockType, String blockId) {
         EnergyNodeComponent energyNode = null;
         ItemNodeComponent itemNode = null;
@@ -82,6 +86,7 @@ public final class UpgradePersistence {
             furnaceTierIndex = getFurnaceTierIndex(world, pos, blockId);
         }
 
+        // Prefer the item corresponding to the installed tier; fall back to the block's item.
         String itemId = resolveTieredItemId(blockId, energyNode, itemNode, furnaceTierIndex);
         if (itemId == null || itemId.isEmpty()) {
             itemId = resolveItemId(blockType, blockId);
@@ -95,6 +100,7 @@ public final class UpgradePersistence {
             return stack;
         }
 
+        // Store detached snapshots so later changes to the live block do not alter the drop.
         EnergyNodeComponent energySnapshot = snapshotEnergy(energyNode);
         if (energySnapshot != null) {
             stack = stack.withMetadata(META_ENERGY, EnergyNodeComponent.CODEC, energySnapshot);
@@ -106,6 +112,7 @@ public final class UpgradePersistence {
         return stack;
     }
 
+    /** Packages supplied node state into the metadata used during a block replacement. */
     public static ItemStack buildUpgradeStack(
             String itemId,
             EnergyNodeComponent energyNode,
@@ -125,6 +132,7 @@ public final class UpgradePersistence {
         return stack;
     }
 
+    /** Schedules a block replacement on the world thread while carrying node metadata forward. */
     public static void queueBlockSwap(
             World world,
             Vector3i pos,
@@ -168,6 +176,7 @@ public final class UpgradePersistence {
                 }
                 return;
             }
+            // Remove old components before installing the new block, then restore its state.
             clearBlockComponents(world, pos);
             int rotationIndex = world.getBlockRotationIndex(pos.getX(), pos.getY(), pos.getZ());
             setBlockWithRotation(accessor, pos.getX(), pos.getY(), pos.getZ(), newBlockId, rotationIndex);
@@ -181,6 +190,7 @@ public final class UpgradePersistence {
         });
     }
 
+    /** Replaces a block while preserving the contents of its item container. */
     public static void queueBlockSwapWithContainer(
             World world,
             Vector3i pos,
@@ -206,6 +216,7 @@ public final class UpgradePersistence {
                 return;
             }
 
+            // Capture contents before clearing components; restore them after the new state exists.
             List<ItemStack> items = snapshotContainerItems(world, pos.getX(), pos.getY(), pos.getZ());
             clearBlockComponents(world, pos);
             int rotationIndex = world.getBlockRotationIndex(pos.getX(), pos.getY(), pos.getZ());
@@ -219,6 +230,7 @@ public final class UpgradePersistence {
         });
     }
 
+    /** Replaces a crafting bench and restores the inventory held by its bench components. */
     public static void queueBlockSwapWithBench(
             World world,
             Vector3i pos,
@@ -244,6 +256,7 @@ public final class UpgradePersistence {
                 return;
             }
 
+            // Bench inventories are separate from ordinary block containers.
             List<ItemStack> items = snapshotBenchItems(world, pos.getX(), pos.getY(), pos.getZ());
             clearBlockComponents(world, pos);
             int rotationIndex = world.getBlockRotationIndex(pos.getX(), pos.getY(), pos.getZ());
@@ -257,10 +270,12 @@ public final class UpgradePersistence {
         });
     }
 
+    /** Schedules a break using inventories captured at execution time. */
     public static void queueBreakAndDrop(World world, Vector3i pos, BlockType expectedType, ItemStack drop) {
         queueBreakAndDrop(world, pos, expectedType, drop, null);
     }
 
+    /** Collects machine and block-container contents before their components disappear. */
     public static List<ItemStack> snapshotBreakDrops(World world, Vector3i pos) {
         if (world == null || pos == null) {
             return List.of();
@@ -277,6 +292,7 @@ public final class UpgradePersistence {
         return drops;
     }
 
+    /** Breaks the expected block on the world thread and spawns its item and contents. */
     public static void queueBreakAndDrop(
             World world,
             Vector3i pos,
@@ -293,6 +309,7 @@ public final class UpgradePersistence {
             if (accessor == null) {
                 return;
             }
+            // Refuse to remove a different nonempty block if the position changed in the meantime.
             BlockType actual = accessor.getBlockType(pos.getX(), pos.getY(), pos.getZ());
             if (expectedType != null && !sameBlockId(actual, expectedType)) {
                 if (actual != null && actual != BlockType.EMPTY) {
@@ -313,6 +330,7 @@ public final class UpgradePersistence {
         });
     }
 
+    /** Retains nonempty inventory stacks temporarily for the matching block-break event. */
     public static void cacheBreakDrops(World world, Vector3i pos, List<ItemStack> drops) {
         if (world == null || pos == null || drops == null || drops.isEmpty()) {
             return;
@@ -335,6 +353,7 @@ public final class UpgradePersistence {
         }
     }
 
+    /** Snapshots both machine containers, clearing stale cached drops when they are empty. */
     public static void cacheBreakDropsFromContainers(
             World world,
             Vector3i pos,
@@ -353,6 +372,7 @@ public final class UpgradePersistence {
         cacheBreakDrops(world, pos, stacks);
     }
 
+    /** Discards any cached inventory drops for this location. */
     public static void clearBreakDrops(World world, Vector3i pos) {
         if (world == null || pos == null) {
             return;
@@ -369,6 +389,7 @@ public final class UpgradePersistence {
         }
     }
 
+    /** Removes and returns unexpired cached drops, so the same contents cannot be consumed twice. */
     public static List<ItemStack> consumeBreakDrops(World world, Vector3i pos) {
         if (world == null || pos == null) {
             return null;
@@ -391,6 +412,7 @@ public final class UpgradePersistence {
         }
     }
 
+    /** Records metadata from an item until the corresponding block components can be restored. */
     public static void storePending(World world, Vector3i pos, String blockId, ItemStack stack) {
         if (world == null || pos == null || stack == null) {
             return;
@@ -407,6 +429,7 @@ public final class UpgradePersistence {
         }
     }
 
+    /** Applies unexpired energy metadata only after the expected block appears at this position. */
     public static boolean applyEnergyUpgrade(
             World world,
             int x,
@@ -428,6 +451,7 @@ public final class UpgradePersistence {
             return false;
         }
 
+        // Consume each component independently; another component may still need restoration.
         if (applyEnergy(node, pending.energy)) {
             pending.energy = null;
             if (pending.item == null) {
@@ -438,6 +462,7 @@ public final class UpgradePersistence {
         return false;
     }
 
+    /** Restores the pending item-node settings and consumes that portion of the snapshot. */
     public static boolean applyItemUpgrade(
             World world,
             int x,
@@ -467,6 +492,7 @@ public final class UpgradePersistence {
         return true;
     }
 
+    /** Finds the first world with a loaded position matching the optional expected block type. */
     public static World findWorld(Vector3i pos, BlockType expectedType) {
         if (pos == null) {
             return null;
@@ -495,6 +521,7 @@ public final class UpgradePersistence {
         return null;
     }
 
+    /** Selects block types whose dropped items can carry energy-node settings. */
     private static boolean usesEnergyNode(String blockId) {
         if (blockId == null) {
             return false;
@@ -507,6 +534,7 @@ public final class UpgradePersistence {
                 || isIdOrState(blockId, HyProTechIds.BLOCK_ALLOY_SMELTER);
     }
 
+    /** Uses the block's associated item ID when available, otherwise the block ID itself. */
     private static String resolveItemId(BlockType blockType, String blockId) {
         Item item = blockType == null ? null : blockType.getItem();
         if (item != null && item.getId() != null && !item.getId().isEmpty()) {
@@ -515,6 +543,7 @@ public final class UpgradePersistence {
         return blockId;
     }
 
+    /** Resolves the dropped tier from the component when available, or from the block ID. */
     private static String resolveTieredItemId(
             String blockId,
             EnergyNodeComponent energyNode,
@@ -581,10 +610,12 @@ public final class UpgradePersistence {
         return null;
     }
 
+    /** Reads cable tiers from either a block ID or one of its state IDs. */
     private static int parseCableTierFromBlockId(String blockId, String baseId) {
         return BlockIdUtil.parseCableTierFromIdOrState(blockId, baseId);
     }
 
+    /** Converts the furnace bench's one-based tier to a zero-based item tier. */
     private static int getFurnaceTierIndex(World world, Vector3i pos, String blockId) {
         if (world == null || pos == null) {
             return -1;
@@ -611,6 +642,7 @@ public final class UpgradePersistence {
         return Math.max(0, tier - 1);
     }
 
+    /** Looks up the energy component through the block's local index in its chunk column. */
     private static EnergyNodeComponent getEnergyNode(World world, Vector3i pos) {
         ChunkStore chunkStore = world.getChunkStore();
         if (chunkStore == null) {
@@ -628,6 +660,7 @@ public final class UpgradePersistence {
         return blockComponents.getComponent(blockIndex, HyProTechComponents.ENERGY);
     }
 
+    /** Looks up the item-network component at the block's local chunk index. */
     private static ItemNodeComponent getItemNode(World world, Vector3i pos) {
         ChunkStore chunkStore = world.getChunkStore();
         if (chunkStore == null) {
@@ -645,6 +678,7 @@ public final class UpgradePersistence {
         return blockComponents.getComponent(blockIndex, HyProTechComponents.ITEM);
     }
 
+    /** Captures the settings that belong on a dropped block for its particular node type. */
     private static EnergyNodeComponent snapshotEnergy(EnergyNodeComponent node) {
         if (node == null) {
             return null;
@@ -676,10 +710,12 @@ public final class UpgradePersistence {
         return snapshot;
     }
 
+    /** Copies serializable item-network settings without retaining the live component. */
     private static ItemNodeComponent snapshotItem(ItemNodeComponent node) {
         return node == null ? null : (ItemNodeComponent) node.cloneSerializable();
     }
 
+    /** Restores a full upgrade snapshot or the smaller type-specific drop snapshot. */
     private static boolean applyEnergy(EnergyNodeComponent target, EnergyNodeComponent snapshot) {
         if (target == null || snapshot == null) {
             return false;
@@ -712,10 +748,12 @@ public final class UpgradePersistence {
         }
     }
 
+    /** Distinguishes snapshots carrying runtime energy fields from settings-only snapshots. */
     private static boolean hasFullSnapshot(EnergyNodeComponent snapshot) {
         return snapshot.getCapacity() > 0 || snapshot.getMaxTransfer() > 0 || snapshot.getEnergy() > 0;
     }
 
+    /** Copies energy, machine progress and configuration into the replacement component. */
     private static void applyFullSnapshot(EnergyNodeComponent target, EnergyNodeComponent snapshot) {
         target.setEnergy(snapshot.getEnergy());
         target.setCapacity(snapshot.getCapacity());
@@ -734,6 +772,7 @@ public final class UpgradePersistence {
         target.setEnabled(snapshot.isEnabled());
     }
 
+    /** Spawns a single item entity at the center of the broken block. */
     private static void spawnDrop(World world, ItemStack stack, Vector3i pos) {
         Store<EntityStore> store = world.getEntityStore().getStore();
         Vector3d position = new Vector3d(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
@@ -746,6 +785,7 @@ public final class UpgradePersistence {
         store.addEntities(holders, AddReason.SPAWN);
     }
 
+    /** Filters empty stacks and spawns the remaining inventory contents at the block position. */
     public static void spawnDropsAt(World world, List<ItemStack> stacks, Vector3i pos) {
         if (world == null || pos == null || stacks == null || stacks.isEmpty()) {
             return;
@@ -771,6 +811,7 @@ public final class UpgradePersistence {
         store.addEntities(holders, AddReason.SPAWN);
     }
 
+    /** Returns the available machine-container snapshot, or an empty list if absent. */
     private static List<ItemStack> snapshotMachineItems(World world, Vector3i pos) {
         if (world == null || pos == null) {
             return List.of();
@@ -779,10 +820,12 @@ public final class UpgradePersistence {
         return fallback == null ? List.of() : fallback;
     }
 
+    /** Reads the machine's current block-container state. */
     private static List<ItemStack> snapshotMachineContainerState(World world, int x, int y, int z) {
         return snapshotContainerItems(world, x, y, z);
     }
 
+    /** Copies nonempty stacks, including their metadata, into a drop list. */
     private static void collectContainerStacks(ItemContainer container, List<ItemStack> out) {
         if (container == null || out == null) {
             return;
@@ -797,6 +840,7 @@ public final class UpgradePersistence {
         }
     }
 
+    /** Emits persistence diagnostics only when the local debug flag is enabled. */
     private static void logPersistence(String message) {
         if (!DEBUG_PERSISTENCE) {
             return;
@@ -804,6 +848,7 @@ public final class UpgradePersistence {
         System.out.println("[HyProTech] PERSIST " + message);
     }
 
+    /** Treats a missing container or one containing only empty stacks as empty. */
     private static boolean isContainerEmpty(ItemContainer container) {
         if (container == null) {
             return true;
@@ -818,6 +863,7 @@ public final class UpgradePersistence {
         return true;
     }
 
+    /** Clears an existing container. */
     private static void clearContainer(ItemContainer container) {
         if (container == null) {
             return;
@@ -825,6 +871,7 @@ public final class UpgradePersistence {
         container.clear();
     }
 
+    /** Copies occupied slots shared by both container capacities. */
     private static void copyContainer(ItemContainer source, ItemContainer target) {
         if (source == null || target == null) {
             return;
@@ -840,6 +887,7 @@ public final class UpgradePersistence {
         }
     }
 
+    /** Resolves a block asset and installs it with the previous block's rotation. */
     private static void setBlockWithRotation(
             BlockAccessor accessor,
             int x,
@@ -861,6 +909,7 @@ public final class UpgradePersistence {
         accessor.setBlock(x, y, z, blockIndex, blockType, rotationIndex, 0, 0);
     }
 
+    /** Reads the pending entry for a world and block position under the map lock. */
     private static PendingUpgrade getPending(World world, int x, int y, int z) {
         synchronized (PENDING) {
             Map<Vector3i, PendingUpgrade> byPos = PENDING.get(world);
@@ -871,6 +920,7 @@ public final class UpgradePersistence {
         }
     }
 
+    /** Removes a pending entry and its world map when no entries remain. */
     private static void removePending(World world, int x, int y, int z) {
         synchronized (PENDING) {
             Map<Vector3i, PendingUpgrade> byPos = PENDING.get(world);
@@ -884,15 +934,18 @@ public final class UpgradePersistence {
         }
     }
 
+    /** Limits how long placement metadata can be reused after it was queued. */
     private static boolean isExpired(World world, PendingUpgrade pending) {
         long tick = world.getTick();
         return tick - pending.createdTick > PENDING_TTL_TICKS;
     }
 
+    /** Retains the initialization hook; the server now initializes block state automatically. */
     private static void ensureBlockState(World world, int x, int y, int z) {
         // no-op: block state initialization is automatic in the new server API
     }
 
+    /** Detaches the old entity reference or holder before replacing the block. */
     private static void clearBlockComponents(World world, Vector3i pos) {
         if (world == null || pos == null) {
             return;
@@ -919,6 +972,7 @@ public final class UpgradePersistence {
         }
     }
 
+    /** Cleans invalid component references in the chunk containing this position. */
     public static void cleanupInvalidChunkReferences(World world, Vector3i pos) {
         if (world == null || pos == null) {
             return;
@@ -927,6 +981,7 @@ public final class UpgradePersistence {
         cleanupInvalidChunkReferences(world, chunkIndex);
     }
 
+    /** Collects invalid references before removing them, avoiding mutation during iteration. */
     public static void cleanupInvalidChunkReferences(World world, long chunkIndex) {
         if (world == null) {
             return;
@@ -972,6 +1027,7 @@ public final class UpgradePersistence {
         }
     }
 
+    /** Installs pending components into an existing entity or a newly created chunk holder. */
     private static void applyPendingComponents(World world, Vector3i pos) {
         if (world == null || pos == null) {
             return;
@@ -998,6 +1054,7 @@ public final class UpgradePersistence {
             blockComponents.removeEntityReference(blockIndex, ref);
             ref = null;
         }
+        // A chunk may hold either a live entity reference or a serialized holder.
         Holder<ChunkStore> holder = ref == null ? blockComponents.getEntityHolder(blockIndex) : null;
         boolean holderFromChunk = holder != null;
         if (ref == null && holder == null) {
@@ -1028,6 +1085,7 @@ public final class UpgradePersistence {
             pending.item = null;
             changed = true;
         }
+        // Promote the holder to a live entity when a store is available; otherwise retain it.
         if (ref == null && changed && holder != null) {
             Store<ChunkStore> store = world.getChunkStore().getStore();
             if (store != null) {
@@ -1051,6 +1109,7 @@ public final class UpgradePersistence {
         }
     }
 
+    /** Checks the loaded block against the expected ID, accepting its state variants. */
     private static boolean blockIdMatches(World world, int x, int y, int z, String expectedId) {
         if (expectedId == null) {
             return true;
@@ -1067,6 +1126,7 @@ public final class UpgradePersistence {
         return isIdOrState(actual.getId(), expectedId);
     }
 
+    /** Compares block types by ID, including state variants. */
     private static boolean sameBlockId(BlockType actual, BlockType expected) {
         if (actual == null || expected == null) {
             return false;
@@ -1079,15 +1139,18 @@ public final class UpgradePersistence {
         return actualId.equalsIgnoreCase(expectedId) || isIdOrState(actualId, expectedId);
     }
 
+    /** Delegates the common base-ID and state-ID comparison. */
     private static boolean isIdOrState(String blockId, String baseId) {
         return BlockIdUtil.isIdOrState(blockId, baseId);
     }
 
+    /** Identifies energy or item cables for optional upgrade diagnostics. */
     private static boolean isCableUpgradeId(String blockId) {
         return isIdOrState(blockId, HyProTechIds.BLOCK_ENERGY_CABLE)
                 || isIdOrState(blockId, HyProTechIds.BLOCK_ITEM_CABLE);
     }
 
+    /** Avoids replacing a cable when its current and requested tiers already match. */
     private static boolean isCableTierMatch(String currentId, String newBlockId) {
         if (currentId == null || newBlockId == null) {
             return false;
@@ -1109,6 +1172,7 @@ public final class UpgradePersistence {
         return currentTier >= 0 && currentTier == desiredTier;
     }
 
+    /** Uses the base ID for tier zero and the energy-cable suffix for higher tiers. */
     private static String buildEnergyCableTieredId(int tier) {
         if (tier <= 0) {
             return HyProTechIds.BLOCK_ENERGY_CABLE;
@@ -1116,6 +1180,7 @@ public final class UpgradePersistence {
         return HyProTechIds.BLOCK_ENERGY_CABLE + "_S" + tier;
     }
 
+    /** Retrieves a container component only when the corresponding chunk is loaded. */
     private static ItemContainerBlock getItemContainerState(World world, int x, int y, int z) {
         if (world == null) {
             return null;
@@ -1134,6 +1199,7 @@ public final class UpgradePersistence {
                 z);
     }
 
+    /** Returns the existing container component; initialization is handled by the server. */
     private static ItemContainerBlock getOrCreateItemContainerState(World world, int x, int y, int z) {
         if (world == null) {
             return null;
@@ -1141,6 +1207,7 @@ public final class UpgradePersistence {
         return getItemContainerState(world, x, y, z);
     }
 
+    /** Retrieves a processing-bench component from a loaded chunk. */
     private static ProcessingBenchBlock getProcessingBenchState(World world, int x, int y, int z) {
         if (world == null) {
             return null;
@@ -1159,6 +1226,7 @@ public final class UpgradePersistence {
                 z);
     }
 
+    /** Returns the server-initialized processing bench if it is available. */
     private static ProcessingBenchBlock getOrCreateProcessingBenchState(World world, int x, int y, int z) {
         if (world == null) {
             return null;
@@ -1166,6 +1234,7 @@ public final class UpgradePersistence {
         return getProcessingBenchState(world, x, y, z);
     }
 
+    /** Copies container slots, retaining null placeholders so occupied slot indexes survive. */
     private static List<ItemStack> snapshotContainerItems(World world, int x, int y, int z) {
         ItemContainerBlock state = getItemContainerState(world, x, y, z);
         ItemContainer container = state == null ? null : state.getItemContainer();
@@ -1186,6 +1255,7 @@ public final class UpgradePersistence {
         return items;
     }
 
+    /** Restores saved container slots up to the new container's capacity. */
     private static void restoreContainerItems(World world, int x, int y, int z, List<ItemStack> items) {
         if (items == null || items.isEmpty()) {
             return;
@@ -1206,6 +1276,7 @@ public final class UpgradePersistence {
         }
     }
 
+    /** Copies processing-bench slots and preserves their positions. */
     private static List<ItemStack> snapshotBenchItems(World world, int x, int y, int z) {
         ProcessingBenchBlock state = getProcessingBenchState(world, x, y, z);
         ItemContainer container = state == null ? null : state.getItemContainer();
@@ -1225,6 +1296,7 @@ public final class UpgradePersistence {
         return items;
     }
 
+    /** Restores saved bench slots up to the replacement bench's capacity. */
     private static void restoreBenchItems(World world, int x, int y, int z, List<ItemStack> items) {
         if (items == null || items.isEmpty()) {
             return;
@@ -1245,6 +1317,7 @@ public final class UpgradePersistence {
         }
     }
 
+    /** Metadata awaiting component initialization, keyed externally by world and position. */
     private static final class PendingUpgrade {
         private final String blockId;
         private final long createdTick;
@@ -1263,6 +1336,7 @@ public final class UpgradePersistence {
         }
     }
 
+    /** Inventory drops retained until consumed or expired. */
     private static final class PendingDrops {
         private final long createdTick;
         private final List<ItemStack> drops;
@@ -1273,6 +1347,7 @@ public final class UpgradePersistence {
         }
     }
 
+    /** Replaces the original slot when possible, falling back to general container insertion. */
     private static void placeStackIntoSlot(ItemContainer container, short slot, ItemStack stack) {
         if (container == null || stack == null || ItemStack.isEmpty(stack)) {
             return;
@@ -1291,6 +1366,7 @@ public final class UpgradePersistence {
         container.addItemStackToSlot(slot, stack);
     }
 
+    /** Removes expired upgrade entries at most once per world tick. */
     public static void cleanupExpired(World world) {
         if (world == null) {
             return;
@@ -1313,6 +1389,7 @@ public final class UpgradePersistence {
         }
     }
 
+    /** Prunes expired cached drops at most once per tick while the caller holds the drop lock. */
     private static void cleanupDropCache(World world, long tick) {
         if (world == null) {
             return;

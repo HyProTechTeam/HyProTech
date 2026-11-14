@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
+/** Displays and upgrades an entire connected energy or item cable network. */
 public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent> {
     public enum CableType {
         ENERGY,
@@ -74,6 +75,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
             "#UpgradeReqQty3",
             "#UpgradeReqQty4"
     };
+    // Contributions are held in memory per world, cable type and selected network anchor.
     private static final Map<World, Map<UpgradeKey, UpgradeProgress>> UPGRADE_QUEUE = new WeakHashMap<>();
 
     private final Vector3i targetPos;
@@ -85,6 +87,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         this.cableType = cableType == null ? CableType.ENERGY : cableType;
     }
 
+    /** Loads the layout, binds its upgrade action and displays the current network. */
     @Override
     public void build(
             Ref<EntityStore> playerRef,
@@ -101,6 +104,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         refresh(uiCommandBuilder, world, inventory);
     }
 
+    /** Routes an upgrade request to the energy or item network handler. */
     @Override
     public void handleDataEvent(Ref<EntityStore> playerRef, Store<EntityStore> store, CableUpgradeEvent data) {
         if (data == null || data.getAction() == null) {
@@ -122,6 +126,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         }
     }
 
+    /** Collects energy cables and accepts contributions until the lowest tier can be upgraded. */
     private void handleEnergyUpgrade(
             Ref<EntityStore> playerRef,
             Store<EntityStore> store,
@@ -143,6 +148,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
             return;
         }
 
+        // Charge for cables at the lowest tier; higher-tier cables are already ahead.
         int upgradeCount = snapshot.minTierCount > 0 ? snapshot.minTierCount : snapshot.cableCount;
         CableUpgradeConfig.Requirement[] requirements =
                 CableUpgradeConfig.getUpgradeRequirements(currentTier, upgradeCount);
@@ -184,6 +190,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         refreshAndSend(store, world);
     }
 
+    /** Collects item cables and accepts contributions until the lowest tier can be upgraded. */
     private void handleItemUpgrade(
             Ref<EntityStore> playerRef,
             Store<EntityStore> store,
@@ -246,6 +253,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         refreshAndSend(store, world);
     }
 
+    /** Rebuilds the network display after a contribution or completed upgrade. */
     private void refreshAndSend(Store<EntityStore> store, World world) {
         UICommandBuilder update = new UICommandBuilder();
         ItemContainer inventory = getPlayerInventory(store);
@@ -253,6 +261,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         sendUpdate(update);
     }
 
+    /** Chooses the appropriate network snapshot and fills its statistics and upgrade panel. */
     private void refresh(UICommandBuilder update, World world, ItemContainer inventory) {
         if (world == null || targetPos == null) {
             showNoNetwork(update);
@@ -288,6 +297,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         }
     }
 
+    /** Clears network details and requirement rows when no network is found. */
     private void showNoNetwork(UICommandBuilder update) {
         update.set("#CableNetworkType.Text", "Cable Network");
         update.set("#CableNetworkSize.Text", "Cables: 0");
@@ -306,6 +316,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         }
     }
 
+    /** Shows the tier range, next-tier statistics and paid or available upgrade materials. */
     private void updateUpgradePanel(
             UICommandBuilder update,
             int minTier,
@@ -377,6 +388,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         }
     }
 
+    /** Raises lower-tier energy cables, updates their limits and queues their block swaps. */
     private void completeEnergyUpgrade(World world, EnergyNetworkSnapshot snapshot, int currentTier) {
         if (world == null || snapshot == null) {
             return;
@@ -396,6 +408,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         }
     }
 
+    /** Raises lower-tier item cables, updates their limits and queues their block swaps. */
     private void completeItemUpgrade(World world, ItemNetworkSnapshot snapshot, int currentTier) {
         if (world == null || snapshot == null) {
             return;
@@ -415,6 +428,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         }
     }
 
+    /** Checks whether contributions cover every positive requirement. */
     private boolean isUpgradeComplete(
             CableUpgradeConfig.Requirement[] requirements,
             UpgradeProgress progress) {
@@ -439,6 +453,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         return true;
     }
 
+    /** Uses the base energy-cable ID for tier zero and the S suffix for higher tiers. */
     private static String buildEnergyCableTieredId(int tier) {
         if (tier <= 0) {
             return HyProTechIds.BLOCK_ENERGY_CABLE;
@@ -446,6 +461,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         return HyProTechIds.BLOCK_ENERGY_CABLE + "_S" + tier;
     }
 
+    /** Removes available required items and credits only successful inventory transactions. */
     private int depositUpgradeItems(
             ItemContainer inventory,
             CableUpgradeConfig.Requirement[] requirements,
@@ -485,6 +501,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         return totalTaken;
     }
 
+    /** Formats contributed and required quantities for each upgrade material. */
     private String buildProgressMessage(
             CableUpgradeConfig.Requirement[] requirements,
             UpgradeProgress progress) {
@@ -516,6 +533,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         return text.toString();
     }
 
+    /** Looks up or creates contribution progress, resetting it when the network tier changes. */
     private static UpgradeProgress getUpgradeProgress(
             World world,
             CableType type,
@@ -551,6 +569,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         }
     }
 
+    /** Removes the contribution record after its upgrade completes. */
     private static void clearUpgradeProgress(World world, CableType type, Vector3i anchor) {
         if (world == null || type == null || anchor == null) {
             return;
@@ -568,6 +587,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         }
     }
 
+    /** Chooses the lexicographically smallest cable position as a stable network key. */
     private static Vector3i selectAnchor(Vector3i current, Vector3i candidate) {
         if (candidate == null) {
             return current;
@@ -593,6 +613,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         return current;
     }
 
+    /** Formats the network's total stored energy, capacity and limiting transfer rate. */
     private String buildEnergyStats(EnergyNetworkSnapshot snapshot) {
         if (snapshot == null) {
             return "";
@@ -601,6 +622,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
                 + " | Max: " + snapshot.maxTransfer + " J/s";
     }
 
+    /** Formats the item network's limiting transfer rate. */
     private String buildItemStats(ItemNetworkSnapshot snapshot) {
         if (snapshot == null) {
             return "";
@@ -608,6 +630,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         return "Max Transfer: " + snapshot.maxTransfer + " items/s";
     }
 
+    /** Describes the next energy or item cable tier, or reports the maximum tier. */
     private String buildUpgradeStatsText(int tier, boolean hasNextTier, boolean energyCable) {
         if (!hasNextTier) {
             return "Max tier reached.";
@@ -622,6 +645,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         return "Next max transfer: " + maxTransfer + " items/s";
     }
 
+    /** Traverses connected same-color energy cables using their enabled side connections. */
     private EnergyNetworkSnapshot collectEnergyNetwork(World world) {
         if (world == null || HyProTechComponents.ENERGY == null) {
             return null;
@@ -699,6 +723,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         return snapshot.cableCount > 0 ? snapshot : null;
     }
 
+    /** Traverses adjacent item cable components to build the upgrade snapshot. */
     private ItemNetworkSnapshot collectItemNetwork(World world) {
         if (world == null || HyProTechComponents.ITEM == null) {
             return null;
@@ -762,10 +787,12 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         return snapshot.cableCount > 0 ? snapshot : null;
     }
 
+    /** Accepts a cable side that allows either input or output. */
     private boolean canCableConnect(EnergyNodeComponent node, EnergySide side) {
         return node.allowsInput(side) || node.allowsOutput(side);
     }
 
+    /** Marks a chunk-local block index to prevent repeated visits during traversal. */
     private boolean markVisited(Long2ObjectMap<IntOpenHashSet> visited, int x, int y, int z) {
         long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
         int localX = ChunkUtil.localCoordinate((long) x);
@@ -780,6 +807,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         return set.add(blockIndex);
     }
 
+    /** Applies energy cable capacity and transfer limits, clamping stored energy. */
     private void applyEnergyCableTier(EnergyNodeComponent node, int tier) {
         int capacity = CableUpgradeConfig.getEnergyCapacityForTier(tier);
         node.setCapacity(capacity);
@@ -789,10 +817,12 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         node.setMaxTransfer(CableUpgradeConfig.getEnergyMaxTransferForTier(tier));
     }
 
+    /** Applies the item transfer limit for a cable tier. */
     private void applyItemCableTier(ItemNodeComponent node, int tier) {
         node.setMaxTransfer(CableUpgradeConfig.getItemMaxTransferForTier(tier));
     }
 
+    /** Retrieves the player's storage inventory for material contributions. */
     private ItemContainer getPlayerInventory(Store<EntityStore> store) {
         Ref<EntityStore> playerEntityRef = playerRef.getReference();
         if (playerEntityRef == null) {
@@ -806,6 +836,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         return inventory == null ? null : inventory.getStorage();
     }
 
+    /** Totals the matching item quantity across the container's slots. */
     private int countItem(ItemContainer container, String itemId) {
         if (container == null || itemId == null) {
             return 0;
@@ -824,6 +855,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         return total;
     }
 
+    /** Converts an ingredient ID to a readable requirement label. */
     private String formatRequirementName(String itemId) {
         if (itemId == null) {
             return "";
@@ -836,6 +868,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         return name.replace('_', ' ');
     }
 
+    /** Reports upgrade progress or errors to an available player. */
     private void sendPlayerMessage(Ref<EntityStore> playerRef, Store<EntityStore> store, String text) {
         Player player = store.getComponent(playerRef, Player.getComponentType());
         if (player == null) {
@@ -844,11 +877,13 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         player.sendMessage(Message.raw(text));
     }
 
+    /** Retrieves the world associated with the player's entity store. */
     private World getWorld(Store<EntityStore> store) {
         EntityStore entityStore = store.getExternalData();
         return entityStore == null ? null : entityStore.getWorld();
     }
 
+    /** Preserves the current namespace and queues a swap when the target tier differs. */
     private void queueCableUpgrade(
             World world,
             Vector3i pos,
@@ -871,10 +906,12 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         UpgradePersistence.queueBlockSwap(world, pos, resolvedUpgradedId, energyNode, itemNode);
     }
 
+    /** Checks a cable ID and its state variants using the shared ID helper. */
     private boolean isIdOrState(String blockId, String baseId) {
         return BlockIdUtil.isIdOrState(blockId, baseId);
     }
 
+    /** Energy-cable entries and aggregate values captured during traversal. */
     private static final class EnergyNetworkSnapshot {
         private final List<EnergyCableEntry> cables = new ArrayList<>();
         private Vector3i anchor;
@@ -887,6 +924,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         private int minTier = Integer.MAX_VALUE;
         private int maxTier = Integer.MIN_VALUE;
 
+        /** Adds an energy cable and updates totals, tier range, anchor and transfer limit. */
         private void addCable(
                 EnergyNodeComponent node,
                 BlockComponentChunk components,
@@ -909,6 +947,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         }
     }
 
+    /** An energy cable and the chunk data needed to save and replace it. */
     private static final class EnergyCableEntry {
         private final EnergyNodeComponent node;
         private final BlockComponentChunk components;
@@ -927,6 +966,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         }
     }
 
+    /** Item-cable entries and aggregate values captured during traversal. */
     private static final class ItemNetworkSnapshot {
         private final List<ItemCableEntry> cables = new ArrayList<>();
         private Vector3i anchor;
@@ -936,6 +976,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         private int minTier = Integer.MAX_VALUE;
         private int maxTier = Integer.MIN_VALUE;
 
+        /** Adds an item cable and updates its tier range, anchor and transfer limit. */
         private void addCable(
                 ItemNodeComponent node,
                 BlockComponentChunk components,
@@ -956,6 +997,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         }
     }
 
+    /** An item cable and the chunk data needed to save and replace it. */
     private static final class ItemCableEntry {
         private final ItemNodeComponent node;
         private final BlockComponentChunk components;
@@ -974,6 +1016,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         }
     }
 
+    /** Identifies a contribution record by cable type and network anchor. */
     private static final class UpgradeKey {
         private final CableType type;
         private final int x;
@@ -987,6 +1030,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
             this.z = anchor.getZ();
         }
 
+        /** Keys match when cable type and all anchor coordinates match. */
         @Override
         public boolean equals(Object obj) {
             if (this == obj) {
@@ -1002,6 +1046,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
                     && type == other.type;
         }
 
+        /** Combines the cable type and anchor coordinates into a hash. */
         @Override
         public int hashCode() {
             int result = type == null ? 0 : type.hashCode();
@@ -1012,6 +1057,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
         }
     }
 
+    /** Tracks contributed item quantities for one network tier in memory. */
     private static final class UpgradeProgress {
         private int tier;
         private final Map<String, Integer> paid = new HashMap<>();
@@ -1020,6 +1066,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
             this.tier = tier;
         }
 
+        /** Returns the contributed quantity for an item, defaulting to zero. */
         private int getPaid(String itemId) {
             if (itemId == null || itemId.isEmpty()) {
                 return 0;
@@ -1028,6 +1075,7 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
             return value == null ? 0 : value;
         }
 
+        /** Credits a positive contribution for a nonempty item ID. */
         private void addPaid(String itemId, int amount) {
             if (itemId == null || itemId.isEmpty() || amount <= 0) {
                 return;
@@ -1036,11 +1084,13 @@ public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent>
             paid.put(itemId, current + amount);
         }
 
+        /** Starts tracking a new tier and clears contributions from the previous tier. */
         private void reset(int newTier) {
             tier = newTier;
             paid.clear();
         }
 
+        /** Reports whether any material contribution has been recorded. */
         private boolean hasAnyPaid() {
             return !paid.isEmpty();
         }

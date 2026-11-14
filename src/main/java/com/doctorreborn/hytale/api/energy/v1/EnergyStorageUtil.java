@@ -95,19 +95,20 @@ public final class EnergyStorageUtil {
 
         long totalMoved = 0;
 
+        // Keep the whole iteration in one transaction so its successful transfers commit together.
         try (Transaction iterationTransaction = Transaction.openNested(transaction)) {
             for (EnergyStorageView view : from.nonEmptyViews()) {
                 if (!filter.getAsBoolean())
                     continue;
 
-                // check how much can be extracted
+                // Simulate extraction first; the simulation is rolled back on close.
                 long maxExtracted = simulateExtract(view, maxAmount - totalMoved, iterationTransaction);
 
                 try (Transaction transferTransaction = iterationTransaction.openNested()) {
-                    // check how much can be inserted
+                    // Insert only the amount that the source can supply.
                     long accepted = to.insert(maxExtracted, transferTransaction);
 
-                    // extract it, or rollback if the amounts don't match
+                    // Commit this nested transfer only when extraction matches insertion.
                     if (view.extract(accepted, transferTransaction) == accepted) {
                         totalMoved += accepted;
                         transferTransaction.commit();
@@ -279,6 +280,7 @@ public final class EnergyStorageUtil {
         long amount = 0;
 
         try {
+            // Prefer already occupied slots before trying every slot for any remaining amount.
             for (SingleSlotEnergyStorage slot : slots) {
                 if (slot.getAmount() > 0) {
                     amount += slot.insert(maxAmount - amount, transaction);

@@ -37,11 +37,13 @@ import com.shailist.hytale.api.transfer.v1.transaction.TransactionContext;
  * infinite amount.
  */
 public final class InfiniteEnergyStorage implements ExtractionOnlyEnergyStorage {
+    /** Returns Long.MAX_VALUE regardless of the requested amount or transaction. */
     @Override
     public long extract(long maxAmount, TransactionContext transaction) {
         return Long.MAX_VALUE;
     }
 
+    /** Exposes no individual storage views. */
     @Override
     public @NonNull Iterator<EnergyStorageView> iterator() {
         return Collections.emptyIterator();

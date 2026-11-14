@@ -36,6 +36,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import java.util.ArrayList;
 import java.util.List;
 
+/** Displays battery status and allows side configuration and tier upgrades. */
 public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
     private static final String ACTION_TOGGLE = "Toggle";
     private static final String ACTION_UPGRADE = "Upgrade";
@@ -88,10 +89,12 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         this.energyType = energyType;
     }
 
+    /** Returns the currently tracked block component reference. */
     public Ref<ChunkStore> getBlockRef() {
         return blockRef;
     }
 
+    /** Loads the battery layout, binds controls and populates the initial state. */
     @Override
     public void build(
             Ref<EntityStore> playerRef,
@@ -110,6 +113,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         updateForWorld(uiCommandBuilder, world, inventory);
     }
 
+    /** Dispatches side toggles and upgrade requests from the page. */
     @Override
     public void handleDataEvent(Ref<EntityStore> playerRef, Store<EntityStore> store, SideToggleEvent data) {
         if (data == null || data.getAction() == null) {
@@ -128,6 +132,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Cycles the selected battery side and persists the updated energy node. */
     private void handleToggle(Store<EntityStore> store, SideToggleEvent data) {
         EnergySide side = EnergySide.fromName(data.getSide());
         if (side == null) {
@@ -150,6 +155,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         update(node);
     }
 
+    /** Checks and removes upgrade materials, applies the new tier and queues the block swap. */
     private boolean handleUpgrade(Ref<EntityStore> playerRef, Store<EntityStore> store) {
         World world = getWorld(store);
         if (world == null) {
@@ -179,6 +185,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
             stacks.add(new ItemStack(requirement.getItemId(), requirement.getQuantity()));
         }
 
+        // Check all required stacks before attempting the inventory transaction.
         if (!stacks.isEmpty() && !inventory.canRemoveItemStacks(stacks)) {
             sendPlayerMessage(playerRef, store, "Missing upgrade materials.");
             return false;
@@ -196,6 +203,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         applyBatteryTier(node, nextTier);
         storeNode(world, node);
 
+        // Preserve the block namespace when constructing the upgraded asset ID.
         Vector3i pos = resolveBlockPosition(world);
         if (pos != null) {
             String upgradedId = TieredIdUtil.buildTieredId(HyProTechIds.BLOCK_BATTERY, nextTier);
@@ -213,10 +221,12 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return true;
     }
 
+    /** Requests a throttled refresh of the battery display. */
     public void update(EnergyNodeComponent node) {
         update(node, false);
     }
 
+    /** Sends changed values, or forces an update immediately after an interaction. */
     private void update(EnergyNodeComponent node, boolean force) {
         if (node == null) {
             return;
@@ -242,6 +252,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         lastUpdateMs = now;
     }
 
+    /** Populates the page from the world or shows placeholders when the battery is unavailable. */
     private boolean updateForWorld(UICommandBuilder update, World world, ItemContainer inventory) {
         if (world == null) {
             showNoNode(update);
@@ -255,6 +266,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return updateForNode(update, node, world, inventory);
     }
 
+    /** Updates cached tier, energy, transfer, requirements and side settings when they change. */
     private boolean updateForNode(
             UICommandBuilder update,
             EnergyNodeComponent node,
@@ -307,6 +319,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return changed;
     }
 
+    /** Renders the next tier and compares each upgrade requirement with the player's inventory. */
     private String updateUpgradePanel(UICommandBuilder update, int tier, ItemContainer inventory) {
         boolean hasNextTier = BatteryUpgradeConfig.hasNextTier(tier);
         String nextText = hasNextTier
@@ -368,6 +381,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return reqKey.toString();
     }
 
+    /** Clears battery-specific values when no corresponding energy node can be found. */
     private void showNoNode(UICommandBuilder update) {
         update.set("#BatteryTier.Text", "Tier: -");
         update.set("#BatteryEnergy.Text", "Energy: -");
@@ -385,6 +399,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Applies tier limits and clamps stored energy to the new capacity. */
     private void applyBatteryTier(EnergyNodeComponent node, int tier) {
         int capacity = BatteryUpgradeConfig.getCapacityForTier(tier);
         node.setCapacity(capacity);
@@ -394,6 +409,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         node.setMaxTransfer(BatteryUpgradeConfig.getMaxTransferForTier(tier));
     }
 
+    /** Binds each directional control to a side-toggle event. */
     private void bindSideButtons(UIEventBuilder uiEventBuilder) {
         for (EnergySide side : EnergySide.VALUES) {
             EventData data = EventData.of("Action", ACTION_TOGGLE).append("Side", side.name());
@@ -401,6 +417,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Shows connected sides and their current input/output mode. */
     private void updateSideButtons(UICommandBuilder update, EnergyNodeComponent node) {
         for (EnergySide side : EnergySide.VALUES) {
             boolean connected = node.isSideConnected(side);
@@ -412,10 +429,12 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Constructs the layout selector for a directional control. */
     private String sideId(EnergySide side) {
         return "#Side" + side.label();
     }
 
+    /** Refreshes a block reference that may have changed during a tier swap. */
     Ref<ChunkStore> resolveBlockRef(World world) {
         if (world == null) {
             return blockRef;
@@ -440,6 +459,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return blockRef;
     }
 
+    /** Reads the node by position first, then falls back to the current component reference. */
     private EnergyNodeComponent resolveNode(World world) {
         if (world == null) {
             return null;
@@ -468,6 +488,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Writes the node to a live reference or holder and marks its chunk for saving. */
     private void storeNode(World world, EnergyNodeComponent node) {
         if (world == null || node == null) {
             return;
@@ -514,6 +535,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Derives the battery tier from its block ID, falling back to the minimum tier. */
     private int resolveTier(World world) {
         if (world == null) {
             return BatteryUpgradeConfig.MIN_TIER;
@@ -534,6 +556,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return BatteryUpgradeConfig.clampTier(tier);
     }
 
+    /** Finds the block reference in loaded chunks and caches its world position. */
     Vector3i resolveBlockPosition(World world) {
         if (world == null) {
             return null;
@@ -570,6 +593,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return null;
     }
 
+    /** Finds the chunk-local block index corresponding to this page's reference. */
     private int findBlockIndex(BlockComponentChunk blockComponents) {
         int targetIndex = blockRef.getIndex();
         if (targetIndex == Integer.MIN_VALUE) {
@@ -585,6 +609,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return Integer.MIN_VALUE;
     }
 
+    /** Retrieves the player's storage inventory for upgrade-material checks. */
     private ItemContainer getPlayerInventory(Store<EntityStore> store) {
         if (store == null) {
             return null;
@@ -601,6 +626,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return inventory == null ? null : inventory.getStorage();
     }
 
+    /** Totals matching item quantities across all storage slots. */
     private int countItem(ItemContainer container, String itemId) {
         if (container == null || itemId == null) {
             return 0;
@@ -619,6 +645,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return total;
     }
 
+    /** Turns common ingredient ID prefixes into readable requirement labels. */
     private String formatRequirementName(String itemId) {
         if (itemId == null) {
             return "";
@@ -643,6 +670,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         return name.replace('_', ' ');
     }
 
+    /** Sends an upgrade result message when the player component is available. */
     private void sendPlayerMessage(Ref<EntityStore> playerRef, Store<EntityStore> store, String text) {
         if (store == null || playerRef == null) {
             return;
@@ -654,6 +682,7 @@ public class BatteryPage extends InteractiveCustomUIPage<SideToggleEvent> {
         player.sendMessage(Message.raw(text));
     }
 
+    /** Retrieves the world associated with the player's entity store. */
     private World getWorld(Store<EntityStore> store) {
         EntityStore entityStore = store == null ? null : store.getExternalData();
         return entityStore == null ? null : entityStore.getWorld();

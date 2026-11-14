@@ -5,7 +5,9 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.simple.IntegerCodec;
 import com.hypixel.hytale.codec.codecs.simple.StringCodec;
 
+/** Carries ore crusher UI actions and item drag or slot data. */
 public class OreCrusherUiEvent {
+    // Map named UI payload fields to their event properties.
     public static final BuilderCodec<OreCrusherUiEvent> CODEC =
             BuilderCodec.<OreCrusherUiEvent>builder(OreCrusherUiEvent.class, OreCrusherUiEvent::new)
                     .addField(new KeyedCodec<>("Action", new StringCodec()),
@@ -67,114 +69,142 @@ public class OreCrusherUiEvent {
     private String sourceInventorySectionId;
     private String target;
 
+    /** Returns the UI action. */
     public String getAction() {
         return action;
     }
 
+    /** Sets the UI action. */
     public void setAction(String action) {
         this.action = action;
     }
 
+    /** Returns the dragged item ID. */
     public String getDragItemStackId() {
         return dragItemStackId;
     }
 
+    /** Sets the dragged item ID. */
     public void setDragItemStackId(String dragItemStackId) {
         this.dragItemStackId = dragItemStackId;
     }
 
+    /** Returns the dragged item quantity. */
     public Integer getDragItemStackQuantity() {
         return dragItemStackQuantity;
     }
 
+    /** Sets the dragged item quantity. */
     public void setDragItemStackQuantity(Integer dragItemStackQuantity) {
         this.dragItemStackQuantity = dragItemStackQuantity;
     }
 
+    /** Returns the dragged stack's source inventory section. */
     public String getDragSourceInventorySectionId() {
         return dragSourceInventorySectionId;
     }
 
+    /** Sets the dragged stack's source inventory section. */
     public void setDragSourceInventorySectionId(String dragSourceInventorySectionId) {
         this.dragSourceInventorySectionId = dragSourceInventorySectionId;
     }
 
+    /** Returns the dragged stack's source grid index. */
     public Integer getDragSourceItemGridIndex() {
         return dragSourceItemGridIndex;
     }
 
+    /** Sets the dragged stack's source grid index. */
     public void setDragSourceItemGridIndex(Integer dragSourceItemGridIndex) {
         this.dragSourceItemGridIndex = dragSourceItemGridIndex;
     }
 
+    /** Returns the dragged stack's source slot ID. */
     public Integer getDragSourceSlotId() {
         return dragSourceSlotId;
     }
 
+    /** Sets the dragged stack's source slot ID. */
     public void setDragSourceSlotId(Integer dragSourceSlotId) {
         this.dragSourceSlotId = dragSourceSlotId;
     }
 
+    /** Returns the slot index. */
     public Integer getSlotIndex() {
         return slotIndex;
     }
 
+    /** Sets the slot index. */
     public void setSlotIndex(Integer slotIndex) {
         this.slotIndex = slotIndex;
     }
 
+    /** Returns the source slot ID. */
     public Integer getSourceSlotId() {
         return sourceSlotId;
     }
 
+    /** Sets the source slot ID. */
     public void setSourceSlotId(Integer sourceSlotId) {
         this.sourceSlotId = sourceSlotId;
     }
 
+    /** Returns the source grid index. */
     public Integer getSourceItemGridIndex() {
         return sourceItemGridIndex;
     }
 
+    /** Sets the source grid index. */
     public void setSourceItemGridIndex(Integer sourceItemGridIndex) {
         this.sourceItemGridIndex = sourceItemGridIndex;
     }
 
+    /** Returns the item stack ID. */
     public String getItemStackId() {
         return itemStackId;
     }
 
+    /** Sets the item stack ID. */
     public void setItemStackId(String itemStackId) {
         this.itemStackId = itemStackId;
     }
 
+    /** Returns the item stack quantity. */
     public Integer getItemStackQuantity() {
         return itemStackQuantity;
     }
 
+    /** Sets the item stack quantity. */
     public void setItemStackQuantity(Integer itemStackQuantity) {
         this.itemStackQuantity = itemStackQuantity;
     }
 
+    /** Returns the pressed mouse button. */
     public Integer getPressedMouseButton() {
         return pressedMouseButton;
     }
 
+    /** Sets the pressed mouse button. */
     public void setPressedMouseButton(Integer pressedMouseButton) {
         this.pressedMouseButton = pressedMouseButton;
     }
 
+    /** Returns the source inventory section. */
     public String getSourceInventorySectionId() {
         return sourceInventorySectionId;
     }
 
+    /** Sets the source inventory section. */
     public void setSourceInventorySectionId(String sourceInventorySectionId) {
         this.sourceInventorySectionId = sourceInventorySectionId;
     }
 
+    /** Returns the event target. */
     public String getTarget() {
         return target;
     }
 
+    /** Sets the event target. */
     public void setTarget(String target) {
         this.target = target;
     }

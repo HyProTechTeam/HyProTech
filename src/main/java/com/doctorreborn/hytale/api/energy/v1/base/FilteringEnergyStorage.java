@@ -97,23 +97,28 @@ public abstract class FilteringEnergyStorage implements EnergyStorage {
             return backingStorage;
         }
 
+        // Preserve restrictions already applied by an existing filtering wrapper.
         if (backingStorage instanceof FilteringEnergyStorage backingFilteringStorage) {
             return new FilteringEnergyStorage(backingFilteringStorage) {
+                /** Requires both this wrapper and the existing wrapper to allow insertion. */
                 @Override
                 protected boolean canInsert(long amount) {
                     return allowInsert && backingFilteringStorage.canInsert(amount);
                 }
 
+                /** Requires both wrappers to allow extraction. */
                 @Override
                 protected boolean canExtract(long amount) {
                     return allowExtract && backingFilteringStorage.canExtract(amount);
                 }
 
+                /** Reports insertion support only if all restrictions and the backing storage permit it. */
                 @Override
                 public boolean supportsInsertion() {
                     return allowInsert && backingFilteringStorage.supportsInsertion() && super.supportsInsertion();
                 }
 
+                /** Reports extraction support only if all restrictions and the backing storage permit it. */
                 @Override
                 public boolean supportsExtraction() {
                     return allowExtract && backingFilteringStorage.supportsExtraction() && super.supportsExtraction();
@@ -121,21 +126,25 @@ public abstract class FilteringEnergyStorage implements EnergyStorage {
             };
         } else {
             return new FilteringEnergyStorage(backingStorage) {
+                /** Uses the requested fixed insertion policy. */
                 @Override
                 protected boolean canInsert(long amount) {
                     return allowInsert;
                 }
 
+                /** Uses the requested fixed extraction policy. */
                 @Override
                 protected boolean canExtract(long amount) {
                     return allowExtract;
                 }
 
+                /** Combines the fixed insertion policy with backing-storage support. */
                 @Override
                 public boolean supportsInsertion() {
                     return allowInsert && super.supportsInsertion();
                 }
 
+                /** Combines the fixed extraction policy with backing-storage support. */
                 @Override
                 public boolean supportsExtraction() {
                     return allowExtract && super.supportsExtraction();
@@ -193,11 +202,13 @@ public abstract class FilteringEnergyStorage implements EnergyStorage {
         return true;
     }
 
+    /** Delegates the insertion capability to the current backing storage. */
     @Override
     public boolean supportsInsertion() {
         return backingStorage.get().supportsInsertion();
     }
 
+    /** Forwards insertion only when the predicate accepts the requested amount. */
     @Override
     public long insert(long maxAmount, @NonNull TransactionContext transaction) {
         if (canInsert(maxAmount)) {
@@ -207,11 +218,13 @@ public abstract class FilteringEnergyStorage implements EnergyStorage {
         }
     }
 
+    /** Delegates the extraction capability to the current backing storage. */
     @Override
     public boolean supportsExtraction() {
         return backingStorage.get().supportsExtraction();
     }
 
+    /** Forwards extraction only when the predicate accepts the requested amount. */
     @Override
     public long extract(long maxAmount, @NonNull TransactionContext transaction) {
         if (canExtract(maxAmount)) {
@@ -221,16 +234,19 @@ public abstract class FilteringEnergyStorage implements EnergyStorage {
         }
     }
 
+    /** Wraps each backing view so extraction through it also passes the filter. */
     @Override
     public @NonNull Iterator<EnergyStorageView> iterator() {
         return Iterators.transform(backingStorage.get().iterator(), FilteringEnergyStorageView::new);
     }
 
+    /** Returns the backing storage's version. */
     @Override
     public long getVersion() {
         return backingStorage.get().getVersion();
     }
 
+    /** Displays the backing storage and supplier for diagnostics. */
     @Override
     public String toString() {
         return "FilteringEnergyStorage[" + backingStorage.get() + "/" + backingStorage + "]";
@@ -247,6 +263,7 @@ public abstract class FilteringEnergyStorage implements EnergyStorage {
             this.backingView = backingView;
         }
 
+        /** Applies the outer extraction predicate before forwarding to the backing view. */
         @Override
         public long extract(long maxAmount, @NonNull TransactionContext transaction) {
             if (canExtract(maxAmount)) {
@@ -256,16 +273,19 @@ public abstract class FilteringEnergyStorage implements EnergyStorage {
             }
         }
 
+        /** Returns the backing view's current energy amount. */
         @Override
         public long getAmount() {
             return backingView.getAmount();
         }
 
+        /** Returns the backing view's capacity. */
         @Override
         public long getCapacity() {
             return backingView.getCapacity();
         }
 
+        /** Exposes the underlying view reported by the backing view. */
         @Override
         public EnergyStorageView getUnderlyingView() {
             return backingView.getUnderlyingView();

@@ -71,6 +71,7 @@ public interface EnergyStorageView {
      * @return The underlying {@link EnergyStorageView} or {@code this} if none.
      */
     default EnergyStorageView getUnderlyingView() {
+        // An unwrapped view is its own underlying identity.
         return this;
     }
 }

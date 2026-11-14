@@ -2,6 +2,7 @@ $C = "Common.ui";
 @ReqSlotSize = 32;
 @StorageSlotSize = 32;
 
+// Quarry page combines storage, machine controls, area setup, and upgrade details.
 $C.@PageOverlay {
   $C.@DecoratedContainer {
     Anchor: (Width: 1200, Height: 520);
@@ -31,6 +32,7 @@ $C.@PageOverlay {
           Text: "Storage";
         }
 
+        // Storage count and the slot/quantity grid below are populated by the page.
         Label #QuarryStorageSlots {
           Style: (
             FontSize: 13,
@@ -294,6 +296,7 @@ $C.@PageOverlay {
 
         Group { Anchor: (Height: 8); }
 
+        // Action for taking stored quarry items.
         $C.@TextButton #TakeItemsButton {
           Anchor: (Left: 0, Right: 0, Height: 30);
           Text: "Take Items";
@@ -307,6 +310,7 @@ $C.@PageOverlay {
         LayoutMode: Top;
         Padding: (Top: 8, Left: 4, Right: 4);
 
+        // Tier, energy, consumption, and status readouts.
         Label #QuarryTier {
           Style: (
             FontSize: 16,
@@ -349,12 +353,14 @@ $C.@PageOverlay {
           LayoutMode: Left;
           Padding: (Top: 4);
 
+          // Enables or disables mining; the page updates this button's label with current state.
           $C.@SmallSecondaryTextButton #QuarryToggleButton {
             Anchor: (Width: 120, Height: 26);
             Text: "TURN OFF";
           }
         }
 
+        // Backfill status reflects both the machine setting and any server-side forced setting.
         Label #QuarryReplaceStatus {
           Style: (
             FontSize: 13,
@@ -368,6 +374,7 @@ $C.@PageOverlay {
           LayoutMode: Left;
           Padding: (Top: 4);
 
+          // This toggle is hidden when the server configuration locks backfill on.
           $C.@SmallSecondaryTextButton #QuarryReplaceToggleButton {
             Anchor: (Width: 160, Height: 26);
             Text: "BACKFILL ON";
@@ -376,6 +383,7 @@ $C.@PageOverlay {
 
         Group { Anchor: (Height: 6); }
 
+        // Area size and torch-bound status readouts.
         Label #QuarryArea {
           Style: (
             FontSize: 14,
@@ -385,6 +393,7 @@ $C.@PageOverlay {
           Text: "Area: 5 x 5";
         }
 
+        // Shows detected border-torch bounds or a message when none are found.
         Label #QuarryTorchDebug {
           Style: (
             FontSize: 12,
@@ -397,6 +406,7 @@ $C.@PageOverlay {
 
         Group { Anchor: (Height: 6); }
 
+        // Requests two border torches for defining the quarry area.
         $C.@TextButton #GiveTorchButton {
           Anchor: (Left: 0, Right: 0, Height: 30);
           Text: "Give Border Torch";
@@ -410,6 +420,7 @@ $C.@PageOverlay {
         LayoutMode: Top;
         Padding: (Top: 8, Left: 4, Right: 8);
 
+        // Next-tier statistics and required material rows.
         Label #QuarryNextTier {
           Style: (
             FontSize: 14,
@@ -444,6 +455,7 @@ $C.@PageOverlay {
           LayoutMode: Top;
           Padding: (Top: 6);
 
+          // Each upgrade row pairs an item slot with its name and required quantity.
           Group #UpgradeReqRow1 {
             LayoutMode: Left;
             Anchor: (Left: 0, Right: 0, Height: 34);
@@ -575,6 +587,7 @@ $C.@PageOverlay {
             }
           }
 
+          // The page shows this placeholder after the highest upgrade tier is reached.
           Label #UpgradeReqEmpty {
             Style: (
               FontSize: 13,
@@ -588,6 +601,7 @@ $C.@PageOverlay {
 
         Group { Anchor: (Height: 8); }
 
+        // Requests an upgrade using the listed materials from the player's inventory.
         $C.@TextButton #UpgradeButton {
           Anchor: (Left: 0, Right: 0, Height: 34);
           Text: "Upgrade";

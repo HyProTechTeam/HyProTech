@@ -38,6 +38,7 @@ import com.doctorreborn.hytale.api.energy.v1.SlottedEnergyStorage;
 import com.doctorreborn.hytale.api.energy.v1.base.SingleSlotEnergyStorage;
 import com.shailist.hytale.api.transfer.v1.transaction.TransactionContext;
 
+/** Internal empty storage and adapters used by the version 1 energy API. */
 public class EnergyApiImpl {
     /** Monotonic version counter used by internal storages. */
     public static final AtomicLong version = new AtomicLong();
@@ -47,36 +48,43 @@ public class EnergyApiImpl {
      * available.
      */
     public static final EnergyStorage EMPTY_STORAGE = new EnergyStorage() {
+        /** Empty storage does not accept energy. */
         @Override
         public boolean supportsInsertion() {
             return false;
         }
 
+        /** Rejects every insertion and reports zero accepted energy. */
         @Override
         public long insert(long maxAmount, @NonNull TransactionContext transaction) {
             return 0;
         }
 
+        /** Empty storage does not provide extractable energy. */
         @Override
         public boolean supportsExtraction() {
             return false;
         }
 
+        /** Returns zero for every extraction request. */
         @Override
         public long extract(long maxAmount, @NonNull TransactionContext transaction) {
             return 0;
         }
 
+        /** Exposes no storage views. */
         @Override
         public @NonNull Iterator<EnergyStorageView> iterator() {
             return Collections.emptyIterator();
         }
 
+        /** The immutable empty storage always reports version zero. */
         @Override
         public long getVersion() {
             return 0;
         }
 
+        /** Identifies the empty storage in diagnostics. */
         @Override
         public String toString() {
             return "EmptyEnergyStorage";
@@ -92,11 +100,13 @@ public class EnergyApiImpl {
      */
     public static List<SingleSlotEnergyStorage> makeListView(SlottedEnergyStorage storage) {
         return new AbstractList<>() {
+            /** Reads the requested slot from the backing slotted storage. */
             @Override
             public SingleSlotEnergyStorage get(int index) {
                 return storage.getSlot(index);
             }
 
+            /** Keeps the list size synchronized with the backing slot count. */
             @Override
             public int size() {
                 return storage.getSlotCount();

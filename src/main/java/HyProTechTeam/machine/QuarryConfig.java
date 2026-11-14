@@ -13,6 +13,7 @@ import com.hypixel.hytale.codec.codecs.simple.StringCodec;
 import java.util.ArrayList;
 import java.util.List;
 
+/** Quarry tier configuration, mining timing, area bounds, and upgrade costs. */
 public final class QuarryConfig {
     public static final int MIN_TIER = 0;
     public static final int MAX_TIER = 5;
@@ -47,6 +48,7 @@ public final class QuarryConfig {
             "Quantum"
     };
 
+    /** One item and quantity required to upgrade the quarry. */
     public static final class Requirement {
         private String itemId;
         private int quantity;
@@ -61,19 +63,23 @@ public final class QuarryConfig {
                                 requirement -> requirement.quantity)
                         .build();
 
+        /** Creates an empty requirement for decoding. */
         public Requirement() {
             this("", 0);
         }
 
+        /** Normalizes the item ID and quantity. */
         public Requirement(String itemId, int quantity) {
             this.itemId = normalizeItemId(itemId);
             this.quantity = normalizeQuantity(quantity);
         }
 
+        /** Returns the required item ID. */
         public String getItemId() {
             return itemId;
         }
 
+        /** Returns the required item count. */
         public int getQuantity() {
             return quantity;
         }
@@ -150,6 +156,7 @@ public final class QuarryConfig {
     private static int backfillPostDelayTicks = DEFAULT_BACKFILL_POST_DELAY_TICKS;
     private static boolean forceReplaceBlocks = DEFAULT_FORCE_REPLACE_BLOCKS;
 
+    /** Codec-backed quarry settings initialized from defaults. */
     public static final class ConfigData {
         public static final BuilderCodec<ConfigData> CODEC =
                 BuilderCodec.builder(ConfigData.class, ConfigData::new)
@@ -259,6 +266,7 @@ public final class QuarryConfig {
     private QuarryConfig() {
     }
 
+    /** Validates dimensions, timing, per-tier values, upgrade costs, and replacement settings. */
     public static void applyConfig(ConfigData data) {
         if (data == null) {
             return;
@@ -291,6 +299,7 @@ public final class QuarryConfig {
         forceReplaceBlocks = data.forceReplaceBlocks;
     }
 
+    /** Restricts a tier to the supported range. */
     public static int clampTier(int tier) {
         if (tier < MIN_TIER) {
             return MIN_TIER;
@@ -301,30 +310,37 @@ public final class QuarryConfig {
         return tier;
     }
 
+    /** Reports whether the clamped tier has an upgrade. */
     public static boolean hasNextTier(int tier) {
         return clampTier(tier) < MAX_TIER;
     }
 
+    /** Returns the configured name for a tier. */
     public static String getTierName(int tier) {
         return tierNames[clampTier(tier)];
     }
 
+    /** Returns energy capacity for a tier. */
     public static int getCapacityForTier(int tier) {
         return capacity[clampTier(tier)];
     }
 
+    /** Returns base energy consumption per second for a tier. */
     public static int getConsumptionPerSecond(int tier) {
         return consumptionPerSecond[clampTier(tier)];
     }
 
+    /** Uses at least one unit or the tier's consumption as the transfer limit. */
     public static int getMaxTransferForTier(int tier) {
         return Math.max(1, getConsumptionPerSecond(tier));
     }
 
+    /** Returns the maximum area dimension for a tier. */
     public static int getMaxAreaForTier(int tier) {
         return maxArea[clampTier(tier)];
     }
 
+    /** Clamps an area dimension between the configured minimum and tier maximum. */
     public static int clampAreaForTier(int tier, int value) {
         int max = getMaxAreaForTier(tier);
         if (value < MIN_AREA) {
@@ -336,6 +352,7 @@ public final class QuarryConfig {
         return value;
     }
 
+    /** Adds a rounded ten-percent step, at least one, per dimension block beyond the base area. */
     public static int computeConsumptionForArea(int tier, int width, int depth) {
         int basePerSecond = getConsumptionPerSecond(tier);
         int stepPerSecond = Math.max(1, (int) Math.round(basePerSecond * 0.1));
@@ -346,11 +363,13 @@ public final class QuarryConfig {
         return totalPerSecond > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) totalPerSecond;
     }
 
+    /** Converts the tier's mining duration from seconds to at least one tick. */
     public static int getMiningDelayTicks(int tier) {
         double seconds = getMiningSecondsForTier(tier);
         return Math.max(1, (int) Math.round(seconds * TICKS_PER_SECOND));
     }
 
+    /** Linearly interpolates mining duration between the basic and maximum tier settings. */
     public static double getMiningSecondsForTier(int tier) {
         int safeTier = clampTier(tier);
         if (MAX_TIER == MIN_TIER) {
@@ -360,14 +379,17 @@ public final class QuarryConfig {
         return basicSpeedSeconds + (quantumSpeedSeconds - basicSpeedSeconds) * ratio;
     }
 
+    /** Returns the delay before placing a backfill block. */
     public static int getBackfillPlaceDelayTicks() {
         return backfillPlaceDelayTicks;
     }
 
+    /** Returns the delay after placing a backfill block. */
     public static int getBackfillPostDelayTicks() {
         return backfillPostDelayTicks;
     }
 
+    /** Returns the next upgrade's cost, or an empty array at the highest tier. */
     public static Requirement[] getUpgradeRequirements(int currentTier) {
         int safeTier = clampTier(currentTier);
         if (safeTier >= MAX_TIER) {
@@ -380,10 +402,12 @@ public final class QuarryConfig {
         return requirements;
     }
 
+    /** Returns whether block replacement is forced by configuration. */
     public static boolean isForceReplaceBlocks() {
         return forceReplaceBlocks;
     }
 
+    /** Raises configured tier maxima below the minimum quarry dimension. */
     private static void clampMaxArea() {
         for (int i = 0; i < maxArea.length; i++) {
             if (maxArea[i] < MIN_AREA) {
@@ -392,6 +416,7 @@ public final class QuarryConfig {
         }
     }
 
+    /** Starts with sanitized defaults, then replaces each supplied tier row. */
     private static Requirement[][] mergeRequirements(Requirement[][] value, Requirement[][] defaults) {
         Requirement[][] result = new Requirement[TIER_COUNT][];
         for (int i = 0; i < TIER_COUNT; i++) {
@@ -410,10 +435,12 @@ public final class QuarryConfig {
         return result;
     }
 
+    /** Creates a sanitized copy of the requirement table and its entries. */
     private static Requirement[][] copyRequirements(Requirement[][] source) {
         return mergeRequirements(source, source);
     }
 
+    /** Removes null entries, blank IDs, and non-positive quantities. */
     private static Requirement[] sanitizeRequirements(Requirement[] requirements) {
         if (requirements == null || requirements.length == 0) {
             return NO_REQUIREMENTS;
@@ -436,6 +463,7 @@ public final class QuarryConfig {
         return cleaned.toArray(new Requirement[0]);
     }
 
+    /** Trims IDs and converts null or whitespace-only values to an empty string. */
     private static String normalizeItemId(String value) {
         if (value == null) {
             return "";
@@ -444,6 +472,7 @@ public final class QuarryConfig {
         return trimmed.isEmpty() ? "" : trimmed;
     }
 
+    /** Treats a missing decoded quantity as zero. */
     private static int normalizeQuantity(Integer value) {
         if (value == null) {
             return 0;
@@ -451,10 +480,12 @@ public final class QuarryConfig {
         return normalizeQuantity(value.intValue());
     }
 
+    /** Clamps quantities to zero or above. */
     private static int normalizeQuantity(int value) {
         return Math.max(0, value);
     }
 
+    /** Uses the fallback for a missing decoded duration. */
     private static double normalizeSpeedSeconds(Double value, double fallback) {
         if (value == null) {
             return fallback;
@@ -462,6 +493,7 @@ public final class QuarryConfig {
         return normalizeSpeedSeconds(value.doubleValue(), fallback);
     }
 
+    /** Uses the fallback for non-finite durations and enforces a 0.01 second minimum. */
     private static double normalizeSpeedSeconds(double value, double fallback) {
         if (!Double.isFinite(value)) {
             return fallback;
@@ -469,6 +501,7 @@ public final class QuarryConfig {
         return Math.max(0.01, value);
     }
 
+    /** Uses the fallback for a missing decoded tick delay. */
     private static int normalizeDelayTicks(Integer value, int fallback) {
         if (value == null) {
             return fallback;
@@ -476,6 +509,7 @@ public final class QuarryConfig {
         return normalizeDelayTicks(value.intValue(), fallback);
     }
 
+    /** Uses the fallback for negative tick delays. */
     private static int normalizeDelayTicks(int value, int fallback) {
         if (value < 0) {
             return fallback;

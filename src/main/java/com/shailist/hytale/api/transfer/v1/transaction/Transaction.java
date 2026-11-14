@@ -46,14 +46,17 @@ public final class Transaction implements TransactionContext, AutoCloseable {
         return transaction;
     }
 
+    /** Opens a child transaction of this current scope. */
     public Transaction openNested() {
         return openNested(this);
     }
 
+    /** Reports whether the current thread has an open transaction. */
     public static boolean isOpen() {
         return CURRENT.get() != null;
     }
 
+    /** Returns the current thread's transaction, or null. */
     public static Transaction current() {
         return CURRENT.get();
     }
@@ -114,18 +117,21 @@ public final class Transaction implements TransactionContext, AutoCloseable {
         }
     }
 
+    /** Notifies tracked participants after the outer transaction commits. */
     private void notifyFinalCommit() {
         for (SnapshotParticipant<?> participant : snapshots.keySet()) {
             participant.onFinalCommitInternal();
         }
     }
 
+    /** Notifies tracked participants after the outer transaction aborts. */
     private void notifyFinalAbort() {
         for (SnapshotParticipant<?> participant : snapshots.keySet()) {
             participant.onFinalAbortInternal();
         }
     }
 
+    /** Rejects operations on a transaction that has already closed. */
     private void ensureOpen() {
         if (closed) {
             throw new IllegalStateException("Transaction is already closed.");

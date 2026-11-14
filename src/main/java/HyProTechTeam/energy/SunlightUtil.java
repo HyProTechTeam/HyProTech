@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
+/** Computes panel sunlight and checks whether a column is unobstructed above it. */
 public final class SunlightUtil {
     private static final double DAY_START_HOUR = 5.0;
     private static final double NIGHT_START_HOUR = 20.0;
@@ -18,6 +19,7 @@ public final class SunlightUtil {
     private SunlightUtil() {
     }
 
+    /** Extends the last positive daylight value with a one-hour fade after it falls to zero. */
     public static double adjustedSunlightFactor(World world, WorldTimeResource timeResource, double baseFactor) {
         if (world == null || timeResource == null) {
             return baseFactor;
@@ -29,6 +31,7 @@ public final class SunlightUtil {
         int dayKey = dayKey(time);
         double hour = hourOfDay(time);
 
+        // Keep the fade state separate for each world and serialize access to the map and state.
         synchronized (TAILS) {
             TailState state = TAILS.get(world);
             if (state == null) {
@@ -41,12 +44,14 @@ public final class SunlightUtil {
                 state.sunsetStartHour = Double.NaN;
             }
 
+            // Outside the configured day interval, reset the previous sunlight and return zero.
             if (hour < DAY_START_HOUR || hour >= NIGHT_START_HOUR) {
                 state.lastNonZeroFactor = 0.0;
                 state.sunsetStartHour = Double.NaN;
                 return 0.0;
             }
 
+            // Remember the latest daylight value so the fade begins from that value.
             if (baseFactor > 0.0) {
                 state.lastNonZeroFactor = baseFactor;
                 state.sunsetStartHour = Double.NaN;
@@ -62,12 +67,14 @@ public final class SunlightUtil {
                 return 0.0;
             }
 
+            // Linearly reduce the remembered value until the extension ends.
             double t = (end - hour) / (end - state.sunsetStartHour);
             double tail = state.lastNonZeroFactor * clamp01(t);
             return Math.max(baseFactor, tail);
         }
     }
 
+    /** Requires every block above the position to be empty in an already-loaded chunk. */
     public static boolean hasSkyAccess(World world, int worldX, int worldY, int worldZ) {
         if (world == null) {
             return false;
@@ -96,16 +103,19 @@ public final class SunlightUtil {
         return true;
     }
 
+    /** Combines year and day-of-year to detect when fade state must reset. */
     private static int dayKey(LocalDateTime time) {
         return time.getYear() * 1000 + time.getDayOfYear();
     }
 
+    /** Converts game time to fractional hours for the fade calculation. */
     private static double hourOfDay(LocalDateTime time) {
         return time.getHour()
                 + (time.getMinute() / 60.0)
                 + (time.getSecond() / 3600.0);
     }
 
+    /** Limits the interpolation factor to the inclusive range zero to one. */
     private static double clamp01(double value) {
         if (value < 0.0) {
             return 0.0;
@@ -116,6 +126,7 @@ public final class SunlightUtil {
         return value;
     }
 
+    /** Stores the most recent daylight and fade start for one world. */
     private static final class TailState {
         private int dayKey = Integer.MIN_VALUE;
         private double lastNonZeroFactor;

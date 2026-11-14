@@ -4,7 +4,9 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.simple.StringCodec;
 
+/** Carries a UI action, side, index, search query, and value. */
 public class SideToggleEvent {
+    // Decode the UI event fields from their named string values.
     public static final BuilderCodec<SideToggleEvent> CODEC =
             BuilderCodec.<SideToggleEvent>builder(SideToggleEvent.class, SideToggleEvent::new)
                     .addField(new KeyedCodec<>("Action", new StringCodec()),
@@ -30,22 +32,27 @@ public class SideToggleEvent {
     private String searchQuery;
     private String value;
 
+    /** Returns the decoded action. */
     public String getAction() {
         return action;
     }
 
+    /** Returns the decoded side. */
     public String getSide() {
         return side;
     }
 
+    /** Returns the decoded index. */
     public String getIndex() {
         return index;
     }
 
+    /** Returns the decoded search query. */
     public String getSearchQuery() {
         return searchQuery;
     }
 
+    /** Returns the decoded value. */
     public String getValue() {
         return value;
     }

@@ -10,6 +10,7 @@ package com.doctorreborn.hytale.api.energy.v2;
  * arguments are invalid.
  */
 public final class EnergyPreconditions {
+    /** Throws an IllegalArgumentException when the supplied amount is negative. */
     public static void notNegative(long amount) {
         if (amount < 0) {
             throw new IllegalArgumentException("Amount must be non-negative");

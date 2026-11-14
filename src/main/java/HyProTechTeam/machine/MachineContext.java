@@ -38,30 +38,37 @@ public final class MachineContext {
         this.energy = energy;
     }
 
+    /** Returns the world containing the machine. */
     public World getWorld() {
         return world;
     }
 
+    /** Returns the associated chunk store. */
     public ChunkStore getChunkStore() {
         return chunkStore;
     }
 
+    /** Returns the machine's world X coordinate. */
     public int getX() {
         return x;
     }
 
+    /** Returns the machine's world Y coordinate. */
     public int getY() {
         return y;
     }
 
+    /** Returns the machine's world Z coordinate. */
     public int getZ() {
         return z;
     }
 
+    /** Returns the machine state component. */
     public MachineComponent getMachine() {
         return machine;
     }
 
+    /** Returns the machine's energy node component. */
     public EnergyNodeComponent getEnergyNode() {
         return energy;
     }
@@ -84,6 +91,7 @@ public final class MachineContext {
         dirty = true;
     }
 
+    /** Reports whether the context has been marked for persistence. */
     public boolean isDirty() {
         return dirty;
     }

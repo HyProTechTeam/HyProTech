@@ -32,11 +32,14 @@ import com.shailist.hytale.api.transfer.v1.storage.Storage;
 import com.shailist.hytale.api.transfer.v1.storage.base.FilteringStorage;
 import com.shailist.hytale.api.transfer.v1.transaction.TransactionContext;
 
+/** Energy-specific wrapper that forwards transfers permitted by its filter predicates. */
 public class FilteringEnergyStorage extends FilteringStorage<Energy> {
+    /** Wraps a fixed backing storage. */
     public FilteringEnergyStorage(Storage<Energy> backingStorage) {
         super(backingStorage);
     }
 
+    /** Uses a supplier to resolve the backing storage. */
     public FilteringEnergyStorage(Supplier<Storage<Energy>> backingStorage) {
         super(backingStorage);
     }
@@ -67,6 +70,7 @@ public class FilteringEnergyStorage extends FilteringStorage<Energy> {
         return true;
     }
 
+    /** Forwards allowed insertions and returns zero when the filter rejects them. */
     @Override
     public long insert(Energy resource, long maxAmount, @NonNull TransactionContext transaction) {
         if (canInsert(resource, maxAmount)) {
@@ -76,10 +80,12 @@ public class FilteringEnergyStorage extends FilteringStorage<Energy> {
         }
     }
 
+    /** Inserts the singleton energy resource. */
     public long insert(long maxAmount, @NonNull TransactionContext transaction) {
         return insert(Energy.INSTANCE, maxAmount, transaction);
     }
 
+    /** Forwards allowed extractions and returns zero when the filter rejects them. */
     @Override
     public long extract(Energy resource, long maxAmount, @NonNull TransactionContext transaction) {
         if (canExtract(resource, maxAmount)) {
@@ -89,10 +95,12 @@ public class FilteringEnergyStorage extends FilteringStorage<Energy> {
         }
     }
 
+    /** Extracts the singleton energy resource. */
     public long extract(long maxAmount, @NonNull TransactionContext transaction) {
         return extract(Energy.INSTANCE, maxAmount, transaction);
     }
 
+    /** Displays the resolved storage and supplier for diagnostics. */
     @Override
     public String toString() {
         return "FilteringEnergyStorage[" + backingStorage.get() + "/" + backingStorage + "]";

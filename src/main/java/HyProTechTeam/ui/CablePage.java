@@ -25,6 +25,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 
+/** Displays an energy cable's stored energy and per-side connection settings. */
 public class CablePage extends InteractiveCustomUIPage<SideToggleEvent> {
     private static final String NO_LINK_LABEL = "No link";
     private static final long ENERGY_UPDATE_INTERVAL_MS = 250L;
@@ -49,10 +50,12 @@ public class CablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         this.energyType = energyType;
     }
 
+    /** Exposes the cable reference used by the player UI update system. */
     public Ref<ChunkStore> getBlockRef() {
         return blockRef;
     }
 
+    /** Loads the cable layout and binds all six side controls. */
     @Override
     public void build(
             Ref<EntityStore> playerRef,
@@ -63,6 +66,7 @@ public class CablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         bindSideButtons(uiEventBuilder);
     }
 
+    /** Cycles a selected cable side's mode and writes the updated component to the store. */
     @Override
     public void handleDataEvent(Ref<EntityStore> playerRef, Store<EntityStore> store, SideToggleEvent data) {
         if (data == null || data.getAction() == null) {
@@ -94,6 +98,7 @@ public class CablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Refreshes changed energy and side information while throttling energy updates. */
     public void update(EnergyNodeComponent node) {
         if (node == null) {
             return;
@@ -112,6 +117,7 @@ public class CablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         boolean changed = false;
         long now = System.currentTimeMillis();
 
+        // Keep the last displayed energy until the minimum refresh interval has elapsed.
         int energy = node.getEnergy();
         int capacity = node.getCapacity();
         if (energy != lastEnergy || capacity != lastCapacity) {
@@ -131,6 +137,7 @@ public class CablePage extends InteractiveCustomUIPage<SideToggleEvent> {
             changed = true;
         }
 
+        // Side labels and neighboring icons need updating only when their inputs change.
         int inputMask = node.getInputMask();
         int outputMask = node.getOutputMask();
         int connectedMask = node.getConnectedMask();
@@ -152,6 +159,7 @@ public class CablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Associates each side button with a toggle event containing that side's name. */
     private void bindSideButtons(UIEventBuilder uiEventBuilder) {
         for (EnergySide side : EnergySide.VALUES) {
             EventData data = EventData.of("Action", "Toggle").append("Side", side.name());
@@ -159,6 +167,7 @@ public class CablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Writes side modes, connection labels and neighboring block icons to the UI. */
     private void updateSideButtons(
             UICommandBuilder update,
             EnergyNodeComponent node,
@@ -176,14 +185,17 @@ public class CablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         }
     }
 
+    /** Builds the layout selector for a side button. */
     private String sideId(EnergySide side) {
         return "#Side" + side.label();
     }
 
+    /** Builds the layout selector for a side's neighboring-item icon. */
     private String sideIconId(EnergySide side) {
         return "#Side" + side.label() + "Icon";
     }
 
+    /** Displays input and output labels reversed from the component's stored side mode. */
     private String displayModeLabel(EnergySideMode mode) {
         if (mode == null) {
             return "";
@@ -199,6 +211,7 @@ public class CablePage extends InteractiveCustomUIPage<SideToggleEvent> {
     }
 
 
+    /** Builds a change-detection key from the six neighboring item IDs. */
     private String buildNeighborKey(World world, Vector3i blockPos) {
         if (world == null || blockPos == null) {
             return "";
@@ -213,6 +226,7 @@ public class CablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return key.toString();
     }
 
+    /** Finds a neighboring block's item icon without loading an absent chunk. */
     private String getNeighborItemId(World world, Vector3i blockPos, EnergySide side) {
         if (world == null || blockPos == null) {
             return "";
@@ -244,6 +258,7 @@ public class CablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return UiItemIds.safeItemId(item.getId());
     }
 
+    /** Finds the cable reference in loaded chunks and caches its world coordinates. */
     private Vector3i resolveBlockPosition(World world) {
         if (world == null) {
             return null;
@@ -280,6 +295,7 @@ public class CablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return null;
     }
 
+    /** Finds the chunk-local index associated with this page's block reference. */
     private int findBlockIndex(BlockComponentChunk blockComponents) {
         int targetIndex = blockRef.getIndex();
         if (targetIndex == Integer.MIN_VALUE) {
@@ -295,6 +311,7 @@ public class CablePage extends InteractiveCustomUIPage<SideToggleEvent> {
         return Integer.MIN_VALUE;
     }
 
+    /** Retrieves the world associated with the player's entity store. */
     private World getWorld(Store<EntityStore> store) {
         EntityStore entityStore = store.getExternalData();
         return entityStore == null ? null : entityStore.getWorld();

@@ -1,9 +1,11 @@
 package HyProTechTeam;
 
+/** Matches block IDs and extracts cable tiers from supported ID and state formats. */
 public final class BlockIdUtil {
     private BlockIdUtil() {
     }
 
+    /** Accepts the base ID itself or a state suffix separated by a non-alphanumeric character. */
     public static boolean isIdOrState(String blockId, String baseId) {
         if (blockId == null || baseId == null) {
             return false;
@@ -25,11 +27,13 @@ public final class BlockIdUtil {
         return !Character.isLetterOrDigit(separator);
     }
 
+    /** Parses _T, _S, or embedded Cable_T tier digits, returning -1 if none are found. */
     public static int parseCableTierFromIdOrState(String blockId, String baseId) {
         if (blockId == null || baseId == null) {
             return -1;
         }
         String normalized = TieredIdUtil.stripNamespace(blockId, baseId);
+        // Try the standard tier suffix first, then the alternate _S form.
         int tier = TieredIdUtil.parseTierSuffix(normalized, baseId);
         if (tier < 0) {
             tier = parseTierSuffix(normalized, baseId, "_S");
@@ -41,6 +45,7 @@ public final class BlockIdUtil {
             return -1;
         }
 
+        // Some cable state IDs embed the tier after a separate Cable_T marker.
         int stateIndex = normalized.indexOf("Cable_T");
         if (stateIndex < 0) {
             return -1;
@@ -61,6 +66,7 @@ public final class BlockIdUtil {
         return found ? value : -1;
     }
 
+    /** Parses digits after a base and marker, requiring a non-alphanumeric boundary. */
     private static int parseTierSuffix(String normalized, String baseId, String marker) {
         if (normalized == null || baseId == null || marker == null || marker.isEmpty()) {
             return -1;

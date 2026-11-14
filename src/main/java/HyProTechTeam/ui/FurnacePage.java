@@ -44,6 +44,7 @@ import it.unimi.dsi.fastutil.ints.Int2ReferenceMap;
 import java.util.Map;
 import java.util.UUID;
 
+/** Shows electric-furnace status and opens its processing bench. */
 public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEventData> {
     private static final String PAGE_LAYOUT = "HyProTech_Furnace.ui";
     private static final String ACTION_OPEN_STORAGE = "OpenStorage";
@@ -72,14 +73,17 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         this.energyType = energyType;
     }
 
+    /** Returns the furnace component reference. */
     public Ref<ChunkStore> getBlockRef() {
         return blockRef;
     }
 
+    /** Records the base position resolved by the interaction that opened this page. */
     public void setBlockPosition(Vector3i blockPosition) {
         this.blockPosition = blockPosition;
     }
 
+    /** Retrieves the energy node associated with the furnace reference. */
     public EnergyNodeComponent ensureNode(World world) {
         if (world == null) {
             return null;
@@ -88,6 +92,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         return chunkStore.getComponent(blockRef, energyType);
     }
 
+    /** Loads the furnace layout and binds the power and inventory controls. */
     @Override
     public void build(
             Ref<EntityStore> playerRef,
@@ -98,6 +103,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         bindButtons(uiEventBuilder);
     }
 
+    /** Dispatches power toggles and requests to open the processing bench. */
     @Override
     public void handleDataEvent(Ref<EntityStore> playerRef, Store<EntityStore> store, FurnaceEventData data) {
         if (data == null || data.getAction() == null) {
@@ -114,6 +120,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         }
     }
 
+    /** Sends changed energy, power, progress and input/output slot values to the page. */
     public void update(EnergyNodeComponent node) {
         if (node == null) {
             return;
@@ -148,6 +155,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
             changed = true;
         }
 
+        // Clamp the displayed percentage even when progress data falls outside its expected range.
         int progress = node.getProgress();
         int progressMax = node.getProgressMax();
         if (progress != lastProgress || progressMax != lastProgressMax) {
@@ -185,6 +193,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         }
     }
 
+    /** Associates the inventory and power buttons with their actions. */
     private void bindButtons(UIEventBuilder uiEventBuilder) {
         EventData openData = EventData.of("Action", ACTION_OPEN_STORAGE);
         uiEventBuilder.addEventBinding(CustomUIEventBindingType.Activating, "#OpenInventory", openData);
@@ -193,6 +202,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         uiEventBuilder.addEventBinding(CustomUIEventBindingType.Activating, "#FurnaceToggle", powerData);
     }
 
+    /** Flips the furnace's enabled flag and writes the changed component. */
     private void togglePower(Store<EntityStore> store) {
         World world = getWorld(store);
         if (world == null) {
@@ -210,6 +220,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         update(node);
     }
 
+    /** Opens the furnace bench window, restoring this page if required state is unavailable. */
     private boolean openProcessingBench(Ref<EntityStore> playerEntityRef, Store<EntityStore> store) {
         Player player = store.getComponent(playerEntityRef, Player.getComponentType());
         if (player == null) {
@@ -267,6 +278,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
             return true;
         }
 
+        // Fall back to an inventory base page with both windows if the bench page cannot open.
         ContainerWindow inventoryWindow = new ContainerWindow(player.getInventory().getStorage());
         if (pageManager.setPageWithWindows(
                 playerEntityRef,
@@ -281,6 +293,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         return false;
     }
 
+    /** Dismisses the custom page before switching to the server's bench window. */
     private void dismissCustomPage(
             Ref<EntityStore> playerEntityRef,
             Store<EntityStore> store,
@@ -294,6 +307,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         }
     }
 
+    /** Finds an already open window for any tier of the electric furnace. */
     private ProcessingBenchWindow getOpenFurnaceWindow(Player player) {
         if (player == null) {
             return null;
@@ -315,6 +329,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         return null;
     }
 
+    /** Reuses a player's processing window or registers a new one for the bench. */
     private ProcessingBenchWindow getOrCreateBenchWindow(
             Ref<EntityStore> playerEntityRef,
             Store<EntityStore> store,
@@ -359,11 +374,13 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
             return null;
         }
 
+        // Keep the bench's window list current and remove this window when it closes.
         benchState.updateFuelValues(windows);
         window.registerCloseEvent(event -> windows.remove(playerId, window));
         return window;
     }
 
+    /** Updates an input or output icon and quantity only when its displayed value changes. */
     private boolean updateSlot(UICommandBuilder update, boolean isInput, ItemStack stack) {
         String itemId = "";
         int quantity = 0;
@@ -403,6 +420,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         return changed;
     }
 
+    /** Returns slot zero for the compact preview, or null for an unavailable container. */
     private ItemStack getFirstStack(ItemContainer container) {
         if (container == null || container.getCapacity() <= 0) {
             return null;
@@ -410,6 +428,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         return container.getItemStack((short) 0);
     }
 
+    /** Finds the block reference in loaded chunks and caches its world position. */
     private Vector3i resolveBlockPosition(World world) {
         if (world == null) {
             return null;
@@ -446,6 +465,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         return null;
     }
 
+    /** Finds the chunk-local block index matching this page's reference. */
     private int findBlockIndex(BlockComponentChunk blockComponents) {
         int targetIndex = blockRef.getIndex();
         if (targetIndex == Integer.MIN_VALUE) {
@@ -461,6 +481,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         return Integer.MIN_VALUE;
     }
 
+    /** Retrieves the processing-bench component without loading an absent chunk. */
     private ProcessingBenchBlock getProcessingBenchState(World world, Vector3i pos) {
         if (world == null || pos == null) {
             return null;
@@ -479,6 +500,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
                 pos.getZ());
     }
 
+    /** Initializes changed bench configuration and verifies that its item container exists. */
     private boolean ensureBenchInitialized(ProcessingBenchBlock benchState, BlockType blockType) {
         if (benchState == null || blockType == null || blockType.getBench() == null) {
             return false;
@@ -492,6 +514,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         return benchState.getItemContainer() != null;
     }
 
+    /** Returns the bench input container when the bench exists. */
     private ItemContainer getBenchInputContainer(ProcessingBenchBlock benchState) {
         if (benchState == null) {
             return null;
@@ -499,6 +522,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         return benchState.getInputContainer();
     }
 
+    /** Returns the bench output container when the bench exists. */
     private ItemContainer getBenchOutputContainer(ProcessingBenchBlock benchState) {
         if (benchState == null) {
             return null;
@@ -506,11 +530,13 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
         return benchState.getOutputContainer();
     }
 
+    /** Retrieves the world associated with the player's entity store. */
     private World getWorld(Store<EntityStore> store) {
         EntityStore entityStore = store.getExternalData();
         return entityStore == null ? null : entityStore.getWorld();
     }
 
+    /** Serialized action supplied by the furnace page's UI controls. */
     public static final class FurnaceEventData {
         public static final BuilderCodec<FurnaceEventData> CODEC =
                 BuilderCodec.<FurnaceEventData>builder(FurnaceEventData.class, FurnaceEventData::new)
@@ -521,6 +547,7 @@ public class FurnacePage extends InteractiveCustomUIPage<FurnacePage.FurnaceEven
 
         private String action;
 
+        /** Returns the action decoded from the UI event. */
         public String getAction() {
             return action;
         }

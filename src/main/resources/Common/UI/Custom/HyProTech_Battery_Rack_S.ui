@@ -1,6 +1,7 @@
 $C = "Common.ui";
 @ReqSlotSize = 32;
 
+// Battery page; Java page logic fills the fields and handles actions.
 $C.@PageOverlay {
   $C.@DecoratedContainer {
     Anchor: (Width: 440, Height: 600);
@@ -20,6 +21,7 @@ $C.@PageOverlay {
         LayoutMode: Top;
         Padding: (Top: 8, Left: 8, Right: 8);
 
+        // Current tier or network status values appear at the top.
         Label #BatteryTier {
           Style: (
             FontSize: 16,
@@ -53,6 +55,7 @@ $C.@PageOverlay {
           Anchor: (Height: 8);
         }
 
+        // The following labels show upgrade tier and related statistics.
         Label #BatteryNextTier {
           Style: (
             FontSize: 14,
@@ -87,6 +90,7 @@ $C.@PageOverlay {
           LayoutMode: Top;
           Padding: (Top: 6);
 
+          // Each requirement row contains an item icon, name, and quantity.
           Group #UpgradeReqRow1 {
             LayoutMode: Left;
             Anchor: (Left: 0, Right: 0, Height: 34);
@@ -218,6 +222,7 @@ $C.@PageOverlay {
             }
           }
 
+          // Empty-state message used when there are no upgrade requirements.
           Label #UpgradeReqEmpty {
             Style: (
               FontSize: 13,
@@ -231,6 +236,7 @@ $C.@PageOverlay {
 
         Group { Anchor: (Height: 8); }
 
+        // The page binds this button to its upgrade action.
         $C.@TextButton #UpgradeButton {
           Anchor: (Left: 0, Right: 0, Height: 34);
           Text: "Upgrade";
@@ -238,6 +244,7 @@ $C.@PageOverlay {
 
         Group { Anchor: (Height: 10); }
 
+        // Battery face controls below select the side modes.
         Label #SideHeader {
           Style: (
             FontSize: 14,
