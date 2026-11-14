@@ -45,6 +45,7 @@ import java.util.WeakHashMap;
 
 /** Displays and upgrades an entire connected energy or item cable network. */
 public class CableUpgradePage extends InteractiveCustomUIPage<CableUpgradeEvent> {
+    /** Selects whether the page upgrades energy cables or item cables. */
     public enum CableType {
         ENERGY,
         ITEM

@@ -162,10 +162,12 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
             return;
         }
 
+        // Build a title specific to the targeted node type, including network aggregates for cables.
         String title;
         String subtitle;
         TargetKind targetKind;
         if (node != null && node.getNodeType() == EnergyNodeComponent.NodeType.SOLAR) {
+            // Solar output accounts for world sunlight and is zero when the sky is blocked.
             double sunlightFactor = 1.0;
             WorldTimeResource timeResource = store.getResource(WorldTimeResource.getResourceType());
             if (timeResource != null) {
@@ -181,6 +183,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
             subtitle = "Output: " + EnergyUnits.formatWatts(output);
             targetKind = TargetKind.SOLAR;
         } else if (node != null && node.getNodeType() == EnergyNodeComponent.NodeType.WIND) {
+            // Wind output uses the factor calculated for the turbine's position.
             double windFactor = WindUtil.getWindFactor(world, target.getX(), target.getY(), target.getZ());
             int output = (int) Math.round(node.getGeneration() * windFactor);
             int tier = WindUpgradeConfig.clampTier(node.getWindTier());
@@ -234,6 +237,7 @@ public class PlayerUiSystem extends EntityTickingSystem<EntityStore> {
             return;
         }
 
+        // Replace a title immediately when the target changes; otherwise refresh changed or aging text.
         boolean targetChanged = state.lastTargetX != effectiveTarget.getX()
                 || state.lastTargetY != effectiveTarget.getY()
                 || state.lastTargetZ != effectiveTarget.getZ()

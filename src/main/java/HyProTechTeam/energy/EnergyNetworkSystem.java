@@ -676,11 +676,13 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             int startZ,
             CableState cableState) {
         CableNetwork network = new CableNetwork();
+        // Index adjacent native and external storages by chunk and block to combine shared connections.
         Long2ObjectMap<Int2ObjectMap<NeighborNode>> neighborsByChunk = new Long2ObjectOpenHashMap<>();
         Long2ObjectMap<Int2ObjectMap<ExternalNeighbor>> externalsByChunk = new Long2ObjectOpenHashMap<>();
         Deque<CablePos> queue = new ArrayDeque<>();
         queue.add(new CablePos(startX, startY, startZ));
 
+        // Walk cable nodes breadth-first, without visiting the same cable twice in this world tick.
         while (!queue.isEmpty()) {
             CablePos pos = queue.removeFirst();
             long chunkIndex = ChunkUtil.indexChunkFromBlock(pos.x, pos.z);
@@ -732,6 +734,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                         continue;
                     }
 
+                    // A direction is usable only when both the cable and external storage support it.
                     boolean inputAllowed = allowsInput(node, side) && external.supportsExtraction();
                     boolean outputAllowed = allowsOutput(node, side) && external.supportsInsertion();
                     if (!inputAllowed && !outputAllowed) {
@@ -749,6 +752,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                         ext = new ExternalNeighbor(external, getExternalMaxTransfer(external));
                         chunkExternals.put(neighborIndex, ext);
                     }
+                    // Multiple cable faces connected to the same storage contribute transfer capacity.
                     if (inputAllowed) {
                         ext.inputTransfer += cableMaxTransfer;
                     }
@@ -788,6 +792,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
                         chunkNeighbors.put(neighborIndex, neighborNode);
                     }
 
+                    // Match each cable direction with the opposite direction on the native node.
                     boolean inputAllowed = allowsInput(node, side) && allowsOutput(neighbor, neighborSide);
                     boolean outputAllowed = allowsOutput(node, side) && allowsInput(neighbor, neighborSide);
                     if (!inputAllowed && !outputAllowed) {
@@ -805,6 +810,7 @@ public class EnergyNetworkSystem extends EntityTickingSystem<ChunkStore> {
             }
         }
 
+        // Flatten the deduplicated neighbor maps for the transfer phase.
         for (Int2ObjectMap<NeighborNode> chunkNeighbors : neighborsByChunk.values()) {
             network.neighbors.addAll(chunkNeighbors.values());
         }

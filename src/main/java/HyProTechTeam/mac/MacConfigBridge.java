@@ -1603,6 +1603,7 @@ public final class MacConfigBridge {
         }
         MacSettings base = defaults == null ? new MacSettings() : defaults;
 
+        // Fill missing battery fields and per-tier upgrade groups from native defaults.
         if (settings.battery == null) {
             settings.battery = new MacSettings.Battery();
         }
@@ -1614,6 +1615,7 @@ public final class MacConfigBridge {
                 settings.battery.upgradeRequirements,
                 baseBattery.upgradeRequirements);
 
+        // Merge solar tier names, storage, generation and upgrade requirements.
         if (settings.solar == null) {
             settings.solar = new MacSettings.Solar();
         }
@@ -1625,6 +1627,7 @@ public final class MacConfigBridge {
                 settings.solar.upgradeRequirements,
                 baseSolar.upgradeRequirements);
 
+        // Merge wind-generator settings using the same per-tier fallback rules.
         if (settings.wind == null) {
             settings.wind = new MacSettings.Wind();
         }
@@ -1636,6 +1639,7 @@ public final class MacConfigBridge {
                 settings.wind.upgradeRequirements,
                 baseWind.upgradeRequirements);
 
+        // Merge energy and item cable limits separately for each tier.
         if (settings.cable == null) {
             settings.cable = new MacSettings.Cable();
         }
@@ -1648,6 +1652,7 @@ public final class MacConfigBridge {
                 settings.cable.upgradeRequirements,
                 baseCable.upgradeRequirements);
 
+        // Preserve the default furnace multiplier when the MAC value is absent.
         if (settings.furnace == null) {
             settings.furnace = new MacSettings.Furnace();
         }
@@ -1656,6 +1661,7 @@ public final class MacConfigBridge {
             settings.furnace.consumptionMultiplier = baseFurnace.consumptionMultiplier;
         }
 
+        // Fill crusher processing values, tier requirements and bonus-drop settings.
         if (settings.oreCrusher == null) {
             settings.oreCrusher = new MacSettings.OreCrusher();
         }
@@ -1681,6 +1687,7 @@ public final class MacConfigBridge {
                 settings.oreCrusher.powderBonusDrop,
                 baseOreCrusher.powderBonusDrop);
 
+        // Fill alloy-smelter processing values, tier requirements and bonus drops.
         if (settings.alloySmelter == null) {
             settings.alloySmelter = new MacSettings.AlloySmelter();
         }
@@ -1705,6 +1712,7 @@ public final class MacConfigBridge {
                 settings.alloySmelter.bonusDrops,
                 baseAlloy.bonusDrops);
 
+        // Complete quarry area, speed, energy, backfill and upgrade settings.
         if (settings.quarry == null) {
             settings.quarry = new MacSettings.Quarry();
         }
@@ -2043,6 +2051,7 @@ public final class MacConfigBridge {
     private static MacSettings buildDefaults() {
         MacSettings defaults = new MacSettings();
 
+        // Capture active battery settings for each supported tier.
         defaults.battery.tierNames = buildStringList(
                 BatteryUpgradeConfig.MIN_TIER,
                 BatteryUpgradeConfig.MAX_TIER,
@@ -2063,6 +2072,7 @@ public final class MacConfigBridge {
                         BatteryUpgradeConfig.Requirement::getItemId,
                         BatteryUpgradeConfig.Requirement::getQuantity));
 
+        // Capture solar generation and upgrade settings for the editable defaults.
         defaults.solar.tierNames = buildStringList(
                 SolarUpgradeConfig.MIN_TIER,
                 SolarUpgradeConfig.MAX_TIER,
@@ -2083,6 +2093,7 @@ public final class MacConfigBridge {
                         SolarUpgradeConfig.Requirement::getItemId,
                         SolarUpgradeConfig.Requirement::getQuantity));
 
+        // Capture wind generation and upgrade settings for the editable defaults.
         defaults.wind.tierNames = buildStringList(
                 WindUpgradeConfig.MIN_TIER,
                 WindUpgradeConfig.MAX_TIER,
@@ -2103,6 +2114,7 @@ public final class MacConfigBridge {
                         WindUpgradeConfig.Requirement::getItemId,
                         WindUpgradeConfig.Requirement::getQuantity));
 
+        // Capture cable capacity, energy and item transfer limits, and costs.
         defaults.cable.tierNames = buildStringList(
                 CableUpgradeConfig.MIN_TIER,
                 CableUpgradeConfig.MAX_TIER,
@@ -2130,6 +2142,7 @@ public final class MacConfigBridge {
         Integer furnaceMultiplier = readFurnaceMultiplier();
         defaults.furnace.consumptionMultiplier = furnaceMultiplier == null ? 3 : furnaceMultiplier;
 
+        // Capture crusher processing, per-tier requirements and bonus-drop defaults.
         defaults.oreCrusher.tierNames = buildStringList(
                 OreCrusherConfig.MIN_TIER,
                 OreCrusherConfig.MAX_TIER,
@@ -2170,6 +2183,7 @@ public final class MacConfigBridge {
                 OreCrusherConfig.BonusDrop::getBaseChance,
                 OreCrusherConfig.BonusDrop::getPerTierChance);
 
+        // Capture alloy-smelter processing, per-tier requirements and bonus-drop defaults.
         defaults.alloySmelter.tierNames = buildStringList(
                 AlloySmelterConfig.MIN_TIER,
                 AlloySmelterConfig.MAX_TIER,
@@ -2210,6 +2224,7 @@ public final class MacConfigBridge {
         defaults.quarry.quantumSpeedSeconds = QuarryConfig.getMiningSecondsForTier(QuarryConfig.MAX_TIER);
         defaults.quarry.backfillPlaceDelayTicks = QuarryConfig.getBackfillPlaceDelayTicks();
         defaults.quarry.backfillPostDelayTicks = QuarryConfig.getBackfillPostDelayTicks();
+        // Capture the quarry's per-tier energy, area and upgrade values.
         defaults.quarry.tierNames = buildStringList(
                 QuarryConfig.MIN_TIER,
                 QuarryConfig.MAX_TIER,

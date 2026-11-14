@@ -158,6 +158,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
             return;
         }
 
+        // Target and side actions change which adjacent inventory and directions the cable uses.
         if ("ItemTarget".equalsIgnoreCase(action)) {
             node.setTarget(node.getTarget().next());
         } else if ("OpenNetwork".equalsIgnoreCase(action)) {
@@ -170,6 +171,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
             }
             node.cycleSideMode(side);
         } else if ("RenameStorage".equalsIgnoreCase(action)) {
+            // Keep the target position until the user saves or cancels the rename.
             EnergySide side = EnergySide.fromName(data.getSide());
             Vector3i pos = resolveBlockPosition(world);
             Vector3i storagePos = resolveStoragePosition(world, pos, side);
@@ -201,6 +203,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
             sendUpdate(update);
             return;
         } else if ("OpenFilter".equalsIgnoreCase(action)) {
+            // Only sides configured to put or take items can edit filters.
             EnergySide side = EnergySide.fromName(data.getSide());
             if (side == null) {
                 return;
@@ -231,6 +234,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
             closeFilterPanel();
             return;
         } else if ("PresetOres".equalsIgnoreCase(action)) {
+            // Apply the preset containing catalog items classified as ores.
             if (!filterPanelVisible || activeFilterSide == null) {
                 return;
             }
@@ -295,6 +299,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
             updateFilterUi(node);
             return;
         } else if ("ToggleFilterMode".equalsIgnoreCase(action)) {
+            // Save the new filter mode immediately for the item network.
             if (activeFilterSide == null) {
                 return;
             }
@@ -319,6 +324,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
             updateFilterUi(node);
             return;
         } else if ("FilterPrev".equalsIgnoreCase(action)) {
+            // Paging changes which part of the filtered catalog is visible.
             if (filterPageIndex > 0) {
                 filterPageIndex--;
                 updateFilterUi(node);

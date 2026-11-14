@@ -2998,18 +2998,21 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
                 EventData.of("Action", ACTION_RECIPE_QTY_ALL));
     }
 
+    /** Distinguishes machine input, machine output and player inventory grids. */
     private enum GridType {
         INPUT,
         OUTPUT,
         PLAYER
     }
 
+    /** Describes how a client-provided player slot index should be interpreted. */
     private enum PlayerIndexMode {
         COMBINED,
         STORAGE_ONLY,
         HOTBAR_ONLY
     }
 
+    /** Captures source grid, slot, item and timestamp for click or drag reconciliation. */
     private static final class DragSnapshot {
         private final GridType grid;
         private final int slotId;
@@ -3026,6 +3029,7 @@ public class OreCrusherPage extends InteractiveCustomUIPage<OreCrusherUiEvent> i
         }
     }
 
+    /** Identifies a concrete slot in an item container. */
     private static final class SlotRef {
         private final ItemContainer container;
         private final short slot;
