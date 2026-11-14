@@ -1624,6 +1624,7 @@ public class ItemCablePage extends InteractiveCustomUIPage<SideToggleEvent> {
 
     /** Applies one edit to storage configuration. */
     private interface ConfigUpdate {
+        /** Mutates the supplied storage configuration. */
         void apply(ItemStorageConfigComponent config);
     }
 }

@@ -5,8 +5,10 @@ import HyProTechTeam.energy.EnergySide;
 
 /** Describes how a machine is recognized, initialized, configured, and ticked. */
 public interface MachineDefinition {
+    /** Returns the identifier stored on machine components. */
     String id();
 
+    /** Reports whether this machine definition applies to a block ID. */
     boolean matchesBlockId(String blockId);
 
     /** Creates persistent machine state carrying this definition's ID. */

@@ -1022,11 +1022,13 @@ public final class MacConfigBridge {
 
     /** Constructs a machine-specific requirement from normalized MAC fields. */
     private interface RequirementFactory<R> {
+        /** Creates one requirement for the given item and quantity. */
         R create(String itemId, int quantity);
     }
 
     /** Constructs a machine-specific bonus-drop rule from normalized MAC fields. */
     private interface BonusDropFactory<D> {
+        /** Creates one bonus-drop rule with base and per-tier chance values. */
         D create(String itemId, int quantity, double baseChance, double perTierChance);
     }
 

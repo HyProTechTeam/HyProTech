@@ -1037,6 +1037,7 @@ public class ItemNetworkPriorityPage extends InteractiveCustomUIPage<ItemNetwork
 
     /** Applies a single edit to a storage configuration. */
     private interface ConfigUpdate {
+        /** Mutates the supplied storage configuration. */
         void apply(ItemStorageConfigComponent config);
     }
 }
