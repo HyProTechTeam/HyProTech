@@ -1,0 +1,32 @@
+{
+  "TimeSeconds": 2,
+  "Input": [
+    {
+      "ItemId": "Ingredient_Bar_Bronze",
+      "Quantity": 3
+    },
+    {
+      "ResourceTypeId": "Wood_Trunk",
+      "Quantity": 2
+    },
+    {
+      "ItemId": "Ingredient_Leather_Medium",
+      "Quantity": 2
+    }
+  ],
+  "PrimaryOutput": {
+    "ItemId": "Armor_Bronze_Ornate_Head",
+    "Quantity": 1
+  },
+  "BenchRequirement": [
+    {
+      "Id": "Armor_Bench",
+      "Type": "Crafting",
+      "Categories": [
+        "Armor_Head"
+      ],
+        "RequiredTierLevel": 3
+    }
+  ],
+  "KnowledgeRequired": false
+}

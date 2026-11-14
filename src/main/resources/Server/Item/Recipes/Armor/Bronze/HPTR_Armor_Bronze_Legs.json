@@ -1,0 +1,32 @@
+{
+  "TimeSeconds": 2,
+  "Input": [
+    {
+      "ItemId": "Ingredient_Bar_Bronze",
+      "Quantity": 4
+    },
+    {
+      "ResourceTypeId": "Wood_Trunk",
+      "Quantity": 2
+    },
+    {
+      "ItemId": "Ingredient_Leather_Light",
+      "Quantity": 3
+    }
+  ],
+  "PrimaryOutput": {
+    "ItemId": "Armor_Bronze_Legs",
+    "Quantity": 1
+  },
+  "BenchRequirement": [
+    {
+      "Id": "Armor_Bench",
+      "Type": "Crafting",
+      "Categories": [
+        "Armor_Legs"
+      ],
+        "RequiredTierLevel": 2
+    }
+  ],
+  "KnowledgeRequired": false
+}
